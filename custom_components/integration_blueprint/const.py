@@ -1,8 +1,10 @@
-"""Constants for integration_blueprint."""
+"""Constants for Hevy integration."""
 
 from logging import Logger, getLogger
 
 LOGGER: Logger = getLogger(__package__)
 
-DOMAIN = "integration_blueprint"
-ATTRIBUTION = "Data provided by http://jsonplaceholder.typicode.com/"
+DOMAIN = "hevy"
+ATTRIBUTION = "Data provided by Hevy"
+CONF_API_KEY = "api_key"
+BASE_URL = "https://api.hevyapp.com/v1"

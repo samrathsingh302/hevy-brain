@@ -2,20 +2,19 @@
     "config": {
         "step": {
             "user": {
-                "description": "If you need help with the configuration have a look here: https://github.com/ludeeus/integration_blueprint",
+                "description": "Enter your Hevy API key to connect to your account.",
                 "data": {
-                    "username": "Username",
-                    "password": "Password"
+                    "api_key": "API Key"
                 }
             }
         },
         "error": {
-            "auth": "Username/Password is wrong.",
-            "connection": "Unable to connect to the server.",
+            "auth": "API Key is invalid.",
+            "connection": "Unable to connect to the Hevy API.",
             "unknown": "Unknown error occurred."
         },
         "abort": {
-            "already_configured": "This entry is already configured."
+            "already_configured": "This API key is already configured."
         }
     }
 }

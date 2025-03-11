@@ -1,4 +1,4 @@
-"""Sample API Client."""
+"""Hevy API Client."""
 
 from __future__ import annotations
 
@@ -8,19 +8,21 @@ from typing import Any
 import aiohttp
 import async_timeout
 
+from .const import BASE_URL, CONF_API_KEY
 
-class IntegrationBlueprintApiClientError(Exception):
+
+class HevyApiClientError(Exception):
     """Exception to indicate a general API error."""
 
 
-class IntegrationBlueprintApiClientCommunicationError(
-    IntegrationBlueprintApiClientError,
+class HevyApiClientCommunicationError(
+    HevyApiClientError,
 ):
     """Exception to indicate a communication error."""
 
 
-class IntegrationBlueprintApiClientAuthenticationError(
-    IntegrationBlueprintApiClientError,
+class HevyApiClientAuthenticationError(
+    HevyApiClientError,
 ):
     """Exception to indicate an authentication error."""
 
@@ -28,41 +30,34 @@ class IntegrationBlueprintApiClientAuthenticationError(
 def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
     """Verify that the response is valid."""
     if response.status in (401, 403):
-        msg = "Invalid credentials"
-        raise IntegrationBlueprintApiClientAuthenticationError(
+        msg = "Invalid API key"
+        raise HevyApiClientAuthenticationError(
             msg,
         )
     response.raise_for_status()
 
 
-class IntegrationBlueprintApiClient:
-    """Sample API Client."""
+class HevyApiClient:
+    """Hevy API Client."""
 
     def __init__(
         self,
-        username: str,
-        password: str,
+        api_key: str,
         session: aiohttp.ClientSession,
     ) -> None:
-        """Sample API Client."""
-        self._username = username
-        self._password = password
+        """Initialize Hevy API Client."""
+        self._api_key = api_key
         self._session = session
+        self._headers = {
+            "accept": "application/json",
+            "api-key": api_key,
+        }
 
-    async def async_get_data(self) -> Any:
-        """Get data from the API."""
+    async def async_get_workout_count(self) -> dict[str, Any]:
+        """Get workout count from the API."""
         return await self._api_wrapper(
             method="get",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-        )
-
-    async def async_set_title(self, value: str) -> Any:
-        """Get data from the API."""
-        return await self._api_wrapper(
-            method="patch",
-            url="https://jsonplaceholder.typicode.com/posts/1",
-            data={"title": value},
-            headers={"Content-type": "application/json; charset=UTF-8"},
+            url=f"{BASE_URL}/workouts/count",
         )
 
     async def _api_wrapper(
@@ -70,7 +65,6 @@ class IntegrationBlueprintApiClient:
         method: str,
         url: str,
         data: dict | None = None,
-        headers: dict | None = None,
     ) -> Any:
         """Get information from the API."""
         try:
@@ -78,7 +72,7 @@ class IntegrationBlueprintApiClient:
                 response = await self._session.request(
                     method=method,
                     url=url,
-                    headers=headers,
+                    headers=self._headers,
                     json=data,
                 )
                 _verify_response_or_raise(response)
@@ -86,16 +80,16 @@ class IntegrationBlueprintApiClient:
 
         except TimeoutError as exception:
             msg = f"Timeout error fetching information - {exception}"
-            raise IntegrationBlueprintApiClientCommunicationError(
+            raise HevyApiClientCommunicationError(
                 msg,
             ) from exception
         except (aiohttp.ClientError, socket.gaierror) as exception:
             msg = f"Error fetching information - {exception}"
-            raise IntegrationBlueprintApiClientCommunicationError(
+            raise HevyApiClientCommunicationError(
                 msg,
             ) from exception
         except Exception as exception:  # pylint: disable=broad-except
             msg = f"Something really wrong happened! - {exception}"
-            raise IntegrationBlueprintApiClientError(
+            raise HevyApiClientError(
                 msg,
             ) from exception
