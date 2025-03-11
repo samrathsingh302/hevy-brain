@@ -1,3 +1,48 @@
+# Hevy Integration for Home Assistant
+
+This custom component integrates Hevy workout tracking with Home Assistant.
+
+## Features
+
+- Display your workout count from Hevy
+
+## Installation
+
+### HACS (Recommended)
+
+1. Make sure [HACS](https://hacs.xyz/) is installed in your Home Assistant instance.
+2. Add this repository to HACS as a custom repository.
+3. Search for "Hevy" in HACS and install it.
+4. Restart Home Assistant.
+
+### Manual Installation
+
+1. Download the latest release from GitHub.
+2. Extract and copy the `custom_components/hevy` folder to your Home Assistant's `custom_components` directory.
+3. Restart Home Assistant.
+
+## Configuration
+
+1. Go to Home Assistant's Configuration > Integrations.
+2. Click the "+ Add Integration" button and search for "Hevy".
+3. Follow the setup wizard to enter your Hevy API key.
+
+## Obtaining your API Key
+
+To use this integration, you'll need your Hevy API key. This is used in the API requests:
+
+Example API request:
+```
+curl -X 'GET' \
+  'https://api.hevyapp.com/v1/workouts/count' \
+  -H 'accept: application/json' \
+  -H 'api-key: YOUR_API_KEY_HERE'
+```
+
+## Credits
+
+This integration is based on the [integration_blueprint](https://github.com/ludeeus/integration_blueprint) template by @ludeeus.
+
 # Notice
 
 The component and platforms in this repository are not meant to be used by a

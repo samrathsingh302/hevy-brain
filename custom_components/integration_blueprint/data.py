@@ -1,4 +1,4 @@
-"""Custom types for integration_blueprint."""
+"""Custom types for hevy."""
 
 from __future__ import annotations
 
@@ -9,17 +9,17 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.loader import Integration
 
-    from .api import IntegrationBlueprintApiClient
-    from .coordinator import BlueprintDataUpdateCoordinator
+    from .api import HevyApiClient
+    from .coordinator import HevyDataUpdateCoordinator
 
 
-type IntegrationBlueprintConfigEntry = ConfigEntry[IntegrationBlueprintData]
+type HevyConfigEntry = ConfigEntry[HevyData]
 
 
 @dataclass
-class IntegrationBlueprintData:
-    """Data for the Blueprint integration."""
+class HevyData:
+    """Data for the Hevy integration."""
 
-    client: IntegrationBlueprintApiClient
-    coordinator: BlueprintDataUpdateCoordinator
+    client: HevyApiClient
+    coordinator: HevyDataUpdateCoordinator
     integration: Integration

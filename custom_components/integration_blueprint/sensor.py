@@ -1,37 +1,42 @@
-"""Sensor platform for integration_blueprint."""
+"""Sensor platform for hevy."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 
-from .entity import IntegrationBlueprintEntity
+from .entity import HevyEntity
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .coordinator import BlueprintDataUpdateCoordinator
-    from .data import IntegrationBlueprintConfigEntry
+    from .coordinator import HevyDataUpdateCoordinator
+    from .data import HevyConfigEntry
 
 ENTITY_DESCRIPTIONS = (
     SensorEntityDescription(
-        key="integration_blueprint",
-        name="Integration Sensor",
-        icon="mdi:format-quote-close",
+        key="workout_count",
+        name="Workout Count",
+        icon="mdi:weight-lifter",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 )
 
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001 Unused function argument: `hass`
-    entry: IntegrationBlueprintConfigEntry,
+    entry: HevyConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
     async_add_entities(
-        IntegrationBlueprintSensor(
+        HevySensor(
             coordinator=entry.runtime_data.coordinator,
             entity_description=entity_description,
         )
@@ -39,12 +44,12 @@ async def async_setup_entry(
     )
 
 
-class IntegrationBlueprintSensor(IntegrationBlueprintEntity, SensorEntity):
-    """integration_blueprint Sensor class."""
+class HevySensor(HevyEntity, SensorEntity):
+    """Hevy Sensor class."""
 
     def __init__(
         self,
-        coordinator: BlueprintDataUpdateCoordinator,
+        coordinator: HevyDataUpdateCoordinator,
         entity_description: SensorEntityDescription,
     ) -> None:
         """Initialize the sensor class."""
@@ -52,6 +57,6 @@ class IntegrationBlueprintSensor(IntegrationBlueprintEntity, SensorEntity):
         self.entity_description = entity_description
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> int | None:
         """Return the native value of the sensor."""
-        return self.coordinator.data.get("body")
+        return self.coordinator.data.get("workout_count")
