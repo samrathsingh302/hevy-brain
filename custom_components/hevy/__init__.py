@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.loader import async_get_loaded_integration
+from homeassistant.loader import async_get_integration
 
 from .api import HevyApiClient
-from .const import CONF_API_KEY, DOMAIN, LOGGER
+from .const import CONF_API_KEY, CONF_NAME, DEFAULT_SCAN_INTERVAL, DOMAIN, LOGGER
 from .coordinator import HevyDataUpdateCoordinator
 from .data import HevyData
 
@@ -34,16 +34,15 @@ async def async_setup_entry(
     """Set up this integration using UI."""
     coordinator = HevyDataUpdateCoordinator(
         hass=hass,
-        logger=LOGGER,
-        name=DOMAIN,
-        update_interval=timedelta(minutes=15),
+        name=entry.data[CONF_NAME],
+        update_interval=timedelta(minutes=DEFAULT_SCAN_INTERVAL),
     )
     entry.runtime_data = HevyData(
         client=HevyApiClient(
             api_key=entry.data[CONF_API_KEY],
             session=async_get_clientsession(hass),
         ),
-        integration=async_get_loaded_integration(hass, entry.domain),
+        integration=await async_get_integration(hass, entry.domain),
         coordinator=coordinator,
     )
 

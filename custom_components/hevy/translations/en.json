@@ -2,9 +2,10 @@
     "config": {
         "step": {
             "user": {
-                "description": "Enter your Hevy API key to connect to your account.",
+                "description": "Enter your Hevy API key and name to connect to your account.",
                 "data": {
-                    "api_key": "API Key"
+                    "api_key": "API Key",
+                    "name": "Name"
                 }
             }
         },

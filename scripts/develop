@@ -10,6 +10,9 @@ if [[ ! -d "${PWD}/config" ]]; then
     hass --config "${PWD}/config" --script ensure_config
 fi
 
+# Remove previous Hevy configuration to avoid conflicts
+find "${PWD}/config/.storage" -name "*hevy*" -type f -delete 2>/dev/null || true
+
 # Set the path to custom_components
 ## This let's us have the structure we want <root>/custom_components/integration_blueprint
 ## while at the same time have Home Assistant configuration inside <root>/config

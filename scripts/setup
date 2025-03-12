@@ -4,4 +4,12 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# Install Python packages
 python3 -m pip install --requirement requirements.txt
+
+# Make all scripts executable
+chmod +x scripts/*
+
+# Development environment message
+echo "Hevy integration development environment set up successfully!"
+echo "Run 'scripts/develop' to start Home Assistant with the integration."

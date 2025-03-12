@@ -8,7 +8,7 @@ from typing import Any
 import aiohttp
 import async_timeout
 
-from .const import BASE_URL, CONF_API_KEY
+from .const import BASE_URL, DEFAULT_WORKOUTS_COUNT
 
 
 class HevyApiClientError(Exception):
@@ -60,10 +60,21 @@ class HevyApiClient:
             url=f"{BASE_URL}/workouts/count",
         )
 
+    async def async_get_workouts(
+        self, page: int = 1, page_size: int = DEFAULT_WORKOUTS_COUNT
+    ) -> dict[str, Any]:
+        """Get workouts from the API."""
+        return await self._api_wrapper(
+            method="get",
+            url=f"{BASE_URL}/workouts",
+            params={"page": page, "pageSize": page_size},
+        )
+
     async def _api_wrapper(
         self,
         method: str,
         url: str,
+        params: dict | None = None,
         data: dict | None = None,
     ) -> Any:
         """Get information from the API."""
@@ -73,6 +84,7 @@ class HevyApiClient:
                     method=method,
                     url=url,
                     headers=self._headers,
+                    params=params,
                     json=data,
                 )
                 _verify_response_or_raise(response)
