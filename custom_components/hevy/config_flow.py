@@ -13,7 +13,7 @@ from .api import (
     HevyApiClientCommunicationError,
     HevyApiClientError,
 )
-from .const import CONF_API_KEY, DOMAIN, LOGGER
+from .const import CONF_API_KEY, CONF_NAME, DOMAIN, LOGGER
 
 
 class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -45,7 +45,7 @@ class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(user_input[CONF_API_KEY])
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title="Hevy",
+                    title=f"Hevy - {user_input[CONF_NAME]}",
                     data=user_input,
                 )
 
@@ -53,6 +53,14 @@ class HevyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
+                    vol.Required(
+                        CONF_NAME,
+                        default=(user_input or {}).get(CONF_NAME, vol.UNDEFINED),
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.TEXT,
+                        ),
+                    ),
                     vol.Required(
                         CONF_API_KEY,
                         default=(user_input or {}).get(CONF_API_KEY, vol.UNDEFINED),
