@@ -41,8 +41,8 @@ class HevyBinarySensorEntityDescription(
 
 WORKOUT_TODAY_DESCRIPTION: Final = HevyBinarySensorEntityDescription(
     key="workout_today",
-    name="Workout Today",
-    device_class=BinarySensorDeviceClass.MOTION,  # Changed from ACTIVITY to MOTION
+    translation_key="workout_today",
+    device_class=BinarySensorDeviceClass.MOTION,
     icon="mdi:weight-lifter",
     entity_category=EntityCategory.DIAGNOSTIC,
     is_on_fn=lambda data: any(
@@ -55,8 +55,8 @@ WORKOUT_TODAY_DESCRIPTION: Final = HevyBinarySensorEntityDescription(
 
 WORKOUT_WEEK_DESCRIPTION: Final = HevyBinarySensorEntityDescription(
     key="workout_this_week",
-    name="Workout This Week",
-    device_class=BinarySensorDeviceClass.MOTION,  # Changed from ACTIVITY to MOTION
+    translation_key="workout_this_week",
+    device_class=BinarySensorDeviceClass.MOTION,
     icon="mdi:calendar-week",
     entity_category=EntityCategory.DIAGNOSTIC,
     is_on_fn=lambda data: any(
@@ -106,11 +106,11 @@ class HevyBinarySensor(HevyEntity, BinarySensorEntity):
         super().__init__(coordinator)
         self.entity_description = entity_description
 
-        name = coordinator.name
-        self._attr_name = f"{name} {entity_description.name}"
-        self._attr_unique_id = (
-            f"{coordinator.config_entry.entry_id}_{name}_{entity_description.key}"
-        )
+        # Create a simpler unique_id
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+
+        # Enable entity naming with translations
+        self._attr_has_entity_name = True
 
     @property
     def is_on(self) -> bool:
