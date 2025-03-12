@@ -40,7 +40,7 @@ class HevySensorEntityDescription(
 
 WORKOUT_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
     key="workout_count",
-    name="Workout Count",
+    translation_key="workout_count",
     icon="mdi:weight-lifter",
     state_class=SensorStateClass.MEASUREMENT,
     value_fn=lambda data: data.get("workout_count"),
@@ -48,7 +48,7 @@ WORKOUT_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
 
 TODAY_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
     key="today_count",
-    name="Today's Workouts",
+    translation_key="today_count",
     icon="mdi:calendar-today",
     state_class=SensorStateClass.MEASUREMENT,
     value_fn=lambda data: data.get("today_count", 0),
@@ -56,7 +56,7 @@ TODAY_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
 
 WEEK_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
     key="week_count",
-    name="This Week's Workouts",
+    translation_key="week_count",
     icon="mdi:calendar-week",
     state_class=SensorStateClass.MEASUREMENT,
     value_fn=lambda data: data.get("week_count", 0),
@@ -64,7 +64,7 @@ WEEK_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
 
 MONTH_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
     key="month_count",
-    name="This Month's Workouts",
+    translation_key="month_count",
     icon="mdi:calendar-month",
     state_class=SensorStateClass.MEASUREMENT,
     value_fn=lambda data: data.get("month_count", 0),
@@ -72,7 +72,7 @@ MONTH_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
 
 YEAR_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
     key="year_count",
-    name="This Year's Workouts",
+    translation_key="year_count",
     icon="mdi:calendar",
     state_class=SensorStateClass.MEASUREMENT,
     value_fn=lambda data: data.get("year_count", 0),
@@ -139,11 +139,11 @@ class HevySensor(HevyEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = entity_description
 
-        name = coordinator.name
-        self._attr_name = f"{name} {entity_description.name}"
-        self._attr_unique_id = (
-            f"{coordinator.config_entry.entry_id}_{name}_{entity_description.key}"
-        )
+        # Create a simpler unique_id that doesn't include all these prefixes
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+
+        # Set the translation_key explicitly - this is what enables translation
+        self._attr_has_entity_name = True
 
     @property
     def native_value(self) -> Any:
@@ -161,9 +161,11 @@ class HevyWorkoutDateSensor(HevyWorkoutEntity, SensorEntity):
     ) -> None:
         """Initialize the workout date sensor."""
         super().__init__(coordinator, workout_id)
-        name = coordinator.name
-        self._attr_name = f"{name} Workout Date"
-        self._attr_unique_id = f"{name}_{workout_id}_date"
+
+        # Use translation keys and proper entity naming
+        self._attr_translation_key = "workout_date"
+        self._attr_has_entity_name = True
+        self._attr_unique_id = f"{workout_id}_date"
         self._attr_device_class = SensorDeviceClass.TIMESTAMP
 
     @property
@@ -189,10 +191,10 @@ class HevyExerciseSensor(HevyWorkoutEntity, SensorEntity):
         self._exercise_data = exercise_data
 
         exercise_title = exercise_data.get("title", "Unknown Exercise")
-        name = coordinator.name
 
-        self._attr_name = f"{name} {exercise_title}"
-        self._attr_unique_id = f"{name}_{workout_id}_{exercise_key}"
+        # Use a more streamlined unique_id and better naming
+        self._attr_unique_id = f"{workout_id}_{exercise_key}"
+        self._attr_name = exercise_title  # Use just the exercise title as name
 
         # Use weight as the primary value if available
         if exercise_data.get("max_weight_kg", 0) > 0:

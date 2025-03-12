@@ -2,15 +2,15 @@
     "config": {
         "step": {
             "user": {
-                "description": "Insira sua chave de API Hevy e nome para conectar à sua conta.",
+                "description": "Insira sua chave de API do Hevy e nome para conectar à sua conta.",
                 "data": {
-                    "api_key": "Chave da API",
+                    "api_key": "Chave API",
                     "name": "Nome"
                 }
             }
         },
         "error": {
-            "auth": "A chave da API é inválida.",
+            "auth": "Chave de API inválida.",
             "connection": "Não foi possível conectar à API do Hevy.",
             "unknown": "Ocorreu um erro desconhecido."
         },
@@ -19,16 +19,36 @@
         }
     },
     "entity": {
+        "sensor": {
+            "workout_count": {
+                "name": "Contagem de Treinos"
+            },
+            "today_count": {
+                "name": "Treinos de Hoje"
+            },
+            "week_count": {
+                "name": "Treinos desta Semana"
+            },
+            "month_count": {
+                "name": "Treinos deste Mês"
+            },
+            "year_count": {
+                "name": "Treinos deste Ano"
+            },
+            "workout_date": {
+                "name": "Data do Treino"
+            }
+        },
         "binary_sensor": {
             "workout_today": {
-                "name": "Treino Hoje",
+                "name": "Treinou Hoje",
                 "state": {
                     "on": "Sim",
                     "off": "Não"
                 }
             },
             "workout_this_week": {
-                "name": "Treino Esta Semana",
+                "name": "Treinou Esta Semana",
                 "state": {
                     "on": "Sim",
                     "off": "Não"

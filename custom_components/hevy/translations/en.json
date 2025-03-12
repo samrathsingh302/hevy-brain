@@ -19,6 +19,26 @@
         }
     },
     "entity": {
+        "sensor": {
+            "workout_count": {
+                "name": "Workout Count"
+            },
+            "today_count": {
+                "name": "Today's Workouts"
+            },
+            "week_count": {
+                "name": "This Week's Workouts"
+            },
+            "month_count": {
+                "name": "This Month's Workouts"
+            },
+            "year_count": {
+                "name": "This Year's Workouts"
+            },
+            "workout_date": {
+                "name": "Workout Date"
+            }
+        },
         "binary_sensor": {
             "workout_today": {
                 "name": "Workout Today",

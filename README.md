@@ -13,6 +13,7 @@ This custom component integrates Hevy workout tracking with Home Assistant, allo
 - Access workout details including duration, exercises, and volume
 - Create automations based on your workout data
 - View historical workout trends
+- Multi-language support (English, Portuguese)
 
 ## How It Works
 
