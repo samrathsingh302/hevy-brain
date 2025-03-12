@@ -59,12 +59,35 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
             # Process workouts into a more usable format
             processed_workouts = {}
 
+            # Track counts for different time periods
+            today_count = 0
+            week_count = 0
+            month_count = 0
+            year_count = 0
+
+            today = datetime.now().date()
+
             for workout in workouts_data.get("workouts", []):
                 workout_id = workout["id"]
                 workout_start_time = datetime.fromisoformat(
                     workout["start_time"].replace("Z", "+00:00")
                 )
                 workout_title = workout["title"]
+
+                # Calculate workout counts
+                workout_date = workout_start_time.date()
+                if workout_date == today:
+                    today_count += 1
+
+                days_diff = (today - workout_date).days
+                if days_diff < 7:  # Within last week
+                    week_count += 1
+
+                if workout_date.year == today.year and workout_date.month == today.month:
+                    month_count += 1
+
+                if workout_date.year == today.year:
+                    year_count += 1
 
                 exercises_data = {}
                 for exercise in workout["exercises"]:
@@ -102,6 +125,10 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
                 "workout_count": workout_count_data.get("workout_count", 0),
                 "workouts": processed_workouts,
                 "name": self.name,
+                "today_count": today_count,
+                "week_count": week_count,
+                "month_count": month_count,
+                "year_count": year_count,
             }
 
         except HevyApiClientAuthenticationError as exception:

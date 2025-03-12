@@ -46,6 +46,38 @@ WORKOUT_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
     value_fn=lambda data: data.get("workout_count"),
 )
 
+TODAY_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
+    key="today_count",
+    name="Today's Workouts",
+    icon="mdi:calendar-today",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda data: data.get("today_count", 0),
+)
+
+WEEK_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
+    key="week_count",
+    name="This Week's Workouts",
+    icon="mdi:calendar-week",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda data: data.get("week_count", 0),
+)
+
+MONTH_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
+    key="month_count",
+    name="This Month's Workouts",
+    icon="mdi:calendar-month",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda data: data.get("month_count", 0),
+)
+
+YEAR_COUNT_DESCRIPTION: Final = HevySensorEntityDescription(
+    key="year_count",
+    name="This Year's Workouts",
+    icon="mdi:calendar",
+    state_class=SensorStateClass.MEASUREMENT,
+    value_fn=lambda data: data.get("year_count", 0),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001 Unused function argument: `hass`
@@ -56,12 +88,19 @@ async def async_setup_entry(
     coordinator = entry.runtime_data.coordinator
     name = coordinator.name
 
-    # Add the primary workout count sensor
+    # Add the primary workout count sensors
     entities = [
         HevySensor(
             coordinator=coordinator,
-            entity_description=WORKOUT_COUNT_DESCRIPTION,
+            entity_description=description,
         )
+        for description in [
+            WORKOUT_COUNT_DESCRIPTION,
+            TODAY_COUNT_DESCRIPTION,
+            WEEK_COUNT_DESCRIPTION,
+            MONTH_COUNT_DESCRIPTION,
+            YEAR_COUNT_DESCRIPTION,
+        ]
     ]
 
     # Add entities for each workout's exercises

@@ -17,5 +17,23 @@
         "abort": {
             "already_configured": "Esta chave de API já está configurada."
         }
+    },
+    "entity": {
+        "binary_sensor": {
+            "workout_today": {
+                "name": "Treino Hoje",
+                "state": {
+                    "on": "Sim",
+                    "off": "Não"
+                }
+            },
+            "workout_this_week": {
+                "name": "Treino Esta Semana",
+                "state": {
+                    "on": "Sim",
+                    "off": "Não"
+                }
+            }
+        }
     }
 }

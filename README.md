@@ -1,10 +1,22 @@
 # Hevy Integration for Home Assistant
 
-This custom component integrates Hevy workout tracking with Home Assistant.
+![Hevy Logo](logo.png)
+
+
+This custom component integrates Hevy workout tracking with Home Assistant, allowing you to monitor your fitness data directly in your smart home dashboard.
 
 ## Features
 
-- Display your workout count from Hevy
+- Display your total workout count from Hevy
+- Track workout frequency and consistency
+- Monitor recent workouts and activities
+- Access workout details including duration, exercises, and volume
+- Create automations based on your workout data
+- View historical workout trends
+
+## How It Works
+
+The integration connects to the Hevy API using your personal API key and retrieves your workout data. This data is then made available as sensors in Home Assistant that you can use in dashboards, automations, or scripts. The integration updates periodically to ensure your data is current.
 
 ## Installation
 
@@ -26,12 +38,19 @@ This custom component integrates Hevy workout tracking with Home Assistant.
 1. Go to Home Assistant's Configuration > Integrations.
 2. Click the "+ Add Integration" button and search for "Hevy".
 3. Follow the setup wizard to enter your Hevy API key.
+4. Configure the update interval and select which data points you want to track.
+5. Once configured, the integration will create several sensors that you can add to your dashboards.
 
 ## Obtaining your API Key
 
-To use this integration, you'll need your Hevy API key. This is used in the API requests:
+To use this integration, you'll need your Hevy API key:
 
-Example API request:
+1. Log into your Hevy account on the web or mobile app
+2. Navigate to Account Settings > API Access
+3. Generate a new API key if you don't already have one
+4. Copy this key for use in the Home Assistant integration
+
+Example API request using your key:
 ```
 curl -X 'GET' \
   'https://api.hevyapp.com/v1/workouts/count' \
@@ -39,53 +58,45 @@ curl -X 'GET' \
   -H 'api-key: YOUR_API_KEY_HERE'
 ```
 
-## Credits
+## Available Entities
 
-This integration is based on the [integration_blueprint](https://github.com/ludeeus/integration_blueprint) template by @ludeeus.
+After setting up the integration, the following entities will be available:
 
-# Notice
+- `sensor.hevy_workout_count`: Total number of workouts recorded
+- `sensor.hevy_last_workout_date`: Date of your most recent workout
+- `sensor.hevy_weekly_workout_count`: Number of workouts in the current week
+- `sensor.hevy_monthly_workout_count`: Number of workouts in the current month
 
-The component and platforms in this repository are not meant to be used by a
-user, but as a "blueprint" that custom component developers can build
-upon, to make more awesome stuff.
+## Usage Examples
 
-HAVE FUN! 😎
+### Dashboard Card Example
+```yaml
+type: entities
+entities:
+  - sensor.hevy_workout_count
+  - sensor.hevy_last_workout_date
+  - sensor.hevy_weekly_workout_count
+title: My Fitness Tracking
+```
 
-## Why?
+### Automation Example
+```yaml
+alias: Workout Reminder
+description: Remind me if I haven't worked out in 3 days
+trigger:
+  - platform: template
+    value_template: >
+      {% set last = states('sensor.hevy_last_workout_date') | as_datetime %}
+      {% set days = ((now() - last).total_seconds() / 86400) | round(1) %}
+      {{ days > 3 }}
+action:
+  - service: notify.mobile_app
+    data:
+      message: It's been {{ days }} days since your last workout!
+```
 
-This is simple, by having custom_components look (README + structure) the same
-it is easier for developers to help each other and for users to start using them.
+## Troubleshooting
 
-If you are a developer and you want to add things to this "blueprint" that you think more
-developers will have use for, please open a PR to add it :)
-
-## What?
-
-This repository contains multiple files, here is a overview:
-
-File | Purpose | Documentation
--- | -- | --
-`.devcontainer.json` | Used for development/testing with Visual Studio Code. | [Documentation](https://code.visualstudio.com/docs/remote/containers)
-`.github/ISSUE_TEMPLATE/*.yml` | Templates for the issue tracker | [Documentation](https://help.github.com/en/github/building-a-strong-community/configuring-issue-templates-for-your-repository)
-`custom_components/integration_blueprint/*` | Integration files, this is where everything happens. | [Documentation](https://developers.home-assistant.io/docs/creating_component_index)
-`CONTRIBUTING.md` | Guidelines on how to contribute. | [Documentation](https://help.github.com/en/github/building-a-strong-community/setting-guidelines-for-repository-contributors)
-`LICENSE` | The license file for the project. | [Documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/licensing-a-repository)
-`README.md` | The file you are reading now, should contain info about the integration, installation and configuration instructions. | [Documentation](https://help.github.com/en/github/writing-on-github/basic-writing-and-formatting-syntax)
-`requirements.txt` | Python packages used for development/lint/testing this integration. | [Documentation](https://pip.pypa.io/en/stable/user_guide/#requirements-files)
-
-## How?
-
-1. Create a new repository in GitHub, using this repository as a template by clicking the "Use this template" button in the GitHub UI.
-1. Open your new repository in Visual Studio Code devcontainer (Preferably with the "`Dev Containers: Clone Repository in Named Container Volume...`" option).
-1. Rename all instances of the `integration_blueprint` to `custom_components/<your_integration_domain>` (e.g. `custom_components/awesome_integration`).
-1. Rename all instances of the `Integration Blueprint` to `<Your Integration Name>` (e.g. `Awesome Integration`).
-1. Run the `scripts/develop` to start HA and test out your new integration.
-
-## Next steps
-
-These are some next steps you may want to look into:
-- Add tests to your integration, [`pytest-homeassistant-custom-component`](https://github.com/MatthewFlamm/pytest-homeassistant-custom-component) can help you get started.
-- Add brand images (logo/icon) to https://github.com/home-assistant/brands.
-- Create your first release.
-- Share your integration on the [Home Assistant Forum](https://community.home-assistant.io/).
-- Submit your integration to [HACS](https://hacs.xyz/docs/publish/start).
+- **No data appearing**: Verify your API key is correct and that you have workouts in your Hevy account
+- **Integration offline**: Check your internet connection and ensure Hevy's API is accessible
+- **Update delays**: The data refreshes according to your configured interval; you can trigger a manual refresh from the integration page
