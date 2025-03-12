@@ -63,10 +63,25 @@ curl -X 'GET' \
 
 After setting up the integration, the following entities will be available:
 
+### Sensor Entities
 - `sensor.hevy_workout_count`: Total number of workouts recorded
-- `sensor.hevy_last_workout_date`: Date of your most recent workout
-- `sensor.hevy_weekly_workout_count`: Number of workouts in the current week
-- `sensor.hevy_monthly_workout_count`: Number of workouts in the current month
+- `sensor.hevy_today_count`: Number of workouts completed today
+- `sensor.hevy_week_count`: Number of workouts completed this week
+- `sensor.hevy_month_count`: Number of workouts completed this month
+- `sensor.hevy_year_count`: Number of workouts completed this year
+
+### Binary Sensor Entities
+- `binary_sensor.hevy_workout_today`: Indicates if a workout was completed today (on/off)
+- `binary_sensor.hevy_workout_this_week`: Indicates if any workouts were completed in the last 7 days (on/off)
+
+### Workout-Specific Entities
+For each workout in your history, the following entities are created:
+- `sensor.hevy_workout_date`: Timestamp when the workout was performed
+- Exercise-specific sensors showing the maximum weight used for each exercise (e.g., `sensor.bench_press`)
+
+Each exercise sensor includes additional attributes:
+- `sets`: Number of sets performed
+- `total_reps`: Total repetitions across all sets
 
 ## Usage Examples
 
