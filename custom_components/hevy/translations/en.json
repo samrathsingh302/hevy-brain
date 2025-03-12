@@ -10,12 +10,30 @@
             }
         },
         "error": {
-            "auth": "API Key is invalid.",
-            "connection": "Unable to connect to the Hevy API.",
-            "unknown": "Unknown error occurred."
+            "auth": "API key is invalid.",
+            "connection": "Could not connect to the Hevy API.",
+            "unknown": "An unknown error occurred."
         },
         "abort": {
             "already_configured": "This API key is already configured."
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "workout_today": {
+                "name": "Workout Today",
+                "state": {
+                    "on": "Yes",
+                    "off": "No"
+                }
+            },
+            "workout_this_week": {
+                "name": "Workout This Week",
+                "state": {
+                    "on": "Yes",
+                    "off": "No"
+                }
+            }
         }
     }
 }
