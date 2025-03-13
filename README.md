@@ -1,11 +1,9 @@
 # Hevy Integration for Home Assistant
 
-![Hevy Logo](logo.png)
+[![Lint](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/lint.yml/badge.svg)](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/lint.yml)
+[![Validate](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/validate.yml/badge.svg)](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/validate.yml)
 
-[![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
-[![hacs][hacs-shield]][hacs]
+![Hevy Logo](logo.png)
 
 This custom component integrates Hevy workout tracking with Home Assistant, allowing you to monitor your fitness data directly in your smart home dashboard.
 
