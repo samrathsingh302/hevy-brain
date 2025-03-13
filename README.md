@@ -121,6 +121,19 @@ action:
 - **Integration offline**: Check your internet connection and ensure Hevy's API is accessible
 - **Update delays**: The data refreshes according to your configured interval; you can trigger a manual refresh from the integration page
 
+## Contributing
+
+If you'd like to contribute to the integration, please check out our [contribution guidelines](CONTRIBUTING.md).
+
+**Important for repository maintainers:** HACS validation requires specific repository topics to be set. If you fork or create your own version, make sure to set these GitHub repository topics:
+- `homeassistant`
+- `home-assistant`
+- `hacs-integration`
+- `hevy`
+- `fitness`
+- `workout`
+- `tracking`
+
 ***
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/hudsonbrendon/HA-hevy.svg

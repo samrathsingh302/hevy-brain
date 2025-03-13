@@ -29,11 +29,8 @@ jobs:
         - name: "Checkout the repository"
           uses: "actions/checkout@v4.2.2"
 
-        - name: "Set repository topics"
-          uses: "gickis/add-github-labels@v1.0.0"
-          with:
-            repo-token: ${{ secrets.GITHUB_TOKEN }}
-            topics: hevy,workout,fitness,tracking,homeassistant,hacs-integration
+        # Note: GitHub topics must be set manually in the repository settings
+        # Repository topics should include: homeassistant, home-assistant, hacs-integration, hevy, fitness, workout, tracking
 
         - name: "Run HACS validation"
           uses: "hacs/action@main"

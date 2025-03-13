@@ -19,6 +19,23 @@ Pull requests are the best way to propose changes to the codebase.
 4. Test you contribution.
 5. Issue that pull request!
 
+## HACS Validation
+
+This integration is designed to be compatible with HACS (Home Assistant Community Store).
+When contributing, make sure your changes pass HACS validation:
+
+1. Run `scripts/hacs_validate` to test locally
+2. Ensure the repository has the required GitHub topics set:
+   - `homeassistant`
+   - `home-assistant`
+   - `hacs-integration`
+   - `hevy`
+   - `fitness`
+   - `workout`
+   - `tracking`
+
+These topics are essential for HACS to properly categorize and validate the integration.
+
 ## Any contributions you make will be under the MIT Software License
 
 In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
