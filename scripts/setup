@@ -13,3 +13,4 @@ chmod +x scripts/*
 # Development environment message
 echo "Hevy integration development environment set up successfully!"
 echo "Run 'scripts/develop' to start Home Assistant with the integration."
+echo "Run 'scripts/hacs_validate' to validate the integration with HACS."

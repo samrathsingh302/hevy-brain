@@ -2,6 +2,10 @@
 
 ![Hevy Logo](logo.png)
 
+[![GitHub Release][releases-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+[![License][license-shield]](LICENSE)
+[![hacs][hacs-shield]][hacs]
 
 This custom component integrates Hevy workout tracking with Home Assistant, allowing you to monitor your fitness data directly in your smart home dashboard.
 
@@ -24,8 +28,8 @@ The integration connects to the Hevy API using your personal API key and retriev
 ### HACS (Recommended)
 
 1. Make sure [HACS](https://hacs.xyz/) is installed in your Home Assistant instance.
-2. Add this repository to HACS as a custom repository.
-3. Search for "Hevy" in HACS and install it.
+2. Search for "Hevy" in the HACS Store integration tab.
+3. Click Install on the Hevy integration.
 4. Restart Home Assistant.
 
 ### Manual Installation
@@ -116,3 +120,13 @@ action:
 - **No data appearing**: Verify your API key is correct and that you have workouts in your Hevy account
 - **Integration offline**: Check your internet connection and ensure Hevy's API is accessible
 - **Update delays**: The data refreshes according to your configured interval; you can trigger a manual refresh from the integration page
+
+***
+
+[commits-shield]: https://img.shields.io/github/commit-activity/y/hudsonbrendon/HA-hevy.svg
+[commits]: https://github.com/hudsonbrendon/HA-hevy/commits/main
+[hacs]: https://github.com/hacs/integration
+[hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg
+[license-shield]: https://img.shields.io/github/license/hudsonbrendon/HA-hevy.svg
+[releases-shield]: https://img.shields.io/github/release/hudsonbrendon/HA-hevy.svg
+[releases]: https://github.com/hudsonbrendon/HA-hevy/releases

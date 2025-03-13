@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+echo "Running HACS validation..."
+docker run --rm \
+  -v $(pwd):/github/workspace \
+  ghcr.io/hacs/action:main \
+  --category integration
+
+echo "HACS validation complete!"
