@@ -140,7 +140,9 @@ class HevySensor(HevyEntity, SensorEntity):
         self.entity_description = entity_description
 
         # Create a simpler unique_id that doesn't include all these prefixes
-        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+        )
 
         # Set the translation_key explicitly - this is what enables translation
         self._attr_has_entity_name = True

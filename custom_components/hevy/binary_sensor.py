@@ -107,7 +107,9 @@ class HevyBinarySensor(HevyEntity, BinarySensorEntity):
         self.entity_description = entity_description
 
         # Create a simpler unique_id
-        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+        )
 
         # Enable entity naming with translations
         self._attr_has_entity_name = True

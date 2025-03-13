@@ -83,7 +83,10 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
                 if days_diff < 7:  # Within last week
                     week_count += 1
 
-                if workout_date.year == today.year and workout_date.month == today.month:
+                if (
+                    workout_date.year == today.year
+                    and workout_date.month == today.month
+                ):
                     month_count += 1
 
                 if workout_date.year == today.year:
