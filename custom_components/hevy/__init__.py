@@ -1,9 +1,3 @@
-"""
-Custom integration to integrate Hevy with Home Assistant.
-"""
-
-from __future__ import annotations
-
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -12,7 +6,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_integration
 
 from .api import HevyApiClient
-from .const import CONF_API_KEY, CONF_NAME, DEFAULT_SCAN_INTERVAL, DOMAIN, LOGGER
+from .const import CONF_API_KEY, CONF_NAME, DEFAULT_SCAN_INTERVAL
 from .coordinator import HevyDataUpdateCoordinator
 from .data import HevyData
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Final
 
 from homeassistant.components.sensor import (
@@ -17,6 +16,8 @@ from homeassistant.const import UnitOfMass
 from .entity import HevyEntity, HevyWorkoutEntity
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -86,7 +87,6 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     coordinator = entry.runtime_data.coordinator
-    name = coordinator.name
 
     # Add the primary workout count sensors
     entities = [

@@ -74,13 +74,12 @@ class HevyDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 workout_title = workout["title"]
 
-                # Calculate workout counts
                 workout_date = workout_start_time.date()
                 if workout_date == today:
                     today_count += 1
 
                 days_diff = (today - workout_date).days
-                if days_diff < 7:  # Within last week
+                if days_diff < 7:
                     week_count += 1
 
                 if (

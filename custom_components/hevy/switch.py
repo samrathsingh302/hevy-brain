@@ -13,9 +13,8 @@ if TYPE_CHECKING:
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001 Unused function argument: `hass`
-    entry: HevyConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    entry: HevyConfigEntry,  # noqa: ARG001 Unused function argument: `entry`
+    async_add_entities: AddEntitiesCallback,  # noqa: ARG001 Unused function argument: `async_add_entities`
 ) -> None:
     """Set up the switch platform."""
-    # Not creating any switch entities as the HevyApiClient doesn't have the required methods
     return

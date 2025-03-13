@@ -46,10 +46,10 @@ WORKOUT_TODAY_DESCRIPTION: Final = HevyBinarySensorEntityDescription(
     icon="mdi:weight-lifter",
     entity_category=EntityCategory.DIAGNOSTIC,
     is_on_fn=lambda data: any(
-        (
+        [
             workout.get("start_time", datetime.min).date() == datetime.now().date()
             for workout in data.get("workouts", {}).values()
-        )
+        ]
     ),
 )
 
