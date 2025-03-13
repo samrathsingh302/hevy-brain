@@ -29,9 +29,6 @@ jobs:
         - name: "Checkout the repository"
           uses: "actions/checkout@v4.2.2"
 
-        # Note: GitHub topics must be set manually in the repository settings
-        # Repository topics should include: homeassistant, home-assistant, hacs-integration, hevy, fitness, workout, tracking
-
         - name: "Run HACS validation"
           uses: "hacs/action@main"
           with:
