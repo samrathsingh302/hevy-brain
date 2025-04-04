@@ -1,7 +1,9 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_integration
 
@@ -11,9 +13,10 @@ from .coordinator import HevyDataUpdateCoordinator
 from .data import HevyData
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
-
     from .data import HevyConfigEntry
+
+# Create an alias for ConfigEntry to use in function signatures
+HevyConfigEntry = ConfigEntry
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
