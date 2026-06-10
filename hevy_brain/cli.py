@@ -79,39 +79,52 @@ async def _cmd_full(config: Config) -> int:
     return _cmd_vault(config)
 
 
-def _cmd_coach(config: Config) -> int:
+def _cmd_coach(config: Config, *, use_api: bool) -> int:
     from .analytics.prs import exercise_histories
     from .coach import advisor
     from .models import build_records
 
-    if not config.anthropic_api_key:
-        print("ANTHROPIC_API_KEY is not set.", file=sys.stderr)
-        return 2
     store = CacheStore(config.data_dir)
     if not store.workouts:
         print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
         return 1
     today = datetime.now(tz=UTC).date()
+    records = build_records(store.workouts)
+    histories = exercise_histories(records)
+    context = advisor.build_context(
+        records,
+        histories,
+        today,
+        templates=store.exercise_templates,
+        overrides=config.muscle_overrides,
+        plateau_weeks=config.plateau_weeks,
+    )
+    writer = VaultWriter(config.vault_root)
+    config.vault_root.mkdir(parents=True, exist_ok=True)
+
+    if not use_api:
+        # Default: free briefing analyzed via your Claude subscription.
+        note_path = advisor.briefing_note_path(today)
+        writer.write(note_path, advisor.render_briefing(context, today))
+        print(f"Free coaching briefing written: {config.vault_root / note_path}")
+        print(
+            "Open it in Claude Code (or paste into claude.ai) and ask Claude to "
+            "act as the coach and analyze it - no API key, no per-call cost."
+        )
+        return 0
+
+    # Opt-in metered path (requires a billed ANTHROPIC_API_KEY).
+    if not config.anthropic_api_key:
+        print("ANTHROPIC_API_KEY is not set (required for --api).", file=sys.stderr)
+        return 2
     try:
         advisor.check_budget(store.meta, today, config.coach_max_calls_per_day)
-        records = build_records(store.workouts)
-        histories = exercise_histories(records)
-        context = advisor.build_context(
-            records,
-            histories,
-            today,
-            templates=store.exercise_templates,
-            overrides=config.muscle_overrides,
-            plateau_weeks=config.plateau_weeks,
-        )
         report = advisor.generate_report(context, model=config.coach_model)
         advisor.record_call(store.meta)
         store.save()
     except advisor.CoachError as err:
         print(f"Coach failed: {err}", file=sys.stderr)
         return 1
-    writer = VaultWriter(config.vault_root)
-    config.vault_root.mkdir(parents=True, exist_ok=True)
     note_path = advisor.coach_note_path(today)
     writer.write(note_path, advisor.render_coach_note(report, today))
     print(f"Coach note written: {config.vault_root / note_path}")
@@ -202,7 +215,15 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("sync", help="Fetch new/changed data from Hevy into the cache")
     sub.add_parser("vault", help="Regenerate all Obsidian notes from the cache")
     sub.add_parser("full", help="sync + vault in one go")
-    sub.add_parser("coach", help="Generate AI coach recommendations note")
+    coach = sub.add_parser(
+        "coach",
+        help="Write a free coaching briefing (analyze it with your Claude sub)",
+    )
+    coach.add_argument(
+        "--api",
+        action="store_true",
+        help="Use the metered Anthropic API instead (needs ANTHROPIC_API_KEY)",
+    )
     sub.add_parser("status", help="Show cache and config status")
 
     push = sub.add_parser("push", help="Write data TO Hevy (always manual)")
@@ -244,7 +265,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "full":
         return asyncio.run(_cmd_full(config))
     if args.command == "coach":
-        return _cmd_coach(config)
+        return _cmd_coach(config, use_api=args.api)
     if args.command == "status":
         return _cmd_status(config)
     if args.command == "push":

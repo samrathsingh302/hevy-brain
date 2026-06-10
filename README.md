@@ -25,10 +25,12 @@ have to edit the Hevy app by hand.
   Dataview/Bases and wikilinks between everything.
 - **Analytics** — volume per muscle group, push/pull balance, streaks,
   plateau detection (stalled est. 1RM), and week-over-week overload tracking.
-- **AI coach** — sends your computed stats to Claude (`claude-opus-4-8`,
-  structured outputs) and writes a recommendations note. Every claim must
-  cite your actual numbers; exercise swaps are restricted to exercises that
-  exist in Hevy so they can be pushed straight back.
+- **AI coach (free by default)** — `hevy-brain coach` writes a self-contained
+  *briefing* note (your computed stats + the coaching instructions). Open it
+  in Claude Code or claude.ai under your existing subscription — **no API key,
+  no per-call cost.** An opt-in `--api` flag uses the metered Anthropic API
+  for full automation instead. Either way, every claim cites your actual
+  numbers and exercise swaps are restricted to exercises that exist in Hevy.
 - **Write-back** — log body measurements and create workouts in Hevy from the
   CLI / planned-workout notes. Writes are **always manual**; only reads are
   automated.
@@ -55,12 +57,12 @@ Set your API keys (user-level env vars so scheduled tasks see them):
 
 Edit [config.toml](config.toml). By default notes are generated into
 `vault_staging/` inside the repo (a safe staging area). When you're happy,
-point it at your real vault:
+point it at your real vault (the folder containing `.obsidian`):
 
 ```toml
 [vault]
-path = 'C:\Users\you\Documents\MyVault'
-subfolder = "Fitness/Hevy"   # hevy-brain only ever touches this folder
+path = 'C:\Users\samra\projects\second-brain\vault'
+subfolder = "Hevy"   # a separate folder; hevy-brain never touches anything else
 ```
 
 ## Use
@@ -69,7 +71,8 @@ subfolder = "Fitness/Hevy"   # hevy-brain only ever touches this folder
 hevy-brain sync     # fetch new/changed Hevy data into the local cache
 hevy-brain vault    # regenerate all Obsidian notes from the cache
 hevy-brain full     # sync + vault
-hevy-brain coach    # AI coach note (needs ANTHROPIC_API_KEY, budget-capped)
+hevy-brain coach    # FREE briefing note - analyze it with your Claude sub
+hevy-brain coach --api   # opt-in: metered Anthropic API (needs ANTHROPIC_API_KEY)
 hevy-brain status   # cache overview
 hevy-brain push measurement --weight-kg 78.4 [--fat-percent 17] [--date 2026-06-10]
 hevy-brain push workout path\to\plan.md
@@ -78,7 +81,7 @@ hevy-brain push workout path\to\plan.md
 ### Vault layout
 
 ```
-Fitness/Hevy/
+Hevy/
 ├── Dashboard.md                     # totals, streaks, muscle balance, recent PRs
 ├── Workouts/2026-06-08 Push Day.md  # per-workout: tables, PR callouts, links
 ├── Exercises/Bench Press (Barbell).md  # per-exercise: PR history, est. 1RM
