@@ -1,0 +1,258 @@
+"""Command-line interface for hevy-brain."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+import sys
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from pathlib import Path
+
+import aiohttp
+
+from .api.client import HevyApiClient
+from .config import Config, load_config
+from .store.cache import CacheStore
+from .sync import sync
+from .vault.build import build_vault
+from .vault.writer import VaultWriter
+
+LOGGER = logging.getLogger("hevy_brain")
+
+
+def _require_api_key(config: Config) -> str:
+    key = config.hevy_api_key
+    if not key:
+        print(
+            "HEVY_API_KEY is not set. Get a key at "
+            "https://hevy.com/settings?developer and set the env var.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return key
+
+
+async def _with_client(
+    config: Config, runner: Callable[[HevyApiClient], Awaitable[int]]
+) -> int:
+    key = _require_api_key(config)
+    async with aiohttp.ClientSession() as session:
+        client = HevyApiClient(api_key=key, session=session)
+        return await runner(client)
+
+
+async def _cmd_sync(config: Config) -> int:
+    async def run(client: HevyApiClient) -> int:
+        store = CacheStore(config.data_dir)
+        result = await sync(client, store, page_size=config.page_size)
+        mode = "full backfill" if result.full_backfill else "incremental"
+        print(
+            f"Sync ({mode}): +{result.added} added, ~{result.updated} updated, "
+            f"-{result.deleted} deleted · {len(store.workouts)} workouts cached "
+            f"· {result.measurements} measurements"
+        )
+        for error in result.errors:
+            print(f"  warning: {error}", file=sys.stderr)
+        return 0
+
+    return await _with_client(config, run)
+
+
+def _cmd_vault(config: Config) -> int:
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    changed = build_vault(config, store)
+    total = sum(changed.values())
+    detail = ", ".join(f"{k}: {v}" for k, v in changed.items())
+    print(f"Vault updated at {config.vault_root} ({total} changes - {detail})")
+    return 0
+
+
+async def _cmd_full(config: Config) -> int:
+    code = await _cmd_sync(config)
+    if code != 0:
+        return code
+    return _cmd_vault(config)
+
+
+def _cmd_coach(config: Config) -> int:
+    from .analytics.prs import exercise_histories
+    from .coach import advisor
+    from .models import build_records
+
+    if not config.anthropic_api_key:
+        print("ANTHROPIC_API_KEY is not set.", file=sys.stderr)
+        return 2
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    today = datetime.now(tz=UTC).date()
+    try:
+        advisor.check_budget(store.meta, today, config.coach_max_calls_per_day)
+        records = build_records(store.workouts)
+        histories = exercise_histories(records)
+        context = advisor.build_context(
+            records,
+            histories,
+            today,
+            templates=store.exercise_templates,
+            overrides=config.muscle_overrides,
+            plateau_weeks=config.plateau_weeks,
+        )
+        report = advisor.generate_report(context, model=config.coach_model)
+        advisor.record_call(store.meta)
+        store.save()
+    except advisor.CoachError as err:
+        print(f"Coach failed: {err}", file=sys.stderr)
+        return 1
+    writer = VaultWriter(config.vault_root)
+    config.vault_root.mkdir(parents=True, exist_ok=True)
+    note_path = advisor.coach_note_path(today)
+    writer.write(note_path, advisor.render_coach_note(report, today))
+    print(f"Coach note written: {config.vault_root / note_path}")
+    print(f"\n{report.summary}")
+    for finding in report.findings:
+        print(f"- [{finding.category}] {finding.title}")
+    return 0
+
+
+async def _cmd_push_workout(config: Config, file: Path) -> int:
+    from .writeback.hevy_push import (
+        PlannedWorkoutError,
+        parse_planned_workout,
+        push_workout,
+    )
+
+    try:
+        body = parse_planned_workout(file)
+    except (PlannedWorkoutError, OSError) as err:
+        print(f"Cannot parse planned workout: {err}", file=sys.stderr)
+        return 1
+
+    workout = body["workout"]
+    sets = sum(len(e["sets"]) for e in workout["exercises"])
+    print(
+        f"Pushing workout '{workout['title']}' "
+        f"({len(workout['exercises'])} exercises, {sets} sets) to Hevy..."
+    )
+
+    async def run(client: HevyApiClient) -> int:
+        await push_workout(client, body)
+        print("Workout created in Hevy. Run 'hevy-brain full' to pull it back.")
+        return 0
+
+    return await _with_client(config, run)
+
+
+async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int:
+    from .writeback.hevy_push import MEASUREMENT_FIELDS, push_measurement
+
+    fields = {
+        name: getattr(args, name)
+        for name in MEASUREMENT_FIELDS
+        if getattr(args, name, None) is not None
+    }
+    if not fields:
+        print(
+            "Provide at least one measurement (e.g. --weight-kg 78.4).",
+            file=sys.stderr,
+        )
+        return 1
+
+    async def run(client: HevyApiClient) -> int:
+        date_str = await push_measurement(client, fields, args.date)
+        printable = ", ".join(f"{k}={v:g}" for k, v in fields.items())
+        print(f"Measurement logged for {date_str}: {printable}")
+        return 0
+
+    return await _with_client(config, run)
+
+
+def _cmd_status(config: Config) -> int:
+    store = CacheStore(config.data_dir)
+    meta = store.meta
+    print(f"Cache: {config.data_dir}")
+    print(f"  workouts: {len(store.workouts)} (archived: {len(store.archived)})")
+    print(f"  measurements: {len(store.measurements)}")
+    print(f"  exercise templates: {len(store.exercise_templates)}")
+    print(f"  last sync: {meta.get('last_sync', 'never')}")
+    print(f"  events cursor: {meta.get('events_cursor', 'none')}")
+    print(f"Vault: {config.vault_root}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser."""
+    parser = argparse.ArgumentParser(
+        prog="hevy-brain",
+        description=(
+            "Sync Hevy workouts into an Obsidian second brain, analyze "
+            "training patterns, and push changes back to Hevy."
+        ),
+    )
+    parser.add_argument("--config", type=Path, default=None, help="Path to config.toml")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("sync", help="Fetch new/changed data from Hevy into the cache")
+    sub.add_parser("vault", help="Regenerate all Obsidian notes from the cache")
+    sub.add_parser("full", help="sync + vault in one go")
+    sub.add_parser("coach", help="Generate AI coach recommendations note")
+    sub.add_parser("status", help="Show cache and config status")
+
+    push = sub.add_parser("push", help="Write data TO Hevy (always manual)")
+    push_sub = push.add_subparsers(dest="push_command", required=True)
+
+    push_workout = push_sub.add_parser(
+        "workout", help="Create a workout in Hevy from a planned-workout note"
+    )
+    push_workout.add_argument("file", type=Path, help="Planned-workout .md file")
+
+    push_measurement = push_sub.add_parser(
+        "measurement", help="Log a body measurement in Hevy"
+    )
+    push_measurement.add_argument(
+        "--date", default=None, help="YYYY-MM-DD (default today)"
+    )
+    from .writeback.hevy_push import MEASUREMENT_FIELDS
+
+    for name in MEASUREMENT_FIELDS:
+        push_measurement.add_argument(
+            f"--{name.replace('_', '-')}", dest=name, type=float, default=None
+        )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point."""
+    args = build_parser().parse_args(argv)
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.WARNING,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    config = load_config(config_file=args.config)
+
+    if args.command == "sync":
+        return asyncio.run(_cmd_sync(config))
+    if args.command == "vault":
+        return _cmd_vault(config)
+    if args.command == "full":
+        return asyncio.run(_cmd_full(config))
+    if args.command == "coach":
+        return _cmd_coach(config)
+    if args.command == "status":
+        return _cmd_status(config)
+    if args.command == "push":
+        if args.push_command == "workout":
+            return asyncio.run(_cmd_push_workout(config, args.file))
+        return asyncio.run(_cmd_push_measurement(config, args))
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -12,7 +12,7 @@ Work autonomously through all phases. For minor choices (naming, file layout det
 
 # Configuration (fill these in before running)
 
-- `VAULT_PATH`: `<<absolute path to my Obsidian vault, e.g. C:\Users\samra\Documents\ObsidianVault>>`
+- `VAULT_PATH`: `vault_staging/` inside this repo (gitignored). The real Obsidian vault is in active use, so generate into this staging folder for now; the path is configurable in `config.toml` so it can be pointed at the real vault later.
 - `VAULT_SUBFOLDER`: `Fitness/Hevy` (all generated notes live under this folder — never write outside it)
 - `HEVY_API_KEY`: read from env var `HEVY_API_KEY` (get it at hevy.com/settings?developer). Never hardcode it.
 - `ANTHROPIC_API_KEY`: read from env var `ANTHROPIC_API_KEY` (used only by the AI coach module).

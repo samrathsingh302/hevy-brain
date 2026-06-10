@@ -1,0 +1,29 @@
+# hevy-brain configuration.
+# Secrets are NEVER read from this file - set HEVY_API_KEY and
+# ANTHROPIC_API_KEY as environment variables.
+
+[vault]
+# Temporary staging folder (the real Obsidian vault is in active use).
+# When ready, point this at the real vault, e.g.:
+# path = 'C:\Users\samra\Documents\MyVault'
+path = "vault_staging"
+subfolder = "Fitness/Hevy"
+
+[sync]
+data_dir = "data"
+page_size = 10  # Hevy API hard cap
+
+[coach]
+model = "claude-opus-4-8"
+max_calls_per_day = 4
+
+[analytics]
+plateau_weeks = 4
+push_pull_low = 0.8
+push_pull_high = 1.25
+review_weeks = 4
+review_months = 2
+
+# Optional manual muscle-group overrides (substring -> group), e.g.:
+# [analytics.muscle_overrides]
+# "farmer" = "core"

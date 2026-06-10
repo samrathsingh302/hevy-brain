@@ -1,227 +1,139 @@
-# Hevy Integration for Home Assistant
+# Hevy Second Brain (`hevy-brain`)
 
-[![Lint](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/lint.yml/badge.svg)](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/lint.yml)
-[![Test](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/test.yml/badge.svg)](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/test.yml)
-[![Validate](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/validate.yml/badge.svg)](https://github.com/hudsonbrendon/HA-hevy/actions/workflows/validate.yml)
-[![HACS](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/hacs/integration)
-[![Release](https://img.shields.io/github/release/hudsonbrendon/HA-hevy.svg)](https://github.com/hudsonbrendon/HA-hevy/releases)
+[![Lint](https://github.com/samrathsingh302/HA-hevy/actions/workflows/lint.yml/badge.svg)](https://github.com/samrathsingh302/HA-hevy/actions/workflows/lint.yml)
+[![Test](https://github.com/samrathsingh302/HA-hevy/actions/workflows/test.yml/badge.svg)](https://github.com/samrathsingh302/HA-hevy/actions/workflows/test.yml)
 
-![Hevy Logo](logo.png)
+Sync your complete [Hevy](https://www.hevy.com/) workout history into an
+**Obsidian second brain**, analyze your training patterns, get AI coaching
+grounded in your real numbers, and push changes back to Hevy — so you rarely
+have to edit the Hevy app by hand.
 
-Bring your [Hevy](https://hevy.com) workout tracker into Home Assistant: dashboards, automations, calendar, and event triggers for every completed lift.
+> Originally forked from the excellent
+> [hudsonbrendon/HA-hevy](https://github.com/hudsonbrendon/HA-hevy) Home
+> Assistant integration. The battle-tested Hevy API client and sync logic
+> were ported from it; the Home Assistant integration itself has been retired
+> from this repo.
 
-> **Requires a Hevy Pro account** — the Hevy public API is currently Pro-only. Get your key at <https://hevy.com/settings?developer>.
+## What it does
 
----
+- **Full sync** — backfills your entire workout history once, then pulls only
+  changes via Hevy's `/workouts/events` endpoint (new, edited, and deleted
+  workouts) on every run.
+- **Obsidian notes** — one note per workout (set-by-set tables, PR callouts),
+  one evergreen note per exercise (PR history, est. 1RM), a dashboard, body
+  measurement log, and weekly/monthly reviews. All with frontmatter for
+  Dataview/Bases and wikilinks between everything.
+- **Analytics** — volume per muscle group, push/pull balance, streaks,
+  plateau detection (stalled est. 1RM), and week-over-week overload tracking.
+- **AI coach** — sends your computed stats to Claude (`claude-opus-4-8`,
+  structured outputs) and writes a recommendations note. Every claim must
+  cite your actual numbers; exercise swaps are restricted to exercises that
+  exist in Hevy so they can be pushed straight back.
+- **Write-back** — log body measurements and create workouts in Hevy from the
+  CLI / planned-workout notes. Writes are **always manual**; only reads are
+  automated.
+- **Safe by design** — never writes outside its vault folder, atomic writes,
+  your edits below the `%% hevy-brain:end %%` marker in any note survive
+  regeneration, and deleted workouts are archived, never destroyed.
 
-## Installation
+## Install
 
-### HACS (recommended)
-
-1. Ensure [HACS](https://hacs.xyz/) is installed.
-2. HACS → Integrations → search **Hevy** → Install.
-3. Restart Home Assistant.
-
-### Manual
-
-1. Download the [latest release](https://github.com/hudsonbrendon/HA-hevy/releases).
-2. Copy `custom_components/hevy/` into your HA `custom_components/` directory.
-3. Restart Home Assistant.
-
-## Configuration
-
-1. **Settings → Devices & Services → Add Integration** → search **Hevy**.
-2. Paste your API key and pick a name for the device.
-3. Done — sensors, binary sensors, and the calendar entity are created automatically.
-
----
-
-## Entity reference
-
-### Aggregate sensors (one set per integration entry)
-
-| Entity | Unit | Description |
-|---|---|---|
-| `sensor.hevy_<name>_workout_count` | — | Total workouts on the account |
-| `sensor.hevy_<name>_today_count` | — | Workouts completed today |
-| `sensor.hevy_<name>_this_weeks_workouts` | — | Workouts in the last 7 days |
-| `sensor.hevy_<name>_this_months_workouts` | — | Workouts in the current month |
-| `sensor.hevy_<name>_this_years_workouts` | — | Workouts in the current year |
-| `sensor.hevy_<name>_last_workout` | — | Title of the most recent workout (attrs: `exercise_count`, `total_reps`) |
-| `sensor.hevy_<name>_last_workout_start` | timestamp | When the last workout started |
-| `sensor.hevy_<name>_last_workout_duration` | min | Duration of the last workout |
-| `sensor.hevy_<name>_last_workout_volume` | kg | Total weight × reps in the last workout |
-| `sensor.hevy_<name>_volume_today` | kg | Total volume lifted today |
-| `sensor.hevy_<name>_volume_this_week` | kg | Total volume in the last 7 days |
-| `sensor.hevy_<name>_volume_this_month` | kg | Total volume this month |
-| `sensor.hevy_<name>_volume_this_year` | kg | Total volume this year |
-| `sensor.hevy_<name>_training_time_today` | min | Minutes trained today |
-| `sensor.hevy_<name>_training_time_this_week` | min | Minutes trained in the last 7 days |
-| `sensor.hevy_<name>_training_time_this_month` | min | Minutes trained this month |
-| `sensor.hevy_<name>_current_streak` | days | Consecutive days with a workout (today or yesterday counted) |
-| `sensor.hevy_<name>_longest_streak` | days | Best historical streak from cached workouts |
-| `sensor.hevy_<name>_unique_exercises_7d` | — | Distinct exercise templates in the last 7 days |
-| `sensor.hevy_<name>_unique_exercises_30d` | — | Distinct exercise templates in the last 30 days |
-| `sensor.hevy_<name>_body_weight` | kg | Latest body weight measurement (attr: `date`) |
-| `sensor.hevy_<name>_body_fat` | % | Latest body fat percentage |
-| `sensor.hevy_<name>_lean_mass` | kg | Latest lean mass measurement |
-| `sensor.hevy_<name>_user` | — | Hevy user display name (attrs: `user_id`, `profile_url`) |
-
-### Binary sensors
-
-| Entity | Description |
-|---|---|
-| `binary_sensor.hevy_<name>_workout_today` | `on` if any workout started today |
-| `binary_sensor.hevy_<name>_workout_this_week` | `on` if any workout started in the last 7 days |
-
-### Per-workout entities
-
-For each of the 10 most recent workouts:
-
-- `sensor.hevy_<name>_workout_date` — start time (TIMESTAMP).
-- One sensor per exercise titled after the exercise (e.g. `sensor.bench_press`). State is the max weight in kg; attrs: `sets`, `total_reps`, `volume_kg`.
-
-### Calendar
-
-| Entity | Description |
-|---|---|
-| `calendar.hevy_<name>_workouts` | Each cached workout as a CalendarEvent. Drop into a calendar card or use as a trigger source. |
-
----
-
-## Events fired
-
-The integration fires events on every poll cycle (default 60 min) when the workout cache changes.
-
-| Event | When | Payload |
-|---|---|---|
-| `hevy_workout_completed` | A workout id newly appears in the cache | `id`, `title`, `start_time` (ISO), `duration_min`, `volume_kg`, `total_reps`, `exercise_count` |
-| `hevy_workout_deleted` | A previously cached workout id disappears | `id`, `title` |
-
-The first refresh after startup is silent — events fire only for diffs against the previous poll.
-
----
-
-## Automation examples
-
-### Notify when you complete a workout
-
-```yaml
-automation:
-  - alias: Hevy — workout completed notification
-    trigger:
-      - platform: event
-        event_type: hevy_workout_completed
-    action:
-      - service: notify.mobile_app_my_phone
-        data:
-          title: "💪 Workout logged"
-          message: >-
-            {{ trigger.event.data.title }}
-            • {{ trigger.event.data.duration_min }} min
-            • {{ trigger.event.data.volume_kg }} kg total
+```powershell
+git clone https://github.com/samrathsingh302/HA-hevy
+cd HA-hevy
+pip install -e .
 ```
 
-### Play a workout playlist when a session starts
+Set your API keys (user-level env vars so scheduled tasks see them):
 
-```yaml
-automation:
-  - alias: Hevy — start workout playlist
-    trigger:
-      - platform: event
-        event_type: hevy_workout_completed
-    condition:
-      - condition: time
-        after: "06:00:00"
-        before: "10:00:00"
-    action:
-      - service: media_player.play_media
-        target:
-          entity_id: media_player.living_room
-        data:
-          media_content_id: spotify:playlist:your_id
-          media_content_type: playlist
+```powershell
+[Environment]::SetEnvironmentVariable('HEVY_API_KEY', '<key from hevy.com/settings?developer>', 'User')
+[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', '<key>', 'User')   # only for `coach`
 ```
 
-### Streak alert if you skip 3 days
+## Configure
 
-```yaml
-automation:
-  - alias: Hevy — streak about to break
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.hevy_hudson_current_streak
-        below: 1
-        for: "72:00:00"
-    action:
-      - service: notify.mobile_app_my_phone
-        data:
-          message: "Streak broken — get back in the gym 🏋️"
+Edit [config.toml](config.toml). By default notes are generated into
+`vault_staging/` inside the repo (a safe staging area). When you're happy,
+point it at your real vault:
+
+```toml
+[vault]
+path = 'C:\Users\you\Documents\MyVault'
+subfolder = "Fitness/Hevy"   # hevy-brain only ever touches this folder
 ```
 
-### Weekly volume gauge card
+## Use
 
-```yaml
-type: gauge
-entity: sensor.hevy_hudson_volume_this_week
-unit: kg
-min: 0
-max: 15000
-severity:
-  green: 8000
-  yellow: 4000
-  red: 0
+```text
+hevy-brain sync     # fetch new/changed Hevy data into the local cache
+hevy-brain vault    # regenerate all Obsidian notes from the cache
+hevy-brain full     # sync + vault
+hevy-brain coach    # AI coach note (needs ANTHROPIC_API_KEY, budget-capped)
+hevy-brain status   # cache overview
+hevy-brain push measurement --weight-kg 78.4 [--fat-percent 17] [--date 2026-06-10]
+hevy-brain push workout path\to\plan.md
 ```
 
-### Workout calendar card
+### Vault layout
 
-```yaml
-type: calendar
-entities:
-  - calendar.hevy_hudson_workouts
+```
+Fitness/Hevy/
+├── Dashboard.md                     # totals, streaks, muscle balance, recent PRs
+├── Workouts/2026-06-08 Push Day.md  # per-workout: tables, PR callouts, links
+├── Exercises/Bench Press (Barbell).md  # per-exercise: PR history, est. 1RM
+├── Measurements/Body Log.md
+├── Reviews/2026-W24 Weekly Review.md   # + monthly reviews
+├── Coach/2026-06-10 Recommendations.md
+└── Archive/                         # notes for workouts deleted in Hevy
 ```
 
+Anything you write **below** the `%% hevy-brain:end %%` marker in any note is
+preserved forever — treat the area above it as generated.
+
+### Planned-workout notes (push to Hevy)
+
+```markdown
 ---
+type: hevy-planned-workout
+title: Coach Push Day
+start_time: 2026-06-12T17:00:00+00:00
+end_time: 2026-06-12T18:00:00+00:00
+exercises:
+  - name: Bench Press (Barbell)
+    exercise_template_id: 79D0BB3A
+    sets:
+      - { weight_kg: 60, reps: 8 }
+      - { weight_kg: 60, reps: 8 }
+---
+```
 
-## How polling works
+Then: `hevy-brain push workout plan.md`. Template IDs are in each exercise
+note's frontmatter (synced from Hevy).
 
-- Default refresh interval: **60 minutes**.
-- Each refresh fetches in parallel: `/workouts/count`, `/workouts` (10 most recent), `/user/info`, `/body_measurements`.
-- Optional endpoints (user, measurements) fail gracefully — sensors degrade to `unknown` without taking the integration down.
-- Authentication failures trigger HA's reauth flow.
+## Automate (Windows)
 
-## Troubleshooting
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1
+```
 
-| Symptom | Likely cause / fix |
-|---|---|
-| Setup fails with auth error | Verify your key at <https://hevy.com/settings?developer> and re-add. Pro account required. |
-| No `body_*` sensors update | You haven't logged any body measurements in Hevy yet. |
-| Calendar empty | Only the 10 most recent workouts are cached. Train more 😉. |
-| Events don't fire | First refresh after restart is silent. Wait one poll cycle (default 60 min). |
+Registers two Task Scheduler jobs: `hevy-brain full` hourly and
+`hevy-brain coach` Sundays at 19:00, logging to `logs/`.
 
-## Removal
+## Development
 
-1. **Settings → Devices & Services → Hevy → ⋮ → Delete** — removes all entities and the config entry.
-2. If installed via HACS, also remove the integration from **HACS → Integrations** to stop receiving updates.
-3. For manual installs, delete the `custom_components/hevy/` directory and restart Home Assistant.
+```powershell
+pip install -e ".[dev]"
+python -m pytest tests -q     # 55 tests, no network, no real API calls
+python -m ruff check hevy_brain tests
+python -m ruff format hevy_brain tests
+```
 
-Your Hevy account data is not touched. Revoke the API key at <https://hevy.com/settings?developer> if you no longer want HA to access it.
+Architecture: `api/` (Hevy client) → `sync.py` → `store/` (local JSON cache,
+source of truth) → `analytics/` + `vault/` (note generation) and `coach/`
+(Anthropic). Write-back lives in `writeback/` and is only reachable from
+explicit CLI commands.
 
-## Contributing
+## License
 
-Issues and PRs welcome. The repo has:
-- `ruff check .` + `ruff format .` for linting.
-- `pytest tests/` for the test suite (140+ tests, no HA install needed — uses lightweight stubs).
-- CI runs all three workflows on every PR.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution guide.
-
-***
-
-[commits-shield]: https://img.shields.io/github/commit-activity/y/hudsonbrendon/HA-hevy.svg
-[commits]: https://github.com/hudsonbrendon/HA-hevy/commits/main
-[hacs]: https://github.com/hacs/integration
-[hacs-shield]: https://img.shields.io/badge/HACS-Default-orange.svg
-[license-shield]: https://img.shields.io/github/license/hudsonbrendon/HA-hevy.svg
-[releases-shield]: https://img.shields.io/github/release/hudsonbrendon/HA-hevy.svg
-[releases]: https://github.com/hudsonbrendon/HA-hevy/releases
+MIT — see [LICENSE](LICENSE).

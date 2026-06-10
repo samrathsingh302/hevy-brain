@@ -1,78 +1,49 @@
 # Contribution guidelines
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Contributing to this project should be as easy and transparent as possible,
+whether it's:
 
 - Reporting a bug
 - Discussing the current state of the code
 - Submitting a fix
 - Proposing new features
 
-## Github is used for everything
+## GitHub is used for everything
 
-Github is used to host code, to track issues and feature requests, as well as accept pull requests.
-
-Pull requests are the best way to propose changes to the codebase.
+GitHub is used to host code, to track issues and feature requests, as well as
+accept pull requests.
 
 1. Fork the repo and create your branch from `main`.
 2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
-4. Test you contribution.
+3. Make sure your code lints (`ruff check` + `ruff format --check`).
+4. Make sure the tests pass (`pytest tests`).
 5. Issue that pull request!
 
-## HACS Validation
+## Development setup
 
-This integration is designed to be compatible with HACS (Home Assistant Community Store).
-When contributing, make sure your changes pass HACS validation:
+```sh
+pip install -e ".[dev]"
+python -m pytest tests -q
+python -m ruff check hevy_brain tests
+python -m ruff format hevy_brain tests
+```
 
-1. Run `scripts/hacs_validate` to test locally
-2. Ensure the repository has the required GitHub topics set:
-   - `homeassistant`
-   - `home-assistant`
-   - `hacs-integration`
-   - `hevy`
-   - `fitness`
-   - `workout`
-   - `tracking`
-
-These topics are essential for HACS to properly categorize and validate the integration.
+Tests must never hit the real Hevy or Anthropic APIs — use the fake clients
+in `tests/` as a pattern.
 
 ## Any contributions you make will be under the MIT Software License
 
-In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
+In short, when you submit code changes, your submissions are understood to be
+under the same [MIT License](LICENSE) that covers the project.
 
-## Report bugs using Github's [issues](../../issues)
+## Report bugs using GitHub's issues
 
-GitHub issues are used to track public bugs.
-Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
+Report a bug by opening a new issue — it's that easy!
 
-## Write bug reports with detail, background, and sample code
-
-**Great Bug Reports** tend to have:
+**Great bug reports** tend to have:
 
 - A quick summary and/or background
-- Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
+- Steps to reproduce (be specific, give sample code if you can)
 - What you expected would happen
 - What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
-
-People *love* thorough bug reports. I'm not even kidding.
-
-## Use a Consistent Coding Style
-
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
-
-## Test your code modification
-
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
-
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under its MIT License.
+- Notes (possibly including why you think this might be happening)

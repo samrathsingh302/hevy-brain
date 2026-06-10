@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import aiohttp
 import pytest
 
-from custom_components.hevy.api import (
+from hevy_brain.api.client import (
     HevyApiClient,
     HevyApiClientAuthenticationError,
     HevyApiClientCommunicationError,
@@ -18,7 +18,6 @@ from custom_components.hevy.api import (
 
 
 def _build_response(*, status: int = 200, json_payload: Any = None) -> MagicMock:
-    """Build a mock aiohttp response."""
     response = MagicMock()
     response.status = status
     response.json = AsyncMock(return_value=json_payload or {})
@@ -38,7 +37,6 @@ def _build_session(response: MagicMock) -> MagicMock:
     return session
 
 
-@pytest.mark.asyncio
 class TestEndpointDispatch:
     async def test_workout_count_hits_count_endpoint(self) -> None:
         response = _build_response(json_payload={"workout_count": 7})
@@ -99,8 +97,18 @@ class TestEndpointDispatch:
         }
         assert kwargs["url"].endswith("/workouts/events")
 
+    async def test_exercise_templates_endpoint(self) -> None:
+        response = _build_response(json_payload={"exercise_templates": []})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
 
-@pytest.mark.asyncio
+        await client.async_get_exercise_templates(page=1, page_size=100)
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["url"].endswith("/exercise_templates")
+        assert kwargs["params"] == {"page": 1, "pageSize": 100}
+
+
 class TestErrorHandling:
     async def test_401_raises_authentication_error(self) -> None:
         response = _build_response(status=401)
