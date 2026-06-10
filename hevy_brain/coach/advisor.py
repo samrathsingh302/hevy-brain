@@ -243,3 +243,38 @@ def render_coach_note(report: CoachReport, today: date) -> str:
 def coach_note_path(today: date) -> str:
     """Relative vault path for today's coach note."""
     return f"Coach/{today.isoformat()} Recommendations.md"
+
+
+def briefing_note_path(today: date) -> str:
+    """Relative vault path for today's free coaching briefing."""
+    return f"Coach/{today.isoformat()} Briefing.md"
+
+
+def render_briefing(context: str, today: date) -> str:
+    """Render a self-contained coaching briefing (no API call, no cost).
+
+    The note bundles the coaching instructions with the computed training
+    data so it can be analyzed by Claude under an existing subscription
+    (Claude Code or claude.ai) instead of a metered API call. Whatever the
+    coach writes below the managed marker is preserved on regeneration.
+    """
+    frontmatter = {
+        "date": today.isoformat(),
+        "status": "needs-analysis",
+        "tags": ["hevy/coach/briefing"],
+    }
+    lines = [
+        f"# Coaching Briefing — {today.isoformat()}",
+        (
+            "\n> [!info] Free coaching — no API key, no per-call cost.\n"
+            "> Open this note in Claude Code (or paste it into claude.ai) and "
+            'ask: *"Act as the coach described below and analyze my training '
+            'data."* Write the recommendations **below** the '
+            "`%% hevy-brain:end %%` marker — they will survive future syncs."
+        ),
+        "\n## Coach instructions",
+        f"\n{SYSTEM_PROMPT}",
+        "\n## Your training data",
+        f"\n{context}",
+    ]
+    return render_note(frontmatter, "\n".join(lines))

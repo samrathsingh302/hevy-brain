@@ -97,3 +97,19 @@ def test_render_coach_note() -> None:
     assert "Bench press stalled" in note
     assert "Swap **Bench Press (Barbell)**" in note
     assert "tags:" in note
+
+
+def test_render_briefing_is_self_contained(raw_workouts: dict) -> None:
+    records = build_records(raw_workouts)
+    histories = exercise_histories(records)
+    context = advisor.build_context(records, histories, TODAY)
+
+    note = advisor.render_briefing(context, TODAY)
+
+    # Bundles the coaching rules and the data, with no API needed.
+    assert "Coaching Briefing" in note
+    assert "no API key" in note
+    assert "Coach instructions" in note
+    assert "Your training data" in note
+    assert "Bench Press (Barbell)" in note
+    assert advisor.briefing_note_path(TODAY).endswith("Briefing.md")

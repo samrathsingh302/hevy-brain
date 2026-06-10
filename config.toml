@@ -3,11 +3,11 @@
 # ANTHROPIC_API_KEY as environment variables.
 
 [vault]
-# Temporary staging folder (the real Obsidian vault is in active use).
-# When ready, point this at the real vault, e.g.:
-# path = 'C:\Users\samra\Documents\MyVault'
-path = "vault_staging"
-subfolder = "Fitness/Hevy"
+# Real Obsidian vault (the .obsidian folder lives here). hevy-brain only
+# ever writes inside the `subfolder` below - a separate folder that does not
+# touch your existing notes.
+path = 'C:\Users\samra\projects\second-brain\vault'
+subfolder = "Hevy"
 
 [sync]
 data_dir = "data"
