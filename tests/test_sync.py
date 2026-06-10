@@ -1,0 +1,149 @@
+"""Tests for the sync engine using a fake API client."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from conftest import make_workout
+
+from hevy_brain.api.client import HevyApiClientError
+from hevy_brain.store.cache import CacheStore
+from hevy_brain.sync import sync
+
+
+class FakeClient:
+    """Minimal HevyApiClient stand-in with paginated canned data."""
+
+    def __init__(
+        self,
+        workouts: list[dict] | None = None,
+        events: list[dict] | None = None,
+        measurements: list[dict] | None = None,
+        templates: list[dict] | None = None,
+        page_size_cap: int = 2,
+    ) -> None:
+        self.workouts = workouts or []
+        self.events = events or []
+        self.measurements = measurements or []
+        self.templates = templates or []
+        self._cap = page_size_cap
+        self.calls: list[str] = []
+
+    @staticmethod
+    def _page(items: list, key: str, page: int, size: int) -> dict[str, Any]:
+        pages = max(1, -(-len(items) // size)) if items else 1
+        chunk = items[(page - 1) * size : page * size]
+        return {key: chunk, "page": page, "page_count": pages}
+
+    async def async_get_workouts(self, page: int = 1, page_size: int = 10) -> dict:
+        self.calls.append(f"workouts:{page}")
+        return self._page(self.workouts, "workouts", page, min(page_size, self._cap))
+
+    async def async_get_workout_events(
+        self, since: str, page: int = 1, page_size: int = 10
+    ) -> dict:
+        self.calls.append(f"events:{page}:{since}")
+        return self._page(self.events, "events", page, page_size)
+
+    async def async_get_body_measurements(
+        self, page: int = 1, page_size: int = 10
+    ) -> dict:
+        return self._page(self.measurements, "body_measurements", page, page_size)
+
+    async def async_get_user_info(self) -> dict:
+        return {"data": {"id": "u1", "username": "sam"}}
+
+    async def async_get_exercise_templates(
+        self, page: int = 1, page_size: int = 100
+    ) -> dict:
+        return self._page(self.templates, "exercise_templates", page, page_size)
+
+
+async def test_first_sync_backfills_all_pages(tmp_path: Path) -> None:
+    workouts = [make_workout(f"w{i}") for i in range(5)]
+    client = FakeClient(workouts=workouts, page_size_cap=2)
+    store = CacheStore(tmp_path)
+
+    result = await sync(client, store)
+
+    assert result.full_backfill is True
+    assert result.added == 5
+    assert len(store.workouts) == 5
+    assert "events_cursor" in store.meta
+    # paginated: 5 workouts at 2/page = 3 pages
+    assert [c for c in client.calls if c.startswith("workouts")] == [
+        "workouts:1",
+        "workouts:2",
+        "workouts:3",
+    ]
+
+
+async def test_second_sync_is_incremental_and_idempotent(tmp_path: Path) -> None:
+    client = FakeClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+
+    result = await sync(client, store)
+
+    assert result.full_backfill is False
+    assert not result.changed
+    assert len(store.workouts) == 1
+
+
+async def test_incremental_applies_updates_and_deletes(tmp_path: Path) -> None:
+    client = FakeClient(workouts=[make_workout("w1"), make_workout("w2")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+
+    client.events = [
+        {"type": "updated", "workout": make_workout("w1", title="Edited")},
+        {"type": "updated", "workout": make_workout("w9", title="Brand New")},
+        {"type": "deleted", "id": "w2"},
+    ]
+    result = await sync(client, store)
+
+    assert result.updated == 1
+    assert result.added == 1
+    assert result.deleted == 1
+    assert store.workouts["w1"]["title"] == "Edited"
+    assert "w9" in store.workouts
+    assert "w2" in store.archived
+
+
+async def test_side_data_failures_are_non_fatal(tmp_path: Path) -> None:
+    class FlakyClient(FakeClient):
+        async def async_get_body_measurements(self, page=1, page_size=10):
+            raise HevyApiClientError("boom")
+
+        async def async_get_user_info(self):
+            raise HevyApiClientError("boom")
+
+    client = FlakyClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+
+    result = await sync(client, store)
+
+    assert len(store.workouts) == 1
+    assert len(result.errors) == 2
+
+
+async def test_measurements_and_templates_cached(tmp_path: Path) -> None:
+    client = FakeClient(
+        workouts=[make_workout("w1")],
+        measurements=[{"date": "2026-06-01", "weight_kg": 78.0}],
+        templates=[
+            {
+                "id": "T-BENCH",
+                "title": "Bench Press (Barbell)",
+                "primary_muscle_group": "chest",
+            }
+        ],
+    )
+    store = CacheStore(tmp_path)
+
+    await sync(client, store)
+
+    assert store.measurements[0]["date"] == "2026-06-01"
+    assert store.exercise_templates["T-BENCH"]["primary_muscle_group"] == "chest"
+    assert store.meta["user"]["username"] == "sam"

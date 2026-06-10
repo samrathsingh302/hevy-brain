@@ -1,5 +1,3 @@
-# The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
-
 target-version = "py312"
 
 [lint]
@@ -8,22 +6,30 @@ select = [
 ]
 
 ignore = [
-    "ANN101", # Missing type annotation for `self` in method
-    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
-    "D203", # no-blank-line-before-class (incompatible with formatter)
-    "D212", # multi-line-summary-first-line (incompatible with formatter)
-    "COM812", # incompatible with formatter
-    "ISC001", # incompatible with formatter
-    "D104", # Missing docstring in public package
-    "TC004", # Move import out of type-checking block
-    "C419", # Unnecessary list comprehension
-    "DTZ005", # datetime.now() called without a tz argument
-    "UP034", # Avoid extraneous parentheses
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
+    "D203",    # no-blank-line-before-class (incompatible with formatter)
+    "D212",    # multi-line-summary-first-line (incompatible with formatter)
+    "D213",    # multi-line-summary-second-line (we use first-line summaries)
+    "COM812",  # incompatible with formatter
+    "ISC001",  # incompatible with formatter
+    "D104",    # Missing docstring in public package
     "PLR2004", # Magic value used in comparison
-    "I001", # Import block is un-sorted or un-formatted
+    "TID252",  # relative imports are idiomatic inside this package
+    "TC001",   # typing-only import blocks add noise
+    "TC002",
+    "TC003",
+    "PERF401", # explicit loops are often clearer than comprehensions
+    "PLC0415", # lazy imports are intentional (optional deps, CLI startup)
+    "PLR0913", # renderers legitimately take several data inputs
+    "RUF001",  # × and · are intentional in markdown output
 ]
 
 [lint.per-file-ignores]
+"hevy_brain/cli.py" = [
+    "T201",    # a CLI prints
+    "PLR0911", # command dispatch has one return per command
+]
+"scripts/**" = ["ALL"]
 "tests/**" = [
     "S101",    # assert is fine in tests
     "ANN",     # don't require full type annotations on test funcs/fixtures
@@ -31,12 +37,13 @@ ignore = [
     "SLF001",  # private member access is the whole point of unit tests
     "PLR2004", # magic numbers are fine in assertions
     "INP001",  # tests dir is not an implicit namespace package
-    "PT004",   # fixture-without-return-type
     "FBT001",  # boolean args in fixtures
-    "N818",    # internal stub names mirror HA classes
-    "ARG005",  # lambda stubs intentionally ignore args
-    "PLC0415", # late imports needed after stub injection
+    "ARG001",  # fake clients ignore some arguments by design
+    "ARG002",
+    "EM101",   # literal exception messages are fine in test fakes
+    "PLC0415",
     "PLR0913", # test helper builders may take many fields by design
+    "E501",    # long fixture strings
 ]
 
 [lint.flake8-pytest-style]

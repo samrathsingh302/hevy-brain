@@ -1,0 +1,1 @@
+"""Obsidian vault output package."""

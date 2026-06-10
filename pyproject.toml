@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hevy-brain"
+version = "0.1.0"
+description = "Sync Hevy workout data into an Obsidian second brain, analyze training patterns, and push changes back to Hevy."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.10",
+    "PyYAML>=6.0",
+    "pydantic>=2.7",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.15",
+]
+
+[project.scripts]
+hevy-brain = "hevy_brain.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["hevy_brain*"]

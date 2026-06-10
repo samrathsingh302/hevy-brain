@@ -1,4 +1,4 @@
-name: "Test"
+﻿name: "Test"
 
 on:
   push:
@@ -22,8 +22,9 @@ jobs:
           python-version: "3.13"
           cache: "pip"
 
-      - name: "Install test requirements"
-        run: python3 -m pip install -r requirements-test.txt
+      - name: "Install package with dev dependencies"
+        run: python3 -m pip install -e ".[dev]"
 
       - name: "Run pytest"
         run: python3 -m pytest tests/ -v
+

@@ -16,3 +16,8 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+# hevy-brain local state
+data/
+vault_staging/
+logs/
+*.egg-info

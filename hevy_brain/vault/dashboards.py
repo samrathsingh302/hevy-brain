@@ -1,0 +1,280 @@
+"""Dashboard, body measurement log, and weekly/monthly review notes."""
+
+from __future__ import annotations
+
+from datetime import date, timedelta
+from typing import Any
+
+from ..analytics import patterns, stats
+from ..analytics.prs import recent_prs
+from .writer import VaultWriter, render_note
+
+_RECENT_WORKOUTS = 10
+
+
+def _link(workout_id: str, workout_paths: dict[str, str], fallback: str) -> str:
+    path = workout_paths.get(workout_id, "")
+    name = path.rsplit("/", 1)[-1].removesuffix(".md")
+    return f"[[{name}]]" if name else fallback
+
+
+def _muscle_table(volumes: dict[str, float]) -> list[str]:
+    total = sum(volumes.values()) or 1.0
+    lines = ["\n| Muscle group | Volume (kg) | Share |", "| --- | --- | --- |"]
+    for group, volume in volumes.items():
+        lines.append(f"| {group} | {volume:,.0f} | {volume / total:.0%} |")
+    return lines
+
+
+def render_dashboard(
+    records: list[dict[str, Any]],
+    histories: dict[str, dict[str, Any]],
+    workout_paths: dict[str, str],
+    store_meta: dict[str, Any],
+    today: date,
+    templates: dict[str, dict[str, Any]] | None = None,
+    overrides: dict[str, str] | None = None,
+) -> str:
+    """Render the main Dashboard.md (managed content)."""
+    agg = stats.compute_aggregates(records, today)
+    month_records = stats.records_in_range(
+        records, today - timedelta(days=28), today + timedelta(days=1)
+    )
+    volumes_28d = patterns.volume_by_group(month_records, templates, overrides)
+    ratio = patterns.push_pull_ratio(volumes_28d)
+    user = store_meta.get("user") or {}
+
+    frontmatter = {
+        "updated": today.isoformat(),
+        "total_workouts": agg["total_workouts"],
+        "current_streak_days": agg["current_streak_days"],
+        "tags": ["hevy/dashboard"],
+    }
+
+    lines = ["# Hevy Dashboard"]
+    if user.get("username"):
+        lines.append(f"\nAthlete: **{user['username']}**")
+    lines.append(
+        f"\n## Totals\n"
+        f"- **{agg['total_workouts']}** workouts tracked · "
+        f"**{agg['total_volume_kg']:,.0f} kg** lifetime volume\n"
+        f"- Streak: **{agg['current_streak_days']}** days "
+        f"(longest **{agg['longest_streak_days']}**)\n"
+        f"- This week: **{agg['week_count']}** sessions, "
+        f"**{agg['volume_week_kg']:,.0f} kg**, "
+        f"{agg['duration_week_min']:.0f} min\n"
+        f"- This month: **{agg['month_count']}** sessions, "
+        f"**{agg['volume_month_kg']:,.0f} kg**\n"
+        f"- This year: **{agg['year_count']}** sessions, "
+        f"**{agg['volume_year_kg']:,.0f} kg**"
+    )
+
+    lines.append("\n## Muscle balance (last 28 days)")
+    if volumes_28d:
+        lines.extend(_muscle_table(volumes_28d))
+        if ratio is not None:
+            lines.append(f"\nPush/pull ratio: **{ratio:.2f}**")
+    else:
+        lines.append("\nNo training volume in the last 28 days.")
+
+    prs = recent_prs(histories, limit=8)
+    if prs:
+        lines.append("\n## Recent PRs")
+        for pr in prs:
+            lines.append(
+                f"- {pr['date'].isoformat()} — **{pr['exercise']}** "
+                f"{pr['type']} {pr['value']:.1f} kg"
+            )
+
+    lines.append("\n## Recent workouts")
+    for record in list(reversed(records))[:_RECENT_WORKOUTS]:
+        lines.append(
+            f"- {record['start_time'].date().isoformat()} "
+            f"{_link(record['id'], workout_paths, record['title'])} — "
+            f"{record['volume_kg']:,.0f} kg"
+        )
+
+    lines.append(
+        "\n## Browse\n- [[Body Log]]\n"
+        "- `Reviews/` for weekly and monthly reviews\n"
+        "- `Coach/` for AI coach recommendations"
+    )
+    return render_note(frontmatter, "\n".join(lines))
+
+
+def render_body_log(measurements: list[dict[str, Any]], today: date) -> str:
+    """Render Measurements/Body Log.md (managed content)."""
+    frontmatter = {
+        "updated": today.isoformat(),
+        "entries": len(measurements),
+        "tags": ["hevy/measurements"],
+    }
+    lines = ["# Body Log"]
+    if not measurements:
+        lines.append("\nNo body measurements logged yet.")
+    else:
+        latest = measurements[-1]
+        lines.append(
+            f"\nLatest ({latest.get('date')}): "
+            f"**{latest.get('weight_kg', '—')} kg**"
+            + (
+                f" · {latest['fat_percent']}% body fat"
+                if latest.get("fat_percent") is not None
+                else ""
+            )
+        )
+        lines.append("\n| Date | Weight (kg) | Fat % | Lean mass (kg) |")
+        lines.append("| ---- | ----------- | ----- | -------------- |")
+
+        def cell(m: dict[str, Any], key: str) -> Any:
+            value = m.get(key)
+            return value if value is not None else "—"
+
+        for m in reversed(measurements):
+            lines.append(
+                f"| {cell(m, 'date')} | {cell(m, 'weight_kg')} "
+                f"| {cell(m, 'fat_percent')} | {cell(m, 'lean_mass_kg')} |"
+            )
+    return render_note(frontmatter, "\n".join(lines))
+
+
+def _render_period_review(
+    heading: str,
+    frontmatter: dict[str, Any],
+    period_records: list[dict[str, Any]],
+    prior_records: list[dict[str, Any]],
+    histories: dict[str, dict[str, Any]],
+    workout_paths: dict[str, str],
+    period_start: date,
+    period_end: date,
+    templates: dict[str, dict[str, Any]] | None,
+    overrides: dict[str, str] | None,
+) -> str:
+    volume = sum(r["volume_kg"] for r in period_records)
+    prior_volume = sum(r["volume_kg"] for r in prior_records)
+    delta = volume - prior_volume
+    delta_text = f"{'+' if delta >= 0 else ''}{delta:,.0f} kg vs prior period"
+
+    lines = [f"# {heading}"]
+    lines.append(
+        f"\n**{len(period_records)}** sessions · **{volume:,.0f} kg** volume "
+        f"({delta_text}, prior {len(prior_records)} sessions / "
+        f"{prior_volume:,.0f} kg)"
+    )
+
+    volumes = patterns.volume_by_group(period_records, templates, overrides)
+    if volumes:
+        lines.append("\n## Muscle balance")
+        lines.extend(_muscle_table(volumes))
+
+    period_prs = [
+        {**pr, "exercise": history["title"]}
+        for history in histories.values()
+        for pr in history["prs"]
+        if period_start <= pr["date"] < period_end
+    ]
+    if period_prs:
+        period_prs.sort(key=lambda p: p["date"])
+        lines.append("\n## PRs")
+        for pr in period_prs:
+            lines.append(
+                f"- {pr['date'].isoformat()} — **{pr['exercise']}** "
+                f"{pr['type']} {pr['value']:.1f} kg"
+            )
+
+    lines.append("\n## Sessions")
+    if period_records:
+        for record in period_records:
+            lines.append(
+                f"- {record['start_time'].date().isoformat()} "
+                f"{_link(record['id'], workout_paths, record['title'])} — "
+                f"{record['volume_kg']:,.0f} kg, "
+                f"{record['duration_seconds'] / 60:.0f} min"
+            )
+    else:
+        lines.append("- No sessions this period.")
+
+    return render_note(frontmatter, "\n".join(lines))
+
+
+def generate_reviews(
+    writer: VaultWriter,
+    records: list[dict[str, Any]],
+    histories: dict[str, dict[str, Any]],
+    workout_paths: dict[str, str],
+    today: date,
+    review_weeks: int = 4,
+    review_months: int = 2,
+    templates: dict[str, dict[str, Any]] | None = None,
+    overrides: dict[str, str] | None = None,
+) -> int:
+    """Write weekly and monthly review notes. Returns files changed."""
+    changed = 0
+    current_week = stats.week_start(today)
+    for offset in range(review_weeks):
+        start = current_week - timedelta(weeks=offset)
+        end = start + timedelta(weeks=1)
+        period = stats.records_in_range(records, start, end)
+        if not period and offset > 0:
+            continue
+        prior = stats.records_in_range(records, start - timedelta(weeks=1), start)
+        iso = start.isocalendar()
+        title = f"{iso.year}-W{iso.week:02d} Weekly Review"
+        frontmatter = {
+            "week": f"{iso.year}-W{iso.week:02d}",
+            "start": start.isoformat(),
+            "sessions": len(period),
+            "volume_kg": round(sum(r["volume_kg"] for r in period), 1),
+            "tags": ["hevy/review/weekly"],
+        }
+        note = _render_period_review(
+            title,
+            frontmatter,
+            period,
+            prior,
+            histories,
+            workout_paths,
+            start,
+            end,
+            templates,
+            overrides,
+        )
+        if writer.write(f"Reviews/{title}.md", note):
+            changed += 1
+
+    month_anchor = today.replace(day=1)
+    for offset in range(review_months):
+        year = month_anchor.year
+        month = month_anchor.month - offset
+        while month < 1:
+            month += 12
+            year -= 1
+        start = date(year, month, 1)
+        end = date(year + (month == 12), (month % 12) + 1, 1)
+        period = stats.records_in_range(records, start, end)
+        if not period and offset > 0:
+            continue
+        prior_start = date(year - (month == 1), month - 1 if month > 1 else 12, 1)
+        prior = stats.records_in_range(records, prior_start, start)
+        title = f"{start:%Y-%m} Monthly Review"
+        frontmatter = {
+            "month": f"{start:%Y-%m}",
+            "sessions": len(period),
+            "volume_kg": round(sum(r["volume_kg"] for r in period), 1),
+            "tags": ["hevy/review/monthly"],
+        }
+        note = _render_period_review(
+            title,
+            frontmatter,
+            period,
+            prior,
+            histories,
+            workout_paths,
+            start,
+            end,
+            templates,
+            overrides,
+        )
+        if writer.write(f"Reviews/{title}.md", note):
+            changed += 1
+    return changed
