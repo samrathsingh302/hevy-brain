@@ -16,18 +16,30 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-12-2355-slice1-routines.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice2-knowledge-bridge.md`
 
-## Current state (12/06/2026, night)
+## Current state (13/06/2026)
 
+- **Slice 2 (E3 knowledge bridge + E5 provenance) shipped + pushed
+  (`1634aad`):** new read-only `hevy_brain/knowledge/` package
+  (`KnowledgeBase`) walks the `_meta/routing.md` order (topic page →
+  claim links → concept tags → claims-index → grep notes/) and returns
+  cited `Claim`s (text + evidence tag + `[[id#^claim-xx]]` link); jailed
+  under the knowledge root, refuses `sources/`, never writes. Coach now
+  grounds advice in those claims and labels every training-science point
+  `cited` (with link) or `general-knowledge` — structurally on the API
+  path (`CoachFinding.provenance`/`claim_link`), by prompt instruction on
+  the free briefing. 109 offline tests green, ruff clean. **Live-verified
+  (free path):** the briefing loaded **46 cited claims** from
+  `topics/training.md`. Corpus gap (no programming/nutrition claims) is
+  surfaced honestly, not papered over.
 - **Slice 1 (routines sync + edit, F1+F2) shipped + pushed (`aebd6db`):**
   routines + folders sync into the cache, `Hevy/Routines/` notes with
   round-trippable frontmatter, `push routine <file> [--dry-run]` does
   GET → diff preview → PUT full replacement. D1 cursor fix folded in
-  (cursor now stamps from server timestamps, not utcnow). 85 offline
-  tests green, ruff clean. **Not yet exercised against the real API** —
-  routines land in the vault on the next hourly `full` run; first live
-  push should start with `--dry-run`.
+  (cursor now stamps from server timestamps, not utcnow). **PUT not yet
+  exercised against the real API** — routines land in the vault on the
+  next hourly `full` run; first live push should start with `--dry-run`.
 - Build complete and verified: 85 offline tests green, ruff clean, real
   end-to-end sync done (285 workouts / 29 measurements / 486 templates),
   vault generated into `C:\Users\samra\Atlas\Hevy\`.
@@ -70,9 +82,10 @@ integration); fully refactored into this CLI — the HA code is gone.
    guidance on editing training (return-from-lapse, programme redesign)
    grounded in BOTH the Hevy data and the atlas-pipeline knowledge notes,
    plus full plan editing via the API. Build order: ~~routines sync/edit~~
-   (done) → knowledge bridge → `guide return`.
-1. **Slice 2: E3 knowledge bridge + E5 provenance labels** (next session —
-   carry-on prompt in the newest dated handoff).
+   (done) → ~~knowledge bridge~~ (done) → `guide return`.
+1. **Slice 3: E1 `guide return`** (next session — carry-on prompt in the
+   newest dated handoff): comeback protocol for the 62-day lapse, grounded
+   via the slice-2 knowledge bridge, draft routines pushed via slice-1.
 2. **Live verification of routines**: check `Hevy/Routines/` after the next
    hourly sync; first real `push routine` with `--dry-run` on a trivial edit.
 3. Optional: open `Hevy/Coach/<date> Briefing.md` in Claude and ask it to act
@@ -86,11 +99,14 @@ integration); fully refactored into this CLI — the HA code is gone.
   `Routines/Drafts/`, edit the frontmatter, `push routine <file>` (managed
   notes regenerate hourly — don't edit in place).
 - Config: `config.toml` (local, untracked — copy from `config.example.toml`).
-  Secrets only in env vars `HEVY_API_KEY` / `ANTHROPIC_API_KEY`.
+  Secrets only in env vars `HEVY_API_KEY` / `ANTHROPIC_API_KEY`. `[knowledge]`
+  block tunes the read-only bridge (`path` defaults to vault root; `topics`
+  defaults to `["training"]`) — coach grounds advice in those cited claims.
 - Cache: `data/` JSON (gitignored) is the source of truth; vault rebuildable
   offline from it. First sync = full backfill; then `/workouts/events` cursor.
 - Safety: path-jailed atomic vault writes · user edits below
   `%% hevy-brain:end %%` preserved · deleted workouts archived, never
-  destroyed · tests never touch the real account.
+  destroyed · tests never touch the real account · knowledge bridge is
+  read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (85 passed) + `python -m ruff check hevy_brain tests`.
+  (109 passed) + `python -m ruff check hevy_brain tests`.
