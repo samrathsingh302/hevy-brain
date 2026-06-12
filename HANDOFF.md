@@ -52,6 +52,10 @@ integration); fully refactored into this CLI — the HA code is gone.
 
 ## Not done yet (pick up here)
 
+0. **Feature roadmap brainstormed 12/06/2026** — lives in the vault:
+   `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md` (recommended next
+   slices: next-session targets · lapse nudge · charts; D1 cursor fix folds
+   into the first sync-adjacent slice).
 1. **Register the scheduled tasks** (hourly `full` + weekly `coach`):
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1
