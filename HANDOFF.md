@@ -15,18 +15,21 @@ gone; the proven Hevy API client + sync logic were ported into the new
 package.
 
 - **Repo:** https://github.com/samrathsingh302/HA-hevy (private, my account)
-- **Local path:** `C:\Users\samra\projects\HA-hevy`
-- **Obsidian vault target:** `C:\Users\samra\projects\second-brain\vault`
+- **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy`
+- **Obsidian vault target:** `C:\Users\samra\Atlas`
   (the folder that holds `.obsidian`). hevy-brain only ever writes into the
   `Hevy/` subfolder there — my `inbox`/`notes`/`sources`/`topics` are untouched.
 
-## Current state (as of 2026-06-10)
+## Current state (as of 2026-06-12)
 
 ✅ Done:
 - Full package built: `hevy_brain/` (api, sync, store, analytics, vault, coach,
   writeback) + `cli.py`.
-- 56 tests pass (`pytest`), ruff lint + format clean. CI updated (test + lint
+- 58 tests pass (`pytest`), ruff lint + format clean. CI updated (test + lint
   workflows; HA-specific `validate.yml`/hassfest/HACS removed).
+- Audit P1 fixed (12/06/2026): the events cursor now rolls back if a sync
+  fails before `store.save()` succeeds, so a retry replays the same events
+  instead of skipping them (regression tests in `tests/test_sync.py`).
 - Real end-to-end sync ran against my Hevy account: **285 workouts, 29 body
   measurements, 486 exercise templates** cached locally.
 - Vault generated into `second-brain\vault\Hevy\` (dashboard, 285 workout
@@ -101,9 +104,9 @@ PROMPT.md                   # original build spec
 ## How to verify it still works
 
 ```powershell
-cd C:\Users\samra\projects\HA-hevy
+cd C:\Users\samra\Atlas\repos\HA-hevy
 pip install -e ".[dev]"
-python -m pytest tests -q          # expect 56 passed
+python -m pytest tests -q          # expect 58 passed
 python -m ruff check hevy_brain tests
 hevy-brain status                  # shows cached counts
 ```

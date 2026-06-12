@@ -137,12 +137,26 @@ async def _refresh_side_data(
 async def sync(
     client: HevyApiClient, store: CacheStore, page_size: int = 10
 ) -> SyncResult:
-    """Run a full or incremental sync depending on cache state, then save."""
-    if not store.workouts or "events_cursor" not in store.meta:
-        result = await full_backfill(client, store, page_size=page_size)
-    else:
-        result = await incremental_sync(client, store)
-    await _refresh_side_data(client, store, result)
-    store.meta["last_sync"] = _utcnow_iso()
-    store.save()
+    """Run a full or incremental sync depending on cache state, then save.
+
+    The events cursor only stays advanced once ``store.save()`` has
+    succeeded: on any failure the in-memory cursor is rolled back, so a
+    retry replays the same events (upserts are idempotent by id) instead
+    of silently skipping whatever this run failed to persist.
+    """
+    previous_cursor = store.meta.get("events_cursor")
+    try:
+        if not store.workouts or "events_cursor" not in store.meta:
+            result = await full_backfill(client, store, page_size=page_size)
+        else:
+            result = await incremental_sync(client, store)
+        await _refresh_side_data(client, store, result)
+        store.meta["last_sync"] = _utcnow_iso()
+        store.save()
+    except BaseException:
+        if previous_cursor is None:
+            store.meta.pop("events_cursor", None)
+        else:
+            store.meta["events_cursor"] = previous_cursor
+        raise
     return result

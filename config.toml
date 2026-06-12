@@ -6,7 +6,7 @@
 # Real Obsidian vault (the .obsidian folder lives here). hevy-brain only
 # ever writes inside the `subfolder` below - a separate folder that does not
 # touch your existing notes.
-path = 'C:\Users\samra\projects\second-brain\vault'
+path = 'C:\Users\samra\Atlas'
 subfolder = "Hevy"
 
 [sync]

@@ -76,7 +76,11 @@ class CacheStore:
         return True
 
     def set_measurements(self, measurements: list[dict[str, Any]]) -> None:
-        """Replace the measurement list, deduplicated by date, sorted."""
+        """Replace the measurement list, deduplicated by date, sorted.
+
+        Last write wins: if the API returns several entries for one date,
+        the final one silently replaces the rest.
+        """
         by_date = {m.get("date"): m for m in measurements if m.get("date")}
         self.measurements = [by_date[d] for d in sorted(by_date)]
 
