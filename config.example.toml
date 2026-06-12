@@ -1,12 +1,14 @@
-# hevy-brain configuration.
+# hevy-brain configuration — copy this file to `config.toml` and edit.
+# Without a config.toml, hevy-brain writes to a local `vault_staging/` folder
+# (safe default for trying it out).
 # Secrets are NEVER read from this file - set HEVY_API_KEY and
 # ANTHROPIC_API_KEY as environment variables.
 
 [vault]
-# Real Obsidian vault (the .obsidian folder lives here). hevy-brain only
-# ever writes inside the `subfolder` below - a separate folder that does not
-# touch your existing notes.
-path = 'C:\Users\samra\Atlas'
+# Your Obsidian vault root (the folder containing `.obsidian`). hevy-brain
+# only ever writes inside the `subfolder` below - a separate folder that does
+# not touch your existing notes.
+path = 'C:\path\to\your\vault'
 subfolder = "Hevy"
 
 [sync]

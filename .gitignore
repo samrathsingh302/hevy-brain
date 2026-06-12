@@ -5,19 +5,14 @@ __pycache__
 */build/*
 */dist/*
 
-
 # misc
 .coverage
 .vscode
 coverage.xml
 .ruff_cache
 
-
-# Home Assistant configuration
-config/*
-!config/configuration.yaml
-# hevy-brain local state
+# hevy-brain local state (personal data + machine-specific config stay local)
+config.toml
 data/
 vault_staging/
 logs/
-*.egg-info
