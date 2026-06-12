@@ -52,10 +52,14 @@ integration); fully refactored into this CLI — the HA code is gone.
 
 ## Not done yet (pick up here)
 
-0. **Feature roadmap brainstormed 12/06/2026** — lives in the vault:
-   `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md` (recommended next
-   slices: next-session targets · lapse nudge · charts; D1 cursor fix folds
-   into the first sync-adjacent slice).
+0. **North star + roadmap defined 12/06/2026** — lives in the vault:
+   `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Main use case:
+   guidance on editing training (return-from-lapse, programme redesign)
+   grounded in BOTH the Hevy data and the atlas-pipeline knowledge notes,
+   plus full plan editing via the API. Verified 12/06/2026: PUT
+   /v1/routines/{id} and PUT /v1/workouts/{id} exist (no DELETE; PUT =
+   full replacement). Build order: routines sync/edit → knowledge bridge →
+   `guide return`. D1 cursor fix folds into the first sync-adjacent slice.
 1. **Register the scheduled tasks** (hourly `full` + weekly `coach`):
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1
