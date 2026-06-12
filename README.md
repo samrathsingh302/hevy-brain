@@ -1,26 +1,28 @@
 # Hevy Second Brain (`hevy-brain`)
 
-[![Lint](https://github.com/samrathsingh302/HA-hevy/actions/workflows/lint.yml/badge.svg)](https://github.com/samrathsingh302/HA-hevy/actions/workflows/lint.yml)
-[![Test](https://github.com/samrathsingh302/HA-hevy/actions/workflows/test.yml/badge.svg)](https://github.com/samrathsingh302/HA-hevy/actions/workflows/test.yml)
+[![Lint](https://github.com/samrathsingh302/hevy-brain/actions/workflows/lint.yml/badge.svg)](https://github.com/samrathsingh302/hevy-brain/actions/workflows/lint.yml)
+[![Test](https://github.com/samrathsingh302/hevy-brain/actions/workflows/test.yml/badge.svg)](https://github.com/samrathsingh302/hevy-brain/actions/workflows/test.yml)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-Sync your complete [Hevy](https://www.hevy.com/) workout history into an
-**Obsidian second brain**, analyze your training patterns, get AI coaching
-grounded in your real numbers, and push changes back to Hevy — so you rarely
-have to edit the Hevy app by hand.
+A Python CLI that syncs your complete [Hevy](https://www.hevy.com/) workout
+history into an **Obsidian second brain**, analyses your training patterns,
+generates AI coaching grounded in your real numbers, and pushes changes back
+to Hevy — so you rarely have to edit the Hevy app by hand.
 
-> Originally forked from the excellent
-> [hudsonbrendon/HA-hevy](https://github.com/hudsonbrendon/HA-hevy) Home
-> Assistant integration. The battle-tested Hevy API client and sync logic
-> were ported from it; the Home Assistant integration itself has been retired
-> from this repo.
+Running against a real account: **285 workouts · 124 exercises · 2+ years of
+training history**, generated and kept in sync as the notes below.
+
+| Workout note (auto-generated) | Exercise note (evergreen) |
+| --- | --- |
+| ![A generated workout note with set tables and a PR callout](assets/workout-note.png) | ![A generated exercise note with PR history and recent sessions](assets/exercise-note.png) |
 
 ## What it does
 
 - **Full sync** — backfills your entire workout history once, then pulls only
   changes via Hevy's `/workouts/events` endpoint (new, edited, and deleted
   workouts) on every run. Body measurements are replaced wholesale on each
-  sync and deduplicated by date — if Hevy returns more than one entry for the
-  same date, the last one silently wins.
+  sync and deduplicated by date.
 - **Obsidian notes** — one note per workout (set-by-set tables, PR callouts),
   one evergreen note per exercise (PR history, est. 1RM), a dashboard, body
   measurement log, and weekly/monthly reviews. All with frontmatter for
@@ -36,15 +38,48 @@ have to edit the Hevy app by hand.
 - **Write-back** — log body measurements and create workouts in Hevy from the
   CLI / planned-workout notes. Writes are **always manual**; only reads are
   automated.
-- **Safe by design** — never writes outside its vault folder, atomic writes,
-  your edits below the `%% hevy-brain:end %%` marker in any note survive
-  regeneration, and deleted workouts are archived, never destroyed.
 
-## Install
+## Architecture
+
+```mermaid
+flowchart LR
+    H[Hevy API] -->|async client| S[sync engine]
+    S --> C[("local JSON cache<br/>source of truth")]
+    C --> A["analytics<br/>stats · PRs · patterns"]
+    C --> V["vault writer<br/>path-jailed · atomic"]
+    A --> V
+    V --> O["Obsidian vault<br/>Hevy/"]
+    A --> K["AI coach<br/>briefing or API"]
+    K --> O
+    W[write-back] -->|explicit push only| H
+```
+
+`api/` (aiohttp Hevy client) → `sync.py` (full backfill + incremental events
+cursor) → `store/` (local JSON cache — the vault can be rebuilt offline from
+it) → `analytics/` + `vault/` (note generation) and `coach/`. Write-back
+lives in `writeback/` and is only reachable from explicit CLI commands.
+
+### Engineering notes
+
+- **Idempotent by design** — syncing or regenerating twice produces zero
+  diffs; notes are keyed by Hevy workout ID in frontmatter.
+- **Safe vault writes** — the writer is path-jailed to its own subfolder
+  (path-traversal guarded), every write is atomic (temp file + rename), and
+  anything you write below the `%% hevy-brain:end %%` marker in any note
+  survives regeneration. Deleted workouts are archived, never destroyed.
+- **Crash-safe sync cursor** — the events cursor and sync metadata roll back
+  if a sync fails before the cache is persisted, so a retry replays the same
+  events instead of silently skipping them (regression-tested).
+- **Offline test suite** — 60 pytest tests, no network, the real account is
+  never touched by tests; ruff lint + format enforced in CI.
+- **Secrets stay out of files** — API keys come from environment variables
+  only; personal workout data and config never leave the machine (gitignored).
+
+## Quick start
 
 ```powershell
-git clone https://github.com/samrathsingh302/HA-hevy
-cd HA-hevy
+git clone https://github.com/samrathsingh302/hevy-brain
+cd hevy-brain
 pip install -e .
 ```
 
@@ -52,18 +87,20 @@ Set your API keys (user-level env vars so scheduled tasks see them):
 
 ```powershell
 [Environment]::SetEnvironmentVariable('HEVY_API_KEY', '<key from hevy.com/settings?developer>', 'User')
-[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', '<key>', 'User')   # only for `coach`
+[Environment]::SetEnvironmentVariable('ANTHROPIC_API_KEY', '<key>', 'User')   # only for `coach --api`
 ```
 
-## Configure
+Point it at your vault (optional — without a config it writes to a local
+`vault_staging/` folder so you can try it safely):
 
-Edit [config.toml](config.toml). The config in this repo points at my live
-vault (the folder containing `.obsidian`) — repoint it (e.g. at a staging
-dir) before reusing:
+```powershell
+copy config.example.toml config.toml
+# then edit config.toml:
+```
 
 ```toml
 [vault]
-path = 'C:\Users\samra\Atlas'
+path = 'C:\path\to\your\vault'   # the folder containing .obsidian
 subfolder = "Hevy"   # a separate folder; hevy-brain never touches anything else
 ```
 
@@ -73,12 +110,14 @@ subfolder = "Hevy"   # a separate folder; hevy-brain never touches anything else
 hevy-brain sync     # fetch new/changed Hevy data into the local cache
 hevy-brain vault    # regenerate all Obsidian notes from the cache
 hevy-brain full     # sync + vault
-hevy-brain coach    # FREE briefing note - analyze it with your Claude sub
+hevy-brain coach    # FREE briefing note - analyse it with your Claude sub
 hevy-brain coach --api   # opt-in: metered Anthropic API (needs ANTHROPIC_API_KEY)
 hevy-brain status   # cache overview
 hevy-brain push measurement --weight-kg 78.4 [--fat-percent 17] [--date 2026-06-10]
 hevy-brain push workout path\to\plan.md
 ```
+
+Reads are automatic; **writes to Hevy only happen on explicit `push` commands.**
 
 ### Vault layout
 
@@ -134,10 +173,13 @@ python -m ruff check hevy_brain tests
 python -m ruff format hevy_brain tests
 ```
 
-Architecture: `api/` (Hevy client) → `sync.py` → `store/` (local JSON cache,
-source of truth) → `analytics/` + `vault/` (note generation) and `coach/`
-(Anthropic). Write-back lives in `writeback/` and is only reachable from
-explicit CLI commands.
+## Provenance
+
+The Hevy API client and event-sync approach were originally ported from the
+excellent [hudsonbrendon/HA-hevy](https://github.com/hudsonbrendon/HA-hevy)
+Home Assistant integration; this repo then retired the integration and grew
+into a standalone tool (cache, analytics, vault generation, coach, and
+write-back are new).
 
 ## License
 
