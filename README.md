@@ -57,9 +57,9 @@ Set your API keys (user-level env vars so scheduled tasks see them):
 
 ## Configure
 
-Edit [config.toml](config.toml). By default notes are generated into
-`vault_staging/` inside the repo (a safe staging area). When you're happy,
-point it at your real vault (the folder containing `.obsidian`):
+Edit [config.toml](config.toml). The config in this repo points at my live
+vault (the folder containing `.obsidian`) — repoint it (e.g. at a staging
+dir) before reusing:
 
 ```toml
 [vault]

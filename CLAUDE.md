@@ -28,4 +28,4 @@ auto-write to Hevy (writes only via explicit `push` commands). Data/cache/notes 
 ## Working style
 One slice per session · decompose across agents first (ORCHESTRATION.md: how does this split?) ·
 commit per coherent step, push per session · tests written with code ·
-end every session: update HANDOFF + CHANGELOG, emit the carry-on prompt (PROMPTING_GUIDE §4).
+end every session: update HANDOFF (dated handoffs in docs/handoffs/ are the history), emit the carry-on prompt (PROMPTING_GUIDE §4).
