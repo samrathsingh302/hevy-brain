@@ -48,6 +48,14 @@ def test_scale_weight_rounds_to_plate_steps() -> None:
     assert scale_weight(3, 0.6) == 2.5  # never below one plate step
 
 
+def test_scale_weight_never_exceeds_the_original_load() -> None:
+    # A return week must not load heavier than pre-lapse: weights at or
+    # below one plate step pass through instead of rounding UP to the step.
+    assert scale_weight(2.0, 0.6) == 2.0
+    assert scale_weight(1.0, 0.6) == 1.0
+    assert scale_weight(2.5, 0.6) == 2.5
+
+
 def test_scale_exercises_keeps_bodyweight_and_structure() -> None:
     spec = [
         {
@@ -104,6 +112,23 @@ def test_select_return_routines_fills_with_recently_updated() -> None:
     assert [r["id"] for r in chosen] == ["r1", "r2"]
 
 
+def test_select_return_routines_skips_unpushable_routines() -> None:
+    # A draft of these would fail parse_routine_note — never offer one.
+    no_exercises = make_routine("r1", "Empty", exercises=[])
+    no_sets = make_routine(
+        "r2", "No Sets", exercises=[make_routine_exercise(sets=[])]
+    )
+    no_template = make_routine(
+        "r3", "No Template", exercises=[make_routine_exercise(template_id="")]
+    )
+    good = make_routine("r4", "Push Day")
+    routines = {r["id"]: r for r in (no_exercises, no_sets, no_template, good)}
+
+    chosen = select_return_routines(routines, [], limit=4)
+
+    assert [r["id"] for r in chosen] == ["r4"]
+
+
 # -- draft notes -----------------------------------------------------------
 
 
@@ -145,6 +170,40 @@ def test_render_return_draft_body_keeps_original_loads() -> None:
     assert "replaces" in content
     assert "--dry-run" in content
     assert "[general-knowledge]" in content
+
+
+def test_render_return_draft_preserves_routine_notes(tmp_path: Path) -> None:
+    routine = make_routine("r9", "Push Day A")
+    routine["notes"] = "Focus on tempo."
+
+    rel_path, content = render_return_draft(routine, fraction=0.6)
+    writer = VaultWriter(tmp_path)
+    writer.write(rel_path, content)
+
+    # PUT is a full replacement: a draft without the routine's notes would
+    # silently wipe them in Hevy on push.
+    _, body = parse_routine_note(tmp_path / rel_path)
+    assert body["routine"]["notes"] == "Focus on tempo."
+
+
+def test_generate_return_drafts_suffixes_duplicate_titles(tmp_path: Path) -> None:
+    writer = VaultWriter(tmp_path)
+    routines = {
+        "ralpha111": make_routine(
+            "ralpha111", "Push Day", updated_at="2026-06-09T09:00:00+00:00"
+        ),
+        "rbeta2222": make_routine(
+            "rbeta2222", "Push Day", updated_at="2026-06-01T09:00:00+00:00"
+        ),
+    }
+
+    written, skipped = generate_return_drafts(writer, routines, [], fraction=0.6)
+
+    assert not skipped
+    assert written == [
+        "Routines/Drafts/Return Week 1 — Push Day.md",
+        "Routines/Drafts/Return Week 1 — Push Day (rbeta222).md",
+    ]
 
 
 def test_generate_return_drafts_is_write_once(tmp_path: Path) -> None:
@@ -268,6 +327,44 @@ def test_cli_guide_return_writes_briefing_and_drafts(
     assert len(drafts) == 1
     # The real lapse (fixtures end 2026-06-08) shows up in the briefing.
     assert "days ago" in briefings[0].read_text(encoding="utf-8")
+
+
+def test_cli_guide_return_empty_cache(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    from hevy_brain.cli import main
+
+    (tmp_path / "config.toml").write_text(
+        f"[vault]\npath = '{tmp_path}'\nsubfolder = \"Hevy\"\n"
+        f"[sync]\ndata_dir = '{tmp_path / 'data'}'\n",
+        encoding="utf-8",
+    )
+
+    code = main(["--config", str(tmp_path / "config.toml"), "guide", "return"])
+
+    assert code == 1
+    assert "Cache is empty" in capsys.readouterr().err
+
+
+def test_cli_guide_return_without_routines_still_briefs(
+    tmp_path: Path, raw_workouts: dict, capsys: pytest.CaptureFixture
+) -> None:
+    from hevy_brain.cli import main
+
+    _write_cache(tmp_path, raw_workouts, routines={})
+    (tmp_path / "config.toml").write_text(
+        f"[vault]\npath = '{tmp_path}'\nsubfolder = \"Hevy\"\n"
+        f"[sync]\ndata_dir = '{tmp_path / 'data'}'\n"
+        "[guide]\nlapse_days = 1\n",
+        encoding="utf-8",
+    )
+
+    code = main(["--config", str(tmp_path / "config.toml"), "guide", "return"])
+
+    assert code == 0
+    assert "Return briefing written" in capsys.readouterr().out
+    briefing = next((tmp_path / "Hevy" / "Coach").glob("* Return Briefing.md"))
+    assert "None written" in briefing.read_text(encoding="utf-8")
 
 
 def test_cli_guide_return_no_lapse(

@@ -28,10 +28,15 @@ RETURN_PREFIX = "Return Week 1"
 
 
 def scale_weight(weight_kg: float, fraction: float, step: float = 2.5) -> float:
-    """Scale a load and round to the nearest plate step (min one step)."""
-    scaled = weight_kg * fraction
-    rounded = int(scaled / step + 0.5) * step
-    return max(rounded, step)
+    """Scale a load and round to the nearest plate step.
+
+    Never returns more than the original load (a return week must not load
+    heavier than pre-lapse), so weights at or below one step pass through.
+    """
+    if weight_kg <= step:
+        return weight_kg
+    rounded = int(weight_kg * fraction / step + 0.5) * step
+    return min(max(rounded, step), weight_kg)
 
 
 def scale_exercises(
@@ -69,11 +74,21 @@ def select_return_routines(
     """
     recent = {t.lower() for t in recent_titles}
     by_recency = sorted(
-        routines.values(), key=lambda r: r.get("updated_at") or "", reverse=True
+        (r for r in routines.values() if _pushable(r)),
+        key=lambda r: r.get("updated_at") or "",
+        reverse=True,
     )
     matched = [r for r in by_recency if (r.get("title") or "").lower() in recent]
     rest = [r for r in by_recency if r not in matched]
     return (matched + rest)[:limit]
+
+
+def _pushable(routine: dict[str, Any]) -> bool:
+    """Report whether a draft of this routine would pass the push parser."""
+    exercises = routine.get("exercises") or []
+    return bool(exercises) and all(
+        e.get("exercise_template_id") and e.get("sets") for e in exercises
+    )
 
 
 def _load_row(original: dict[str, Any], scaled: dict[str, Any], index: int) -> str:
@@ -109,6 +124,9 @@ def render_return_draft(
         "exercises": scaled_spec,
         "tags": ["hevy/routine/draft"],
     }
+    # PUT is a full replacement — without this, pushing wipes routine notes.
+    if routine.get("notes"):
+        frontmatter["notes"] = routine["notes"]
 
     lines = [
         f"# {draft_title}",
@@ -149,8 +167,13 @@ def generate_return_drafts(
     """Write return-week drafts (write-once). Returns (written, skipped)."""
     written: list[str] = []
     skipped: list[str] = []
+    seen: set[str] = set()
     for routine in select_return_routines(routines, recent_titles, limit):
         rel_path, content = render_return_draft(routine, fraction=fraction)
+        if rel_path in seen:
+            # Duplicate titles: same id-suffix scheme as the managed notes.
+            rel_path = f"{rel_path[: -len('.md')]} ({routine['id'][:8]}).md"
+        seen.add(rel_path)
         if (writer.root / rel_path).exists():
             skipped.append(rel_path)
             continue

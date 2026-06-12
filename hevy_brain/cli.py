@@ -458,7 +458,7 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_coach(config, use_api=args.api)
     if args.command == "status":
         return _cmd_status(config)
-    if args.command == "guide":
+    if args.command == "guide" and args.guide_command == "return":
         return _cmd_guide_return(config)
     if args.command == "push":
         if args.push_command == "workout":
