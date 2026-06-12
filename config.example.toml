@@ -28,6 +28,14 @@ max_calls_per_day = 4
 # path = 'C:\path\to\your\vault'
 topics = ["training"]  # topic pages to pull cited claims from for coaching
 
+[guide]
+# `hevy-brain guide return` — comeback protocol after a training lapse.
+lapse_days = 14       # minimum gap (days) before a lapse is declared
+load_fraction = 0.6   # Return Week 1 loads as a fraction of pre-lapse
+                      # (a general-knowledge default, not a cited claim)
+draft_limit = 3       # how many Return Week 1 routine drafts to write
+baseline_weeks = 4    # pre-lapse window the baselines are computed over
+
 [analytics]
 plateau_weeks = 4
 push_pull_low = 0.8

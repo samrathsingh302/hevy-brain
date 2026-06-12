@@ -33,6 +33,10 @@ class Config:
     review_weeks: int = 4
     review_months: int = 2
     muscle_overrides: dict[str, str] = field(default_factory=dict)
+    guide_lapse_days: int = 14
+    guide_load_fraction: float = 0.6
+    guide_draft_limit: int = 3
+    guide_baseline_weeks: int = 4
 
     @property
     def vault_root(self) -> Path:
@@ -74,6 +78,7 @@ def load_config(
     coach = raw.get("coach", {})
     analytics = raw.get("analytics", {})
     knowledge = raw.get("knowledge", {})
+    guide = raw.get("guide", {})
 
     vault_path = Path(vault.get("path", "vault_staging"))
     if not vault_path.is_absolute():
@@ -104,4 +109,8 @@ def load_config(
         review_weeks=int(analytics.get("review_weeks", 4)),
         review_months=int(analytics.get("review_months", 2)),
         muscle_overrides=dict(analytics.get("muscle_overrides", {})),
+        guide_lapse_days=int(guide.get("lapse_days", 14)),
+        guide_load_fraction=float(guide.get("load_fraction", 0.6)),
+        guide_draft_limit=int(guide.get("draft_limit", 3)),
+        guide_baseline_weeks=int(guide.get("baseline_weeks", 4)),
     )
