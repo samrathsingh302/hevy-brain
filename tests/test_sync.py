@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import make_workout
+from conftest import make_routine, make_workout
 
 from hevy_brain.api.client import HevyApiClientError
 from hevy_brain.store.cache import CacheStore
@@ -22,12 +22,16 @@ class FakeClient:
         events: list[dict] | None = None,
         measurements: list[dict] | None = None,
         templates: list[dict] | None = None,
+        routines: list[dict] | None = None,
+        routine_folders: list[dict] | None = None,
         page_size_cap: int = 2,
     ) -> None:
         self.workouts = workouts or []
         self.events = events or []
         self.measurements = measurements or []
         self.templates = templates or []
+        self.routines = routines or []
+        self.routine_folders = routine_folders or []
         self._cap = page_size_cap
         self.calls: list[str] = []
 
@@ -59,6 +63,15 @@ class FakeClient:
         self, page: int = 1, page_size: int = 100
     ) -> dict:
         return self._page(self.templates, "exercise_templates", page, page_size)
+
+    async def async_get_routines(self, page: int = 1, page_size: int = 10) -> dict:
+        self.calls.append(f"routines:{page}")
+        return self._page(self.routines, "routines", page, page_size)
+
+    async def async_get_routine_folders(
+        self, page: int = 1, page_size: int = 10
+    ) -> dict:
+        return self._page(self.routine_folders, "routine_folders", page, page_size)
 
 
 async def test_first_sync_backfills_all_pages(tmp_path: Path) -> None:
@@ -245,6 +258,59 @@ async def test_failed_save_rolls_back_meta_timestamps(
 
     assert store.meta == meta_before
     assert CacheStore(tmp_path).meta == meta_before
+
+
+async def test_routines_cached_and_vanished_ones_archived(tmp_path: Path) -> None:
+    client = FakeClient(
+        workouts=[make_workout("w1")],
+        routines=[make_routine("r1"), make_routine("r2", title="Pull Day A")],
+        routine_folders=[{"id": 7, "title": "PPL"}],
+    )
+    store = CacheStore(tmp_path)
+
+    result = await sync(client, store)
+
+    assert result.routines == 2
+    assert set(store.routines) == {"r1", "r2"}
+    assert store.routine_folders["7"]["title"] == "PPL"
+
+    # r2 deleted in Hevy: it leaves the active set but is never destroyed.
+    client.routines = [make_routine("r1")]
+    await sync(client, store)
+    assert set(store.routines) == {"r1"}
+    assert store.archived_routines["r2"]["title"] == "Pull Day A"
+
+    # Restored in Hevy: back to active, out of the archive.
+    client.routines = [make_routine("r1"), make_routine("r2", title="Pull Day A")]
+    await sync(client, store)
+    assert "r2" in store.routines
+    assert "r2" not in store.archived_routines
+
+    # Round-trips through disk.
+    reloaded = CacheStore(tmp_path)
+    assert set(reloaded.routines) == {"r1", "r2"}
+    assert reloaded.routine_folders["7"]["title"] == "PPL"
+
+
+async def test_routine_fetch_failure_is_non_fatal_and_archives_nothing(
+    tmp_path: Path,
+) -> None:
+    """A failed (possibly partial) routines fetch must not mass-archive the
+    cached set — replace-set semantics only apply to a complete fetch."""
+
+    class NoRoutinesClient(FakeClient):
+        async def async_get_routines(self, page=1, page_size=10):
+            raise HevyApiClientError("boom")
+
+    store = CacheStore(tmp_path)
+    await sync(FakeClient(workouts=[make_workout("w1")], routines=[make_routine()]), store)
+    assert "r1" in store.routines
+
+    result = await sync(NoRoutinesClient(), store)
+
+    assert "r1" in store.routines
+    assert not store.archived_routines
+    assert any(e.startswith("routines:") for e in result.errors)
 
 
 async def test_measurements_and_templates_cached(tmp_path: Path) -> None:
