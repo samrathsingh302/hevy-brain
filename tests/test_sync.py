@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
 from conftest import make_workout
 
 from hevy_brain.api.client import HevyApiClientError
@@ -126,6 +127,54 @@ async def test_side_data_failures_are_non_fatal(tmp_path: Path) -> None:
 
     assert len(store.workouts) == 1
     assert len(result.errors) == 2
+
+
+class ExplodingClient(FakeClient):
+    """Fails after event processing with an error the sync does not absorb."""
+
+    async def async_get_user_info(self) -> dict:
+        raise RuntimeError("boom")
+
+
+async def test_failed_sync_does_not_advance_cursor(tmp_path: Path) -> None:
+    """Regression: an exception between event-processing and save must leave
+    the events cursor untouched (memory + disk) so a retry replays the same
+    events instead of skipping them."""
+    client = FakeClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+    cursor_before = store.meta["events_cursor"]
+
+    failing = ExplodingClient(
+        events=[{"type": "updated", "workout": make_workout("w2", title="New")}]
+    )
+    with pytest.raises(RuntimeError):
+        await sync(failing, store)
+
+    assert store.meta["events_cursor"] == cursor_before
+    assert CacheStore(tmp_path).meta["events_cursor"] == cursor_before
+
+    # Retry from disk (fresh process): the failed run persisted nothing, so
+    # the same events replay cleanly and exactly once.
+    retry_store = CacheStore(tmp_path)
+    assert "w2" not in retry_store.workouts
+    result = await sync(FakeClient(events=failing.events), retry_store)
+    assert result.added == 1
+    assert len(retry_store.workouts) == 2
+    assert (
+        CacheStore(tmp_path).meta["events_cursor"] == retry_store.meta["events_cursor"]
+    )
+
+
+async def test_failed_first_sync_leaves_no_cursor(tmp_path: Path) -> None:
+    """A failed initial backfill must not leave a seeded cursor behind, or the
+    next run would sync incrementally from a backfill that was never saved."""
+    store = CacheStore(tmp_path)
+
+    with pytest.raises(RuntimeError):
+        await sync(ExplodingClient(workouts=[make_workout("w1")]), store)
+
+    assert "events_cursor" not in store.meta
 
 
 async def test_measurements_and_templates_cached(tmp_path: Path) -> None:

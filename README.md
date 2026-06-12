@@ -18,7 +18,9 @@ have to edit the Hevy app by hand.
 
 - **Full sync** — backfills your entire workout history once, then pulls only
   changes via Hevy's `/workouts/events` endpoint (new, edited, and deleted
-  workouts) on every run.
+  workouts) on every run. Body measurements are replaced wholesale on each
+  sync and deduplicated by date — if Hevy returns more than one entry for the
+  same date, the last one silently wins.
 - **Obsidian notes** — one note per workout (set-by-set tables, PR callouts),
   one evergreen note per exercise (PR history, est. 1RM), a dashboard, body
   measurement log, and weekly/monthly reviews. All with frontmatter for
@@ -61,7 +63,7 @@ point it at your real vault (the folder containing `.obsidian`):
 
 ```toml
 [vault]
-path = 'C:\Users\samra\projects\second-brain\vault'
+path = 'C:\Users\samra\Atlas'
 subfolder = "Hevy"   # a separate folder; hevy-brain never touches anything else
 ```
 
@@ -127,7 +129,7 @@ Registers two Task Scheduler jobs: `hevy-brain full` hourly and
 
 ```powershell
 pip install -e ".[dev]"
-python -m pytest tests -q     # 55 tests, no network, no real API calls
+python -m pytest tests -q     # 58 tests, no network, no real API calls
 python -m ruff check hevy_brain tests
 python -m ruff format hevy_brain tests
 ```
