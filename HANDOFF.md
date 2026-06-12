@@ -16,10 +16,24 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice2-knowledge-bridge.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice3-guide-return.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 3 (E1 `guide return`) shipped (`1286dcd`):** `hevy-brain guide
+  return` detects the lapse from the cache, computes pre-lapse baselines
+  (window ends at the last workout), writes a free `Coach/<date> Return
+  Briefing.md` grounded in cited claims (topics training + sleep), and
+  drops write-once `Return Week 1` drafts into `Routines/Drafts/` at 60%
+  loads (configurable `[guide]` block) that round-trip through `push
+  routine`. Fresh-eyes verifier caught a notes-wipe-on-push bug + a
+  light-load inversion pre-push; fixed with pinning tests. 135 offline
+  tests green, ruff clean. **Live-verified:** 62-day lapse detected,
+  briefing with 214 cited claims, 3 drafts (`upper`, `push 1`, `pull 1`)
+  parse into valid PUT bodies. **No live PUT yet** — first push must start
+  with `--dry-run` (and note: pushing a draft replaces the original
+  routine, title included; the managed note holds the original spec only
+  until the post-push sync).
 - **Slice 2 (E3 knowledge bridge + E5 provenance) shipped + pushed
   (`1634aad`):** new read-only `hevy_brain/knowledge/` package
   (`KnowledgeBase`) walks the `_meta/routing.md` order (topic page →
@@ -82,20 +96,22 @@ integration); fully refactored into this CLI — the HA code is gone.
    guidance on editing training (return-from-lapse, programme redesign)
    grounded in BOTH the Hevy data and the atlas-pipeline knowledge notes,
    plus full plan editing via the API. Build order: ~~routines sync/edit~~
-   (done) → ~~knowledge bridge~~ (done) → `guide return`.
-1. **Slice 3: E1 `guide return`** (next session — carry-on prompt in the
-   newest dated handoff): comeback protocol for the 62-day lapse, grounded
-   via the slice-2 knowledge bridge, draft routines pushed via slice-1.
-2. **Live verification of routines**: check `Hevy/Routines/` after the next
-   hourly sync; first real `push routine` with `--dry-run` on a trivial edit.
-3. Optional: open `Hevy/Coach/<date> Briefing.md` in Claude and ask it to act
-   as the coach; recommendations go below the `%% hevy-brain:end %%` marker.
+   → ~~knowledge bridge~~ → ~~`guide return`~~ (all done).
+1. **Live verification of the write path** (next session, first item):
+   `push routine --dry-run` on a `Return Week 1` draft, review the diff,
+   first real PUT with Samrath's go, `full` to confirm the round-trip.
+2. **Next slice** (carry-on prompt in the newest dated handoff): C2
+   `hevy-brain ask "…"` (small, generalises E1) or E2 `guide redesign`
+   (honesty-labelled until E4 ingestion lands in atlas-pipeline).
+3. Optional: open `Hevy/Coach/2026-06-12 Return Briefing.md` in Claude and
+   ask it to write the comeback protocol; output goes below the
+   `%% hevy-brain:end %%` marker.
 
 ## Key facts
 
-- Commands: `hevy-brain full | sync | vault | coach [--api] | status | push
-  workout|routine|measurement …` — reads automatic, **writes to Hevy only via
-  explicit `push`**. Routine edits: duplicate the note into
+- Commands: `hevy-brain full | sync | vault | coach [--api] | guide return |
+  status | push workout|routine|measurement …` — reads automatic, **writes to
+  Hevy only via explicit `push`**. Routine edits: duplicate the note into
   `Routines/Drafts/`, edit the frontmatter, `push routine <file>` (managed
   notes regenerate hourly — don't edit in place).
 - Config: `config.toml` (local, untracked — copy from `config.example.toml`).
@@ -109,4 +125,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (109 passed) + `python -m ruff check hevy_brain tests`.
+  (135 passed) + `python -m ruff check hevy_brain tests`.
