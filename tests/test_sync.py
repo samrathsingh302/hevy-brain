@@ -112,6 +112,50 @@ async def test_incremental_applies_updates_and_deletes(tmp_path: Path) -> None:
     assert "w2" in store.archived
 
 
+async def test_backfill_cursor_stamped_from_newest_workout(tmp_path: Path) -> None:
+    """Regression (D1): the cursor must come from server timestamps, not local
+    utcnow — a workout created server-side mid-backfill would otherwise fall
+    behind the cursor and never sync."""
+    workouts = [
+        make_workout("w1", end="2026-06-01T18:00:00+00:00"),
+        make_workout("w2", end="2026-06-08T18:00:00+00:00"),
+    ]
+    store = CacheStore(tmp_path)
+
+    await sync(FakeClient(workouts=workouts), store)
+
+    # make_workout stamps updated_at = end; newest wins.
+    assert store.meta["events_cursor"] == "2026-06-08T18:00:00+00:00"
+
+
+async def test_incremental_cursor_stamped_from_newest_event(tmp_path: Path) -> None:
+    client = FakeClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+
+    client.events = [
+        {
+            "type": "updated",
+            "workout": make_workout("w2", end="2026-06-09T10:00:00+00:00"),
+        },
+        {"type": "deleted", "id": "w1", "deleted_at": "2026-06-09T08:00:00+00:00"},
+    ]
+    await sync(client, store)
+
+    assert store.meta["events_cursor"] == "2026-06-09T10:00:00+00:00"
+
+
+async def test_incremental_cursor_unchanged_when_no_events(tmp_path: Path) -> None:
+    client = FakeClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+    cursor_before = store.meta["events_cursor"]
+
+    await sync(client, store)
+
+    assert store.meta["events_cursor"] == cursor_before
+
+
 async def test_side_data_failures_are_non_fatal(tmp_path: Path) -> None:
     class FlakyClient(FakeClient):
         async def async_get_body_measurements(self, page=1, page_size=10):
