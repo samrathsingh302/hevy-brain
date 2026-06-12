@@ -9,7 +9,7 @@ from ..analytics.prs import exercise_histories
 from ..config import Config
 from ..models import build_records
 from ..store.cache import CacheStore
-from . import dashboards, exercises, workouts
+from . import dashboards, exercises, routines, workouts
 from .writer import VaultWriter
 
 
@@ -65,14 +65,23 @@ def build_vault(
                 dashboards.render_body_log(store.measurements, today),
             )
         ),
+        "routines": routines.generate_routine_notes(
+            writer, store.routines, store.routine_folders
+        ),
     }
 
-    # Archive notes belonging to workouts deleted in Hevy.
+    # Archive notes belonging to workouts/routines deleted in Hevy.
     archived_records = build_records(store.archived)
     archived_paths = workouts.workout_note_paths(archived_records)
     archived_count = 0
     for rel_path in archived_paths.values():
         if writer.archive(rel_path):
+            archived_count += 1
+    # A deleted routine's title can since have been reused by an active one
+    # at the same path — never archive a path an active routine owns.
+    active_routine_paths = set(routines.routine_note_paths(store.routines).values())
+    for rel_path in routines.routine_note_paths(store.archived_routines).values():
+        if rel_path not in active_routine_paths and writer.archive(rel_path):
             archived_count += 1
     changed["archived"] = archived_count
     return changed
