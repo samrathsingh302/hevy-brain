@@ -139,12 +139,15 @@ async def sync(
 ) -> SyncResult:
     """Run a full or incremental sync depending on cache state, then save.
 
-    The events cursor only stays advanced once ``store.save()`` has
-    succeeded: on any failure the in-memory cursor is rolled back, so a
-    retry replays the same events (upserts are idempotent by id) instead
-    of silently skipping whatever this run failed to persist.
+    Meta state (events cursor, sync timestamps, user info) only stays
+    advanced once ``store.save()`` has succeeded: on any failure the whole
+    in-memory meta dict is rolled back, so a retry replays the same events
+    (upserts are idempotent by id) instead of silently skipping whatever
+    this run failed to persist.
     """
-    previous_cursor = store.meta.get("events_cursor")
+    # Shallow copy is enough: sync only ever assigns fresh top-level values.
+    # Restore in place — cli.py and vault/build.py hold references to meta.
+    previous_meta = dict(store.meta)
     try:
         if not store.workouts or "events_cursor" not in store.meta:
             result = await full_backfill(client, store, page_size=page_size)
@@ -154,9 +157,7 @@ async def sync(
         store.meta["last_sync"] = _utcnow_iso()
         store.save()
     except BaseException:
-        if previous_cursor is None:
-            store.meta.pop("events_cursor", None)
-        else:
-            store.meta["events_cursor"] = previous_cursor
+        store.meta.clear()
+        store.meta.update(previous_meta)
         raise
     return result

@@ -90,4 +90,8 @@ class CacheStore:
         _atomic_write_json(self._dir / _ARCHIVED_FILE, self.archived)
         _atomic_write_json(self._dir / _MEASUREMENTS_FILE, self.measurements)
         _atomic_write_json(self._dir / _TEMPLATES_FILE, self.exercise_templates)
+        # Meta LAST — load-bearing. If a save dies on a data file above, the
+        # on-disk events cursor stays old and the next sync replays the same
+        # events (upserts are idempotent). Meta-first would advance the cursor
+        # past data that was never written, silently losing those events.
         _atomic_write_json(self._dir / _META_FILE, self.meta)

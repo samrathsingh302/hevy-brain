@@ -25,11 +25,15 @@ package.
 ✅ Done:
 - Full package built: `hevy_brain/` (api, sync, store, analytics, vault, coach,
   writeback) + `cli.py`.
-- 58 tests pass (`pytest`), ruff lint + format clean. CI updated (test + lint
+- 60 tests pass (`pytest`), ruff lint + format clean. CI updated (test + lint
   workflows; HA-specific `validate.yml`/hassfest/HACS removed).
 - Audit P1 fixed (12/06/2026): the events cursor now rolls back if a sync
   fails before `store.save()` succeeds, so a retry replays the same events
   instead of skipping them (regression tests in `tests/test_sync.py`).
+  Follow-up (12/06/2026): the *whole* meta dict (cursor + `last_sync` +
+  `last_full_sync` + user info) now rolls back, and the load-bearing
+  meta-written-LAST order in `CacheStore.save()` is commented + pinned by a
+  partial-save test (`tests/test_cache.py`).
 - Real end-to-end sync ran against my Hevy account: **285 workouts, 29 body
   measurements, 486 exercise templates** cached locally.
 - Vault generated into `second-brain\vault\Hevy\` (dashboard, 285 workout
@@ -51,6 +55,10 @@ package.
 3. Optional: open `Hevy/Coach/<date> Briefing.md` in Claude and ask it to
    "act as the coach and analyze my data," writing recommendations below the
    `%% hevy-brain:end %%` marker.
+4. Known issue (design question for a future slice, behaviour unchanged): the
+   incremental cursor is stamped from `utcnow` taken *after* the events fetch
+   (`hevy_brain/sync.py:84-101`), so server-side events created between fetch
+   and stamp could be skipped next run.
 
 ## Commands
 
@@ -106,7 +114,7 @@ PROMPT.md                   # original build spec
 ```powershell
 cd C:\Users\samra\Atlas\repos\HA-hevy
 pip install -e ".[dev]"
-python -m pytest tests -q          # expect 58 passed
+python -m pytest tests -q          # expect 60 passed
 python -m ruff check hevy_brain tests
 hevy-brain status                  # shows cached counts
 ```
