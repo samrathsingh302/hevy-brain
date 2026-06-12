@@ -144,6 +144,7 @@ async def test_failed_sync_does_not_advance_cursor(tmp_path: Path) -> None:
     store = CacheStore(tmp_path)
     await sync(client, store)
     cursor_before = store.meta["events_cursor"]
+    meta_before = dict(store.meta)
 
     failing = ExplodingClient(
         events=[{"type": "updated", "workout": make_workout("w2", title="New")}]
@@ -153,6 +154,8 @@ async def test_failed_sync_does_not_advance_cursor(tmp_path: Path) -> None:
 
     assert store.meta["events_cursor"] == cursor_before
     assert CacheStore(tmp_path).meta["events_cursor"] == cursor_before
+    # The sync timestamps must roll back along with the cursor.
+    assert store.meta == meta_before
 
     # Retry from disk (fresh process): the failed run persisted nothing, so
     # the same events replay cleanly and exactly once.
@@ -175,6 +178,29 @@ async def test_failed_first_sync_leaves_no_cursor(tmp_path: Path) -> None:
         await sync(ExplodingClient(workouts=[make_workout("w1")]), store)
 
     assert "events_cursor" not in store.meta
+    # last_full_sync (and everything else meta) must roll back too.
+    assert store.meta == {}
+
+
+async def test_failed_save_rolls_back_meta_timestamps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: ``last_sync`` is stamped just before ``store.save()``, so a
+    failing save is the only path that can leave it advanced in memory. The
+    whole meta dict must match its pre-sync state, on disk and in memory."""
+    store = CacheStore(tmp_path)
+    await sync(FakeClient(workouts=[make_workout("w1")]), store)
+    meta_before = dict(store.meta)
+
+    def explode() -> None:
+        raise OSError("boom")
+
+    monkeypatch.setattr(store, "save", explode)
+    with pytest.raises(OSError, match="boom"):
+        await sync(FakeClient(), store)
+
+    assert store.meta == meta_before
+    assert CacheStore(tmp_path).meta == meta_before
 
 
 async def test_measurements_and_templates_cached(tmp_path: Path) -> None:

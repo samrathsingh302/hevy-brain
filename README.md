@@ -129,7 +129,7 @@ Registers two Task Scheduler jobs: `hevy-brain full` hourly and
 
 ```powershell
 pip install -e ".[dev]"
-python -m pytest tests -q     # 58 tests, no network, no real API calls
+python -m pytest tests -q     # 60 tests, no network, no real API calls
 python -m ruff check hevy_brain tests
 python -m ruff format hevy_brain tests
 ```
