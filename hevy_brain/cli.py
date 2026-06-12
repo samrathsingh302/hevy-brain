@@ -51,7 +51,7 @@ async def _cmd_sync(config: Config) -> int:
         print(
             f"Sync ({mode}): +{result.added} added, ~{result.updated} updated, "
             f"-{result.deleted} deleted · {len(store.workouts)} workouts cached "
-            f"· {result.measurements} measurements"
+            f"· {result.measurements} measurements · {result.routines} routines"
         )
         for error in result.errors:
             print(f"  warning: {error}", file=sys.stderr)
@@ -162,6 +162,57 @@ async def _cmd_push_workout(config: Config, file: Path) -> int:
     return await _with_client(config, run)
 
 
+async def _cmd_push_routine(config: Config, file: Path, *, dry_run: bool) -> int:
+    from .api.client import HevyApiClientError
+    from .writeback.hevy_push import (
+        RoutineNoteError,
+        parse_routine_note,
+        push_routine,
+        routine_diff,
+        unwrap_routine,
+    )
+
+    try:
+        routine_id, body = parse_routine_note(file)
+    except (RoutineNoteError, OSError) as err:
+        print(f"Cannot parse routine note: {err}", file=sys.stderr)
+        return 1
+
+    async def run(client: HevyApiClient) -> int:
+        try:
+            current = unwrap_routine(await client.async_get_routine(routine_id))
+        except HevyApiClientError as err:
+            print(f"Cannot fetch routine {routine_id}: {err}", file=sys.stderr)
+            return 1
+        if current is None:
+            print(f"Routine {routine_id} not found in Hevy.", file=sys.stderr)
+            return 1
+
+        diff = routine_diff(current, body)
+        title = body["routine"]["title"]
+        if not diff:
+            print(f"Routine '{title}': no changes — nothing to push.")
+            return 0
+        print(f"Routine '{title}' ({routine_id}) — changes to push:")
+        for line in diff:
+            print(f"  {line}")
+        if dry_run:
+            print("Dry run — nothing sent.")
+            return 0
+        try:
+            await push_routine(client, routine_id, body)
+        except HevyApiClientError as err:
+            print(f"Push failed: {err}", file=sys.stderr)
+            return 1
+        print(
+            "Routine updated in Hevy (full replacement). "
+            "Run 'hevy-brain full' to refresh the vault."
+        )
+        return 0
+
+    return await _with_client(config, run)
+
+
 async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int:
     from .writeback.hevy_push import MEASUREMENT_FIELDS, push_measurement
 
@@ -193,6 +244,10 @@ def _cmd_status(config: Config) -> int:
     print(f"  workouts: {len(store.workouts)} (archived: {len(store.archived)})")
     print(f"  measurements: {len(store.measurements)}")
     print(f"  exercise templates: {len(store.exercise_templates)}")
+    print(
+        f"  routines: {len(store.routines)} "
+        f"(archived: {len(store.archived_routines)})"
+    )
     print(f"  last sync: {meta.get('last_sync', 'never')}")
     print(f"  events cursor: {meta.get('events_cursor', 'none')}")
     print(f"Vault: {config.vault_root}")
@@ -234,6 +289,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     push_workout.add_argument("file", type=Path, help="Planned-workout .md file")
 
+    push_routine = push_sub.add_parser(
+        "routine",
+        help="Update a routine in Hevy from a routine note (PUT, full replacement)",
+    )
+    push_routine.add_argument("file", type=Path, help="Routine .md file (or draft)")
+    push_routine.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show the diff against Hevy and stop — send nothing",
+    )
+
     push_measurement = push_sub.add_parser(
         "measurement", help="Log a body measurement in Hevy"
     )
@@ -271,6 +337,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "push":
         if args.push_command == "workout":
             return asyncio.run(_cmd_push_workout(config, args.file))
+        if args.push_command == "routine":
+            return asyncio.run(
+                _cmd_push_routine(config, args.file, dry_run=args.dry_run)
+            )
         return asyncio.run(_cmd_push_measurement(config, args))
     return 1
 
