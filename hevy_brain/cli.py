@@ -79,6 +79,29 @@ async def _cmd_full(config: Config) -> int:
     return _cmd_vault(config)
 
 
+def _load_knowledge(config: Config) -> list:
+    """Pull cited claims for the configured topics (degrade gracefully).
+
+    A missing or unreadable knowledge layer must never break coaching — the
+    coach simply falls back to general-knowledge labelling.
+    """
+    from .knowledge import Claim, KnowledgeAccessError, KnowledgeBase
+
+    claims: list[Claim] = []
+    seen: set[tuple[str, str]] = set()
+    try:
+        kb = KnowledgeBase(config.knowledge_root)
+        for topic in config.knowledge_topics:
+            for claim in kb.retrieve(topic=topic).claims:
+                key = (claim.source_id, claim.anchor)
+                if key not in seen:
+                    seen.add(key)
+                    claims.append(claim)
+    except (KnowledgeAccessError, OSError) as err:
+        LOGGER.warning("Knowledge base unavailable: %s", err)
+    return claims
+
+
 def _cmd_coach(config: Config, *, use_api: bool) -> int:
     from .analytics.prs import exercise_histories
     from .coach import advisor
@@ -91,6 +114,7 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     today = datetime.now(tz=UTC).date()
     records = build_records(store.workouts)
     histories = exercise_histories(records)
+    knowledge = _load_knowledge(config)
     context = advisor.build_context(
         records,
         histories,
@@ -98,15 +122,23 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
         templates=store.exercise_templates,
         overrides=config.muscle_overrides,
         plateau_weeks=config.plateau_weeks,
+        knowledge=knowledge,
     )
     writer = VaultWriter(config.vault_root)
     config.vault_root.mkdir(parents=True, exist_ok=True)
+
+    claim_note = (
+        f"{len(knowledge)} cited claims loaded"
+        if knowledge
+        else "no cited claims (corpus gap — advice labelled general-knowledge)"
+    )
 
     if not use_api:
         # Default: free briefing analyzed via your Claude subscription.
         note_path = advisor.briefing_note_path(today)
         writer.write(note_path, advisor.render_briefing(context, today))
         print(f"Free coaching briefing written: {config.vault_root / note_path}")
+        print(f"Knowledge bridge: {claim_note}.")
         print(
             "Open it in Claude Code (or paste into claude.ai) and ask Claude to "
             "act as the coach and analyze it - no API key, no per-call cost."
@@ -128,6 +160,7 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     note_path = advisor.coach_note_path(today)
     writer.write(note_path, advisor.render_coach_note(report, today))
     print(f"Coach note written: {config.vault_root / note_path}")
+    print(f"Knowledge bridge: {claim_note}.")
     print(f"\n{report.summary}")
     for finding in report.findings:
         print(f"- [{finding.category}] {finding.title}")

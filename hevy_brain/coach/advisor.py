@@ -7,6 +7,7 @@ catch CoachError and continue.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 
@@ -14,18 +15,25 @@ from pydantic import BaseModel, Field
 
 from ..analytics import patterns, stats
 from ..analytics.prs import recent_prs
+from ..knowledge import Claim
 from ..vault.writer import render_note
 
 DEFAULT_MODEL = "claude-opus-4-8"
 
+# Provenance labels for every guidance claim in coach output (E5).
+PROVENANCE_VALUES = ("cited", "general-knowledge")
+Provenance = Literal["cited", "general-knowledge"]
+
 SYSTEM_PROMPT = """\
 You are a strength-training coach analyzing one athlete's real Hevy workout
 data. You receive computed statistics (volume, PRs, plateaus, muscle balance,
-week-over-week changes) and the athlete's recent training history.
+week-over-week changes), the athlete's recent training history, and — when
+available — a "Knowledge base" of cited claims distilled from sports-science
+podcasts (each with an evidence tag and an `[[id#^claim-xx]]` link).
 
 Rules:
-- Ground EVERY claim in the supplied data: cite the exact numbers and dates
-  you are reasoning from in the `evidence` field.
+- Ground EVERY data claim in the supplied data: cite the exact numbers and
+  dates you are reasoning from in the `evidence` field.
 - Never invent workouts, weights, or dates that are not in the data.
 - Recommendations must be specific and actionable (sets, reps, loads,
   frequency), not generic advice.
@@ -33,7 +41,20 @@ Rules:
   the "available exercises" list supplied in the data, so the swap can be
   pushed straight back to Hevy.
 - If the data is insufficient for a category, omit it rather than padding.
+
+Provenance (mandatory honesty rule):
+- For every training-science assertion (not data observations), set
+  `provenance`: use `cited` ONLY when the claim is supported by one of the
+  supplied Knowledge-base claims, and put that claim's exact `[[id#^claim-xx]]`
+  link in `claim_link`. Otherwise set `provenance` to `general-knowledge` and
+  leave `claim_link` empty.
+- NEVER present general knowledge as cited, and never invent a citation link.
+  If the Knowledge base is silent on a point you need (e.g. hypertrophy
+  programming or nutrition targets), say so as a corpus/ingestion gap rather
+  than fabricating support.
 """
+
+KNOWLEDGE_HEADING = "## Knowledge base — cited claims you may ground advice in"
 
 
 class CoachError(Exception):
@@ -62,6 +83,17 @@ class CoachFinding(BaseModel):
     title: str
     evidence: str = Field(description="Exact numbers/dates from the data")
     recommendation: str
+    provenance: Provenance = Field(
+        default="general-knowledge",
+        description=(
+            "'cited' only if backed by a supplied Knowledge-base claim "
+            "(then fill claim_link); else 'general-knowledge'."
+        ),
+    )
+    claim_link: str | None = Field(
+        default=None,
+        description="The [[id#^claim-xx]] link when provenance is 'cited'.",
+    )
     swap: ExerciseSwap | None = None
 
 
@@ -72,6 +104,32 @@ class CoachReport(BaseModel):
     findings: list[CoachFinding]
 
 
+def render_knowledge_pack(claims: Sequence[Claim]) -> str:
+    """Render cited claims as a knowledge section for the coach context.
+
+    Each line is ``- [evidence] CLAIM_TYPE text [[id#^claim-xx]]``. With no
+    claims, the section instructs the coach to flag a corpus gap rather than
+    pass general knowledge off as cited.
+    """
+    lines = [KNOWLEDGE_HEADING]
+    if not claims:
+        lines.append(
+            "\n_No cited claims available for this topic. Label any "
+            "training-science advice `general-knowledge` and flag the corpus "
+            "gap — do not invent a citation._"
+        )
+        return "\n".join(lines)
+    lines.append(
+        "\nGround training-science advice in these where they apply, and "
+        "reuse the exact `[[id#^claim-xx]]` link in `claim_link`:"
+    )
+    for claim in claims:
+        prefix = f"{claim.claim_type} " if claim.claim_type else ""
+        tag = f"[{claim.evidence}] " if claim.evidence else ""
+        lines.append(f"- {tag}{prefix}{claim.text} {claim.link}")
+    return "\n".join(lines)
+
+
 def build_context(
     records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
@@ -79,6 +137,7 @@ def build_context(
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
     plateau_weeks: int = 4,
+    knowledge: Sequence[Claim] | None = None,
 ) -> str:
     """Build the markdown data context handed to the coach model."""
     agg = stats.compute_aggregates(records, today)
@@ -150,6 +209,9 @@ def build_context(
         )
     lines.append("\n## Available exercises (for swap recommendations)")
     lines.append(", ".join(available))
+
+    if knowledge is not None:
+        lines.append("\n" + render_knowledge_pack(knowledge))
     return "\n".join(lines)
 
 
@@ -232,6 +294,10 @@ def render_coach_note(report: CoachReport, today: date) -> str:
         lines.append(f"*Category: {finding.category}*")
         lines.append(f"\n**Evidence:** {finding.evidence}")
         lines.append(f"\n**Recommendation:** {finding.recommendation}")
+        if finding.provenance == "cited" and finding.claim_link:
+            lines.append(f"\n**Grounding:** cited — {finding.claim_link}")
+        else:
+            lines.append("\n**Grounding:** general-knowledge")
         if finding.swap:
             lines.append(
                 f"\n> [!tip] Swap **{finding.swap.from_exercise}** → "
@@ -270,7 +336,12 @@ def render_briefing(context: str, today: date) -> str:
             "> Open this note in Claude Code (or paste it into claude.ai) and "
             'ask: *"Act as the coach described below and analyze my training '
             'data."* Write the recommendations **below** the '
-            "`%% hevy-brain:end %%` marker — they will survive future syncs."
+            "`%% hevy-brain:end %%` marker — they will survive future syncs.\n"
+            ">\n"
+            "> **Label every training-science point** in your write-up: append "
+            "`[cited: [[id#^claim-xx]]]` when it is backed by a Knowledge-base "
+            "claim below, or `[general-knowledge]` when it is not. Never label "
+            "general knowledge as cited."
         ),
         "\n## Coach instructions",
         f"\n{SYSTEM_PROMPT}",
