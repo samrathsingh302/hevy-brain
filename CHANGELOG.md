@@ -2,6 +2,21 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 13/06/2026 — slice 2: knowledge bridge + provenance labels
+- New read-only `hevy_brain/knowledge/` package (`KnowledgeBase`) implements
+  the `_meta/routing.md` consumption order — topic page → claim links into
+  notes → concept tags → claims-index → grep notes/ — returning cited
+  `Claim`s (text + evidence tag + `[[id#^claim-xx]]` link). Reads are jailed
+  under the knowledge root and refuse `sources/`; nothing is ever written.
+  Silent corpus → reported as an ingestion gap, never inferred.
+- Coach grounds advice in those cited claims and labels every
+  training-science point `cited` (with link) or `general-knowledge`:
+  enforced structurally on the API path (`CoachFinding.provenance` /
+  `claim_link`), by prompt instruction on the free briefing.
+- `[knowledge]` config block (`path` defaults to vault root; `topics`
+  defaults to `["training"]`); coach degrades gracefully to
+  general-knowledge if the layer is unreadable. 109 offline tests (was 85).
+
 ## 12/06/2026 — slice 1: routines sync + edit (+ cursor fix)
 - Routines + routine folders sync into the cache (`routines.json`,
   `archived_routines.json`, `routine_folders.json`); vanished routines
