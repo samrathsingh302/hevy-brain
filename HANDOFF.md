@@ -14,7 +14,9 @@ hudsonbrendon/HA-hevy) and was fully refactored into this CLI. The HA code is
 gone; the proven Hevy API client + sync logic were ported into the new
 package.
 
-- **Repo:** https://github.com/samrathsingh302/HA-hevy (private, my account)
+- **Repo:** https://github.com/samrathsingh302/hevy-brain (private, my account;
+  renamed from `HA-hevy` 12/06/2026 — old URL redirects, local folder still
+  `HA-hevy`)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy`
 - **Obsidian vault target:** `C:\Users\samra\Atlas`
   (the folder that holds `.obsidian`). hevy-brain only ever writes into the

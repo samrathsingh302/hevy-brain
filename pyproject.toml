@@ -7,6 +7,9 @@ name = "hevy-brain"
 version = "0.1.0"
 description = "Sync Hevy workout data into an Obsidian second brain, analyze training patterns, and push changes back to Hevy."
 readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Samrath Singh", email = "samrathsingh302@gmail.com" }]
+keywords = ["hevy", "obsidian", "fitness", "workout", "second-brain"]
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.10",
@@ -19,8 +22,12 @@ dependencies = [
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.25",
-    "ruff>=0.15",
+    "ruff==0.15.16",
 ]
+
+[project.urls]
+Repository = "https://github.com/samrathsingh302/hevy-brain"
+Issues = "https://github.com/samrathsingh302/hevy-brain/issues"
 
 [project.scripts]
 hevy-brain = "hevy_brain.cli:main"
