@@ -109,6 +109,43 @@ class HevyApiClient:
             params={"page": page, "pageSize": page_size},
         )
 
+    async def async_get_routines(
+        self, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+    ) -> dict[str, Any]:
+        """Get routines (paginated, max 10 per page)."""
+        return await self._api_wrapper(
+            method="get",
+            url=f"{BASE_URL}/routines",
+            params={"page": page, "pageSize": page_size},
+        )
+
+    async def async_get_routine(self, routine_id: str) -> dict[str, Any]:
+        """Get a single routine by id."""
+        return await self._api_wrapper(
+            method="get",
+            url=f"{BASE_URL}/routines/{routine_id}",
+        )
+
+    async def async_get_routine_folders(
+        self, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+    ) -> dict[str, Any]:
+        """Get routine folders (paginated)."""
+        return await self._api_wrapper(
+            method="get",
+            url=f"{BASE_URL}/routine_folders",
+            params={"page": page, "pageSize": page_size},
+        )
+
+    async def async_update_routine(
+        self, routine_id: str, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """PUT (full replacement) a routine — there is no partial update."""
+        return await self._api_wrapper(
+            method="put",
+            url=f"{BASE_URL}/routines/{routine_id}",
+            data=body,
+        )
+
     async def async_create_body_measurement(
         self, body: dict[str, Any]
     ) -> dict[str, Any]:

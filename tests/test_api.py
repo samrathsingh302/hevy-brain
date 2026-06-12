@@ -97,6 +97,50 @@ class TestEndpointDispatch:
         }
         assert kwargs["url"].endswith("/workouts/events")
 
+    async def test_routines_endpoint_passes_pagination(self) -> None:
+        response = _build_response(json_payload={"routines": []})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        await client.async_get_routines(page=2, page_size=10)
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["url"].endswith("/routines")
+        assert kwargs["params"] == {"page": 2, "pageSize": 10}
+
+    async def test_single_routine_endpoint(self) -> None:
+        response = _build_response(json_payload={"routine": {"id": "r1"}})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        await client.async_get_routine("r1")
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["method"] == "get"
+        assert kwargs["url"].endswith("/routines/r1")
+
+    async def test_routine_folders_endpoint(self) -> None:
+        response = _build_response(json_payload={"routine_folders": []})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        await client.async_get_routine_folders()
+
+        assert session.request.await_args.kwargs["url"].endswith("/routine_folders")
+
+    async def test_update_routine_puts_full_body(self) -> None:
+        response = _build_response(json_payload={"routine": {"id": "r1"}})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+        body = {"routine": {"title": "Push Day A", "exercises": []}}
+
+        await client.async_update_routine("r1", body)
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["method"] == "put"
+        assert kwargs["url"].endswith("/routines/r1")
+        assert kwargs["json"] == body
+
     async def test_exercise_templates_endpoint(self) -> None:
         response = _build_response(json_payload={"exercise_templates": []})
         session = _build_session(response)

@@ -16,6 +16,9 @@ _WORKOUTS_FILE = "workouts.json"
 _ARCHIVED_FILE = "archived_workouts.json"
 _MEASUREMENTS_FILE = "measurements.json"
 _TEMPLATES_FILE = "exercise_templates.json"
+_ROUTINES_FILE = "routines.json"
+_ARCHIVED_ROUTINES_FILE = "archived_routines.json"
+_ROUTINE_FOLDERS_FILE = "routine_folders.json"
 _META_FILE = "meta.json"
 
 
@@ -58,6 +61,15 @@ class CacheStore:
         self.exercise_templates: dict[str, dict[str, Any]] = _load_json(
             data_dir / _TEMPLATES_FILE, {}
         )
+        self.routines: dict[str, dict[str, Any]] = _load_json(
+            data_dir / _ROUTINES_FILE, {}
+        )
+        self.archived_routines: dict[str, dict[str, Any]] = _load_json(
+            data_dir / _ARCHIVED_ROUTINES_FILE, {}
+        )
+        self.routine_folders: dict[str, dict[str, Any]] = _load_json(
+            data_dir / _ROUTINE_FOLDERS_FILE, {}
+        )
         self.meta: dict[str, Any] = _load_json(data_dir / _META_FILE, {})
 
     def upsert_workout(self, workout: dict[str, Any]) -> str:
@@ -75,6 +87,23 @@ class CacheStore:
         self.archived[workout_id] = workout
         return True
 
+    def set_routines(self, routines: list[dict[str, Any]]) -> None:
+        """Replace the routine set; vanished routines move to the archive.
+
+        The routines endpoint always returns the full current set, so an id
+        missing from a fresh fetch means it was deleted in Hevy. Its last
+        known payload is kept in ``archived_routines`` — never destroyed.
+        Only call with a *complete* fetch (a partial list would mass-archive).
+        """
+        fresh = {r["id"]: r for r in routines if r.get("id")}
+        for routine_id, routine in self.routines.items():
+            if routine_id not in fresh:
+                self.archived_routines[routine_id] = routine
+        # A routine that reappears (e.g. restored in Hevy) leaves the archive.
+        for routine_id in fresh:
+            self.archived_routines.pop(routine_id, None)
+        self.routines = fresh
+
     def set_measurements(self, measurements: list[dict[str, Any]]) -> None:
         """Replace the measurement list, deduplicated by date, sorted.
 
@@ -90,6 +119,11 @@ class CacheStore:
         _atomic_write_json(self._dir / _ARCHIVED_FILE, self.archived)
         _atomic_write_json(self._dir / _MEASUREMENTS_FILE, self.measurements)
         _atomic_write_json(self._dir / _TEMPLATES_FILE, self.exercise_templates)
+        _atomic_write_json(self._dir / _ROUTINES_FILE, self.routines)
+        _atomic_write_json(
+            self._dir / _ARCHIVED_ROUTINES_FILE, self.archived_routines
+        )
+        _atomic_write_json(self._dir / _ROUTINE_FOLDERS_FILE, self.routine_folders)
         # Meta LAST — load-bearing. If a save dies on a data file above, the
         # on-disk events cursor stays old and the next sync replays the same
         # events (upserts are idempotent). Meta-first would advance the cursor

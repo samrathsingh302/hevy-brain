@@ -30,6 +30,7 @@ class SyncResult:
     updated: int = 0
     deleted: int = 0
     measurements: int = 0
+    routines: int = 0
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -164,6 +165,27 @@ async def _refresh_side_data(
     except HevyApiClientError as err:
         result.errors.append(f"exercise_templates: {err}")
         LOGGER.warning("Failed to refresh exercise templates: %s", err)
+
+    try:
+        routines = await _paginate(client.async_get_routines, "routines", 10)
+        # Replace-set semantics need the COMPLETE list — only safe here,
+        # after _paginate drained every page without raising.
+        store.set_routines(routines)
+        result.routines = len(routines)
+    except HevyApiClientError as err:
+        result.errors.append(f"routines: {err}")
+        LOGGER.warning("Failed to refresh routines: %s", err)
+
+    try:
+        folders = await _paginate(
+            client.async_get_routine_folders, "routine_folders", 10
+        )
+        store.routine_folders = {
+            str(f["id"]): f for f in folders if f.get("id") is not None
+        }
+    except HevyApiClientError as err:
+        result.errors.append(f"routine_folders: {err}")
+        LOGGER.warning("Failed to refresh routine folders: %s", err)
 
 
 async def sync(
