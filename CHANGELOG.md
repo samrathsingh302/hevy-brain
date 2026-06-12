@@ -1,0 +1,40 @@
+# Changelog
+
+Newest first. Dates dd/mm/yyyy.
+
+## 12/06/2026 — CV-readiness overhaul
+- GitHub repo renamed `HA-hevy` → `hevy-brain` (old URL redirects); description
+  + topics set; remote updated. Local folder name unchanged.
+- README rewritten recruiter-grade: architecture diagram, engineering notes,
+  real screenshots in `assets/` (rendered from actual generated notes, no body
+  data), provenance section.
+- `config.toml` untracked (personal vault path stays local); added
+  `config.example.toml`; safe default without config is `vault_staging/`.
+- Dependencies consolidated into `pyproject.toml` (`requirements.txt` removed,
+  ruff pinned); GitHub Actions bumped (checkout v6.0.3, setup-python v6.2.0),
+  superseding dependabot PRs #1/#2/#5.
+- HA fork leftovers removed: issue templates replaced with CLI-appropriate
+  ones, stale `homeassistant` ignore dropped from dependabot.yml.
+- Pre-publication git-history audit: **clean** — no secret values or personal
+  data in any reachable/unreachable blob across 107 commits. One low doc
+  finding folded into HANDOFF's pre-public checklist.
+- `HEVY_API_KEY` persisted at User scope and verified live (earlier today);
+  hourly/weekly Task Scheduler registration still pending.
+
+## 12/06/2026 — sync correctness (audit P1)
+- Events cursor rolls back if a sync fails before the cache save succeeds;
+  whole meta dict (cursor, `last_sync`, `last_full_sync`, user info) rolls
+  back together; meta-written-LAST save order pinned by a partial-save test.
+
+## 11–12/06/2026 — transformation: HA integration → hevy-brain CLI
+- Full `hevy_brain/` package built (api, sync, store, analytics, vault, coach,
+  writeback) + CLI; 60 offline tests; CI reduced to test + lint.
+- Real end-to-end sync: 285 workouts, 29 body measurements, 486 exercise
+  templates; vault generated into `C:\Users\samra\Atlas\Hevy\`.
+- Coach made free-by-default (briefing note); metered API behind `--api`.
+- Home Assistant integration retired; HACS/hassfest CI removed.
+
+## Pre-06/2026 — fork era
+- Forked from [hudsonbrendon/HA-hevy](https://github.com/hudsonbrendon/HA-hevy)
+  (Home Assistant integration). Its API client and event-sync approach were
+  later ported into the CLI; upstream history retained.

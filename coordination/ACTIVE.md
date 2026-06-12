@@ -1,10 +1,6 @@
 # ACTIVE.md — write-claim file for hevy-brain (ORCHESTRATION.md §14)
 
-## CLAIM
-- session: CV-readiness overhaul (kickoff-conformance + repo polish)
-- scope: README.md, HANDOFF.md, docs/, .github/, pyproject.toml, config.example.toml, .gitignore, assets/
-- started: 12/06/2026 (evening)
-- machine: laptop
+No active claim.
 
 <!-- An orchestrator opening this repo for WRITE work first checks for an existing claim,
 then replaces this file's body with its own claim and commits:
