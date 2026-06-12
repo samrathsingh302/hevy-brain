@@ -2,6 +2,19 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 12/06/2026 — slice 1: routines sync + edit (+ cursor fix)
+- Routines + routine folders sync into the cache (`routines.json`,
+  `archived_routines.json`, `routine_folders.json`); vanished routines
+  archive, never destroyed; partial fetches can't mass-archive.
+- `Hevy/Routines/` vault notes — frontmatter carries the full editable spec
+  so a draft copy round-trips; deleted routines' notes move to `Archive/`.
+- `hevy-brain push routine <file> [--dry-run]`: parse note → GET live
+  routine → human-readable diff preview → PUT full replacement; identical
+  notes send nothing; routine sets reject RPE (workout-set-only API field).
+- Events cursor now stamps from server timestamps (newest event /
+  workout `updated_at`) instead of post-fetch `utcnow` — closes the
+  fetch-to-stamp gap that could silently skip events. 85 offline tests.
+
 ## 12/06/2026 — CV-readiness overhaul
 - GitHub repo renamed `HA-hevy` → `hevy-brain` (old URL redirects); description
   + topics set; remote updated. Local folder name unchanged.
