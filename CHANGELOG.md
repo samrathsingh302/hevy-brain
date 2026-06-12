@@ -2,6 +2,31 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 13/06/2026 — slice 3: `guide return` (comeback protocol, E1)
+- New `hevy-brain guide return`: detects the lapse from the cache
+  (`analytics/comeback.py` — days since last workout vs `[guide] lapse_days`),
+  computes pre-lapse baselines over the window *ending at the last workout*
+  (weekly volume, session frequency, muscle-group split, top exercises with
+  window + all-time e1RM), and writes a free `Coach/<date> Return Briefing.md`
+  with a comeback-specific coach prompt (week-by-week ramp, AVOID list,
+  recovery/sleep anchors, draft adjustments).
+- Briefing grounds advice via the slice-2 knowledge bridge across topics
+  `training` + `sleep` (config topics are unioned in); provenance rules
+  shared with the weekly coach (`PROVENANCE_RULES`). Ramp percentages are
+  honestly labelled `[general-knowledge]` — programming claims are a known
+  corpus gap until E4.
+- `Return Week 1` routine drafts into `Routines/Drafts/` at
+  `[guide] load_fraction` (default 60%) of pre-lapse loads, rounded to
+  2.5 kg and never above the original; drafts are write-once (user-owned
+  once created), keep the routine notes (PUT is a full replacement), show
+  original → week-1 loads in the body, and round-trip through the slice-1
+  `push routine` parser. Un-pushable routines are never offered; duplicate
+  titles get the id-suffix scheme.
+- Independent fresh-eyes review caught a notes-wipe-on-push bug and a light-
+  load inversion before first real push; both fixed with pinning tests.
+  135 offline tests (was 109). Live: 62-day lapse detected, briefing with
+  214 cited claims, 3 drafts (`upper`, `push 1`, `pull 1`).
+
 ## 13/06/2026 — slice 2: knowledge bridge + provenance labels
 - New read-only `hevy_brain/knowledge/` package (`KnowledgeBase`) implements
   the `_meta/routing.md` consumption order — topic page → claim links into
