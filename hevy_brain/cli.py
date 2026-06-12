@@ -79,8 +79,8 @@ async def _cmd_full(config: Config) -> int:
     return _cmd_vault(config)
 
 
-def _load_knowledge(config: Config) -> list:
-    """Pull cited claims for the configured topics (degrade gracefully).
+def _load_knowledge(config: Config, topics: list[str] | None = None) -> list:
+    """Pull cited claims for the given topics (degrade gracefully).
 
     A missing or unreadable knowledge layer must never break coaching — the
     coach simply falls back to general-knowledge labelling.
@@ -91,7 +91,7 @@ def _load_knowledge(config: Config) -> list:
     seen: set[tuple[str, str]] = set()
     try:
         kb = KnowledgeBase(config.knowledge_root)
-        for topic in config.knowledge_topics:
+        for topic in topics if topics is not None else config.knowledge_topics:
             for claim in kb.retrieve(topic=topic).claims:
                 key = (claim.source_id, claim.anchor)
                 if key not in seen:
@@ -164,6 +164,85 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     print(f"\n{report.summary}")
     for finding in report.findings:
         print(f"- [{finding.category}] {finding.title}")
+    return 0
+
+
+def _cmd_guide_return(config: Config) -> int:
+    from .analytics.comeback import lapse_status, pre_lapse_baselines
+    from .analytics.prs import exercise_histories
+    from .coach import comeback
+    from .models import build_records
+    from .vault.drafts import generate_return_drafts
+
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    today = datetime.now(tz=UTC).date()
+    records = build_records(store.workouts)
+    lapse = lapse_status(records, today)
+    if lapse is None:
+        print("No dated workouts in the cache.", file=sys.stderr)
+        return 1
+    if lapse["days_since"] < config.guide_lapse_days:
+        print(
+            f"No lapse detected: last workout was {lapse['days_since']} days ago "
+            f"(threshold {config.guide_lapse_days} — [guide] lapse_days)."
+        )
+        return 0
+
+    histories = exercise_histories(records)
+    baselines = pre_lapse_baselines(
+        records,
+        histories,
+        weeks=config.guide_baseline_weeks,
+        templates=store.exercise_templates,
+        overrides=config.muscle_overrides,
+    )
+
+    writer = VaultWriter(config.vault_root)
+    config.vault_root.mkdir(parents=True, exist_ok=True)
+    written, skipped = generate_return_drafts(
+        writer,
+        store.routines,
+        baselines["workout_titles"],
+        fraction=config.guide_load_fraction,
+        limit=config.guide_draft_limit,
+    )
+
+    topics = list(dict.fromkeys([*config.knowledge_topics, "training", "sleep"]))
+    knowledge = _load_knowledge(config, topics)
+    context = comeback.build_return_context(
+        lapse,
+        baselines,
+        today=today,
+        load_fraction=config.guide_load_fraction,
+        draft_paths=[*written, *skipped],
+        knowledge=knowledge,
+    )
+    note_path = comeback.return_briefing_path(today)
+    writer.write(note_path, comeback.render_return_briefing(context, today))
+
+    print(
+        f"Lapse: {lapse['days_since']} days since "
+        f"{lapse['last_workout_date'].isoformat()}."
+    )
+    print(f"Return briefing written: {config.vault_root / note_path}")
+    claim_note = (
+        f"{len(knowledge)} cited claims loaded"
+        if knowledge
+        else "no cited claims (corpus gap — advice labelled general-knowledge)"
+    )
+    print(f"Knowledge bridge: {claim_note}.")
+    for path in written:
+        print(f"Draft written: {config.vault_root / path}")
+    for path in skipped:
+        print(f"Draft already exists (kept your copy): {config.vault_root / path}")
+    print(
+        "Open the briefing in Claude Code and ask Claude to write the comeback "
+        "protocol; push a draft with "
+        "'hevy-brain push routine <file> --dry-run' when ready."
+    )
     return 0
 
 
@@ -314,6 +393,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub.add_parser("status", help="Show cache and config status")
 
+    guide = sub.add_parser(
+        "guide", help="Scenario guidance grounded in your data + cited claims"
+    )
+    guide_sub = guide.add_subparsers(dest="guide_command", required=True)
+    guide_sub.add_parser(
+        "return",
+        help=(
+            "Comeback protocol after a training lapse: baselines, briefing, "
+            "and Return Week 1 routine drafts"
+        ),
+    )
+
     push = sub.add_parser("push", help="Write data TO Hevy (always manual)")
     push_sub = push.add_subparsers(dest="push_command", required=True)
 
@@ -367,6 +458,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_coach(config, use_api=args.api)
     if args.command == "status":
         return _cmd_status(config)
+    if args.command == "guide":
+        return _cmd_guide_return(config)
     if args.command == "push":
         if args.push_command == "workout":
             return asyncio.run(_cmd_push_workout(config, args.file))

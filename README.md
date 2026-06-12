@@ -112,9 +112,12 @@ hevy-brain vault    # regenerate all Obsidian notes from the cache
 hevy-brain full     # sync + vault
 hevy-brain coach    # FREE briefing note - analyse it with your Claude sub
 hevy-brain coach --api   # opt-in: metered Anthropic API (needs ANTHROPIC_API_KEY)
+hevy-brain guide return  # comeback protocol after a lapse: baselines, briefing,
+                         # and Return Week 1 routine drafts at reduced loads
 hevy-brain status   # cache overview
 hevy-brain push measurement --weight-kg 78.4 [--fat-percent 17] [--date 2026-06-10]
 hevy-brain push workout path\to\plan.md
+hevy-brain push routine path\to\draft.md [--dry-run]   # PUT, with diff preview
 ```
 
 Reads are automatic; **writes to Hevy only happen on explicit `push` commands.**

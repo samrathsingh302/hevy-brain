@@ -24,7 +24,20 @@ DEFAULT_MODEL = "claude-opus-4-8"
 PROVENANCE_VALUES = ("cited", "general-knowledge")
 Provenance = Literal["cited", "general-knowledge"]
 
-SYSTEM_PROMPT = """\
+PROVENANCE_RULES = """\
+Provenance (mandatory honesty rule):
+- For every training-science assertion (not data observations), set
+  `provenance`: use `cited` ONLY when the claim is supported by one of the
+  supplied Knowledge-base claims, and put that claim's exact `[[id#^claim-xx]]`
+  link in `claim_link`. Otherwise set `provenance` to `general-knowledge` and
+  leave `claim_link` empty.
+- NEVER present general knowledge as cited, and never invent a citation link.
+  If the Knowledge base is silent on a point you need (e.g. hypertrophy
+  programming or nutrition targets), say so as a corpus/ingestion gap rather
+  than fabricating support.
+"""
+
+SYSTEM_PROMPT = f"""\
 You are a strength-training coach analyzing one athlete's real Hevy workout
 data. You receive computed statistics (volume, PRs, plateaus, muscle balance,
 week-over-week changes), the athlete's recent training history, and — when
@@ -42,17 +55,7 @@ Rules:
   pushed straight back to Hevy.
 - If the data is insufficient for a category, omit it rather than padding.
 
-Provenance (mandatory honesty rule):
-- For every training-science assertion (not data observations), set
-  `provenance`: use `cited` ONLY when the claim is supported by one of the
-  supplied Knowledge-base claims, and put that claim's exact `[[id#^claim-xx]]`
-  link in `claim_link`. Otherwise set `provenance` to `general-knowledge` and
-  leave `claim_link` empty.
-- NEVER present general knowledge as cited, and never invent a citation link.
-  If the Knowledge base is silent on a point you need (e.g. hypertrophy
-  programming or nutrition targets), say so as a corpus/ingestion gap rather
-  than fabricating support.
-"""
+{PROVENANCE_RULES}"""
 
 KNOWLEDGE_HEADING = "## Knowledge base — cited claims you may ground advice in"
 
