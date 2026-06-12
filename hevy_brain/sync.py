@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from .api.client import HevyApiClient, HevyApiClientError
+from .models import parse_iso
 from .store.cache import CacheStore
 
 LOGGER = logging.getLogger(__name__)
@@ -39,6 +40,26 @@ class SyncResult:
 
 def _utcnow_iso() -> str:
     return datetime.now(tz=UTC).isoformat()
+
+
+def _newest_timestamp(values: Any) -> str | None:
+    """Return the most recent ISO timestamp from an iterable (None-tolerant).
+
+    Comparison happens on parsed datetimes so mixed offset spellings still
+    order correctly, but the *original server string* is returned — the cursor
+    must round-trip to ``/workouts/events?since=`` exactly as Hevy issued it.
+    """
+    best: str | None = None
+    best_dt: datetime | None = None
+    for value in values:
+        parsed = parse_iso(value)
+        if parsed is None:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        if best_dt is None or parsed > best_dt:
+            best, best_dt = value, parsed
+    return best
 
 
 async def _paginate(
@@ -70,9 +91,12 @@ async def full_backfill(
             result.added += 1
         else:
             result.updated += 1
-    # Seed the events cursor so the next run only sees genuinely-new events
-    # instead of replaying history (same trick as the HA coordinator).
-    store.meta["events_cursor"] = _utcnow_iso()
+    # Seed the events cursor from the newest server-side timestamp, NOT local
+    # utcnow: anything created server-side between fetch and stamp would fall
+    # before a utcnow cursor and be skipped forever. Replaying the newest
+    # item is harmless (upserts are idempotent by id).
+    cursor = _newest_timestamp(w.get("updated_at") for w in workouts)
+    store.meta["events_cursor"] = cursor or _utcnow_iso()
     store.meta["last_full_sync"] = _utcnow_iso()
     return result
 
@@ -98,7 +122,15 @@ async def incremental_sync(client: HevyApiClient, store: CacheStore) -> SyncResu
             workout_id = event.get("id") or (event.get("workout") or {}).get("id")
             if workout_id and store.archive_workout(workout_id):
                 result.deleted += 1
-    store.meta["events_cursor"] = _utcnow_iso()
+    # Advance the cursor only as far as the server itself has seen (newest
+    # event timestamp). A utcnow stamp would skip events created between the
+    # fetch and the stamp; no events means the cursor stays put.
+    newest = _newest_timestamp(
+        (event.get("workout") or {}).get("updated_at") or event.get("deleted_at")
+        for event in events
+    )
+    if newest is not None:
+        store.meta["events_cursor"] = newest
     return result
 
 
