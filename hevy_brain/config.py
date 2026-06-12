@@ -21,6 +21,8 @@ class Config:
     base_dir: Path
     vault_path: Path
     vault_subfolder: str = "Fitness/Hevy"
+    knowledge_path: Path | None = None
+    knowledge_topics: list[str] = field(default_factory=lambda: ["training"])
     data_dir: Path = Path("data")
     page_size: int = 10
     coach_model: str = "claude-opus-4-8"
@@ -36,6 +38,15 @@ class Config:
     def vault_root(self) -> Path:
         """Folder inside the vault that hevy-brain owns."""
         return self.vault_path / self.vault_subfolder
+
+    @property
+    def knowledge_root(self) -> Path:
+        """Folder holding the read-only knowledge layer (topics/notes/_meta).
+
+        Defaults to the vault root, where the atlas-pipeline knowledge folders
+        live as siblings of the hevy-brain subfolder.
+        """
+        return self.knowledge_path or self.vault_path
 
     @property
     def hevy_api_key(self) -> str | None:
@@ -62,6 +73,7 @@ def load_config(
     sync = raw.get("sync", {})
     coach = raw.get("coach", {})
     analytics = raw.get("analytics", {})
+    knowledge = raw.get("knowledge", {})
 
     vault_path = Path(vault.get("path", "vault_staging"))
     if not vault_path.is_absolute():
@@ -70,10 +82,18 @@ def load_config(
     if not data_dir.is_absolute():
         data_dir = base / data_dir
 
+    knowledge_path: Path | None = None
+    if knowledge.get("path"):
+        knowledge_path = Path(knowledge["path"])
+        if not knowledge_path.is_absolute():
+            knowledge_path = base / knowledge_path
+
     return Config(
         base_dir=base,
         vault_path=vault_path,
         vault_subfolder=vault.get("subfolder", "Fitness/Hevy"),
+        knowledge_path=knowledge_path,
+        knowledge_topics=list(knowledge.get("topics", ["training"])),
         data_dir=data_dir,
         page_size=int(sync.get("page_size", 10)),
         coach_model=coach.get("model", "claude-opus-4-8"),

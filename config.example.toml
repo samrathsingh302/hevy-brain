@@ -19,6 +19,15 @@ page_size = 10  # Hevy API hard cap
 model = "claude-opus-4-8"
 max_calls_per_day = 4
 
+[knowledge]
+# Read-only bridge to the atlas-pipeline knowledge layer (topics/, notes/,
+# _meta/). Coach briefings ground advice in these cited claims and label every
+# training-science point `cited` (with link) or `general-knowledge`.
+# `path` defaults to the vault root above if omitted; never written, and
+# `sources/` is never read.
+# path = 'C:\path\to\your\vault'
+topics = ["training"]  # topic pages to pull cited claims from for coaching
+
 [analytics]
 plateau_weeks = 4
 push_pull_low = 0.8
