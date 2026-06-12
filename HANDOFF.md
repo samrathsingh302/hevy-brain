@@ -16,11 +16,19 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-12-2240-task-gate.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-12-2355-slice1-routines.md`
 
-## Current state (12/06/2026, evening)
+## Current state (12/06/2026, night)
 
-- Build complete and verified: 60 offline tests green, ruff clean, real
+- **Slice 1 (routines sync + edit, F1+F2) shipped + pushed (`aebd6db`):**
+  routines + folders sync into the cache, `Hevy/Routines/` notes with
+  round-trippable frontmatter, `push routine <file> [--dry-run]` does
+  GET → diff preview → PUT full replacement. D1 cursor fix folded in
+  (cursor now stamps from server timestamps, not utcnow). 85 offline
+  tests green, ruff clean. **Not yet exercised against the real API** —
+  routines land in the vault on the next hourly `full` run; first live
+  push should start with `--dry-run`.
+- Build complete and verified: 85 offline tests green, ruff clean, real
   end-to-end sync done (285 workouts / 29 measurements / 486 templates),
   vault generated into `C:\Users\samra\Atlas\Hevy\`.
 - Audit P1 fixed: sync meta (events cursor + timestamps + user info) rolls
@@ -61,23 +69,22 @@ integration); fully refactored into this CLI — the HA code is gone.
    `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Main use case:
    guidance on editing training (return-from-lapse, programme redesign)
    grounded in BOTH the Hevy data and the atlas-pipeline knowledge notes,
-   plus full plan editing via the API. Verified 12/06/2026: PUT
-   /v1/routines/{id} and PUT /v1/workouts/{id} exist (no DELETE; PUT =
-   full replacement). Build order: routines sync/edit → knowledge bridge →
-   `guide return`. D1 cursor fix folds into the first sync-adjacent slice.
-1. **Slice 1: routines sync + edit** (next session — see carry-on prompt in
-   the newest dated handoff). Fold the D1 cursor fix (item 3 below) into it.
-2. Optional: open `Hevy/Coach/<date> Briefing.md` in Claude and ask it to act
+   plus full plan editing via the API. Build order: ~~routines sync/edit~~
+   (done) → knowledge bridge → `guide return`.
+1. **Slice 2: E3 knowledge bridge + E5 provenance labels** (next session —
+   carry-on prompt in the newest dated handoff).
+2. **Live verification of routines**: check `Hevy/Routines/` after the next
+   hourly sync; first real `push routine` with `--dry-run` on a trivial edit.
+3. Optional: open `Hevy/Coach/<date> Briefing.md` in Claude and ask it to act
    as the coach; recommendations go below the `%% hevy-brain:end %%` marker.
-3. Known design question (future slice, behaviour unchanged): the incremental
-   cursor is stamped from `utcnow` taken *after* the events fetch
-   (`hevy_brain/sync.py:84-101`), so server-side events created between fetch
-   and stamp could be skipped next run.
 
 ## Key facts
 
-- Commands: `hevy-brain full | sync | vault | coach [--api] | status | push …`
-  — reads automatic, **writes to Hevy only via explicit `push`**.
+- Commands: `hevy-brain full | sync | vault | coach [--api] | status | push
+  workout|routine|measurement …` — reads automatic, **writes to Hevy only via
+  explicit `push`**. Routine edits: duplicate the note into
+  `Routines/Drafts/`, edit the frontmatter, `push routine <file>` (managed
+  notes regenerate hourly — don't edit in place).
 - Config: `config.toml` (local, untracked — copy from `config.example.toml`).
   Secrets only in env vars `HEVY_API_KEY` / `ANTHROPIC_API_KEY`.
 - Cache: `data/` JSON (gitignored) is the source of truth; vault rebuildable
@@ -86,4 +93,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   `%% hevy-brain:end %%` preserved · deleted workouts archived, never
   destroyed · tests never touch the real account.
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (60 passed) + `python -m ruff check hevy_brain tests`.
+  (85 passed) + `python -m ruff check hevy_brain tests`.
