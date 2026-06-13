@@ -6,7 +6,11 @@ from datetime import date
 
 import pytest
 
-from hevy_brain.analytics.comeback import lapse_status, pre_lapse_baselines
+from hevy_brain.analytics.comeback import (
+    lapse_nudge,
+    lapse_status,
+    pre_lapse_baselines,
+)
 from hevy_brain.analytics.prs import exercise_histories
 from hevy_brain.models import build_records
 
@@ -36,6 +40,35 @@ def test_lapse_status_recent_training_is_small_gap(raw_workouts: dict) -> None:
 
     assert status is not None
     assert status["days_since"] == 2
+
+
+def test_lapse_nudge_silent_below_threshold(raw_workouts: dict) -> None:
+    # 5 days since the 2026-06-08 session — under the 7-day nudge threshold.
+    records = build_records(raw_workouts)
+    assert lapse_nudge(records, date(2026, 6, 13), nudge_days=7, lapse_days=14) is None
+
+
+def test_lapse_nudge_nudge_severity(raw_workouts: dict) -> None:
+    records = build_records(raw_workouts)
+    nudge = lapse_nudge(records, date(2026, 6, 18), nudge_days=7, lapse_days=14)
+    assert nudge is not None
+    assert nudge["days_since"] == 10
+    assert nudge["severity"] == "nudge"
+
+
+def test_lapse_nudge_escalates_to_lapse_at_threshold(raw_workouts: dict) -> None:
+    records = build_records(raw_workouts)
+    # Exactly 14 days -> lapse severity (>= guide-return threshold).
+    nudge = lapse_nudge(records, date(2026, 6, 22), nudge_days=7, lapse_days=14)
+    assert nudge["days_since"] == 14
+    assert nudge["severity"] == "lapse"
+
+
+def test_lapse_nudge_disabled_and_empty(raw_workouts: dict) -> None:
+    records = build_records(raw_workouts)
+    # Disabled even when deeply lapsed.
+    assert lapse_nudge(records, LAPSED_TODAY, nudge_days=0, lapse_days=14) is None
+    assert lapse_nudge([], date(2026, 6, 18), nudge_days=7, lapse_days=14) is None
 
 
 def test_pre_lapse_baselines_window_and_volume(raw_workouts: dict) -> None:
