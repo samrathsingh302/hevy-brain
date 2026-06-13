@@ -16,10 +16,27 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice12-draft-adherence.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice13-strength-ratio.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 13 (A5 strength-to-bodyweight ratios) shipped (`43ae67a`):** new
+  pure/offline `analytics/strength_ratio.py` pairs bodyweight (from body
+  measurements) with est-1RMs (from histories) — `latest_bodyweight`/
+  `bodyweight_points` (sorted, drops no-weight/bad-date entries), `top_ratios`
+  (top weighted lifts by est-1RM with their ×bodyweight ratio; bodyweight-only
+  lifts excluded; deterministic title tiebreak), `ratio_trend` (relative
+  strength across recent measurement dates: best est-1RM as of each date ÷
+  bodyweight then, skipping pre-first-session dates). Surfaced as two sections
+  on the **Body Log note only** — a latest ratios table + a relative-strength
+  trend for the strongest lift. **Private by design:** bodyweight never appears
+  on anything published (the locked CV decision); skipped cleanly when there's
+  no bodyweight or no weighted lifts. `render_body_log` now takes `histories`
+  (build.py call updated). 313 offline tests (was 302), ruff clean. **Live:**
+  vault rebuild re-rendered **only** the Body Log (idempotent) — at 87.7 kg,
+  top ratio Shrug (Cable) 2.48×; the trend shows relative strength dipping
+  2.54×→2.48× as bodyweight rose while est-1RM held flat. `HevyBrain Coach`
+  still pending first fire (next Sun 14/06 19:00 — tomorrow).
 - **Slice 12 (C1 extension — guide-draft adherence) shipped (`3d5c1b8`):** the
   coach now grades whether a pushed Return/Redesign draft was actually trained
   to its prescribed loads. New `coach/adherence.py`: when a guide draft (title
@@ -278,14 +295,13 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~F3 `push workout --update`~~ (write-back trio complete) →
    ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ →
    ~~F4 exercise-history integrity check~~ → ~~A4 session-quality patterns~~ →
-   ~~C1 ext: guide-draft adherence~~ (done — capture path awaits a real
-   pushed+trained draft for full live proof).
-1. **Next slice** (carry-on prompt in the newest dated handoff): A5
-   bodyweight×strength ratio trends (vault-local), A6 Dataview/Bases starter
-   pack (`Hevy/Queries.md`), or A3 lapse-detection nudge (dashboard/review
-   callout after N quiet days). E4 (ingest programming episodes) stays an
-   atlas-pipeline task; E2's briefings upgrade to corpus-grounded
-   automatically once claims exist.
+   ~~C1 ext: guide-draft adherence~~ (capture path awaits a real pushed+trained
+   draft for full live proof) → ~~A5 bodyweight×strength ratio trends~~ (done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): A6
+   Dataview/Bases starter pack (`Hevy/Queries.md`), A3 lapse-detection nudge
+   (dashboard/review callout after N quiet days), or A4-followups. E4 (ingest
+   programming episodes) stays an atlas-pipeline task; E2's briefings upgrade to
+   corpus-grounded automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -317,4 +333,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (302 passed) + `python -m ruff check hevy_brain tests`.
+  (313 passed) + `python -m ruff check hevy_brain tests`.
