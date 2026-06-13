@@ -35,9 +35,10 @@ training history**, generated and kept in sync as the notes below.
   no per-call cost.** An opt-in `--api` flag uses the metered Anthropic API
   for full automation instead. Either way, every claim cites your actual
   numbers and exercise swaps are restricted to exercises that exist in Hevy.
-- **Write-back** — log body measurements and create workouts in Hevy from the
-  CLI / planned-workout notes. Writes are **always manual**; only reads are
-  automated.
+- **Write-back** — log body measurements, create workouts, edit routines, and
+  fix logged workouts (typo'd weight, forgotten set) in Hevy — all from the
+  CLI / their notes, with a diff preview before any change is sent. Writes are
+  **always manual**; only reads are automated.
 
 ## Architecture
 
@@ -118,7 +119,8 @@ hevy-brain ask "How do I get my bench moving again?"
                     # one question, answered from your data + cited claims
 hevy-brain status   # cache overview
 hevy-brain push measurement --weight-kg 78.4 [--fat-percent 17] [--date 2026-06-10]
-hevy-brain push workout path\to\plan.md
+hevy-brain push workout path\to\plan.md                # create from a planned note
+hevy-brain push workout path\to\draft.md --update [--dry-run]  # fix a logged one
 hevy-brain push routine path\to\draft.md [--dry-run]   # PUT, with diff preview
 ```
 
