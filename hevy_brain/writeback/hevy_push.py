@@ -178,16 +178,16 @@ def _parse_routine_set(raw: Any, exercise_name: str) -> dict[str, Any]:
             parsed[key] = caster(raw[key])
     rep_range = raw.get("rep_range")
     if rep_range is not None:
-        if (
-            not isinstance(rep_range, dict)
-            or rep_range.get("start") is None
-            or rep_range.get("end") is None
-        ):
-            msg = f"{exercise_name}: rep_range needs 'start' and 'end'."
+        if not isinstance(rep_range, dict) or rep_range.get("start") is None:
+            msg = f"{exercise_name}: rep_range needs at least 'start'."
             raise RoutineNoteError(msg)
+        # A null 'end' is a real Hevy state ("8+ reps") — the live account
+        # has one. Full-replacement fidelity: keep it exactly as the API
+        # returned it instead of rejecting or inventing an end.
+        end = rep_range.get("end")
         parsed["rep_range"] = {
             "start": int(rep_range["start"]),
-            "end": int(rep_range["end"]),
+            "end": int(end) if end is not None else None,
         }
     return parsed
 
@@ -269,7 +269,9 @@ def _set_summary(routine_set: dict[str, Any]) -> str:
         parts.append(f"×{routine_set['reps']}")
     elif routine_set.get("rep_range"):
         rng = routine_set["rep_range"]
-        parts.append(f"×{rng.get('start')}–{rng.get('end')}")
+        end = rng.get("end")
+        suffix = f"–{end}" if end is not None else "+"
+        parts.append(f"×{rng.get('start')}{suffix}")
     if routine_set.get("duration_seconds"):
         parts.append(f"{routine_set['duration_seconds']}s")
     if routine_set.get("distance_meters"):

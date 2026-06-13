@@ -227,15 +227,19 @@ def test_render_redesign_draft_round_trips_unchanged(tmp_path: Path) -> None:
 def test_render_redesign_draft_unedited_push_is_a_no_op(tmp_path: Path) -> None:
     # The invariant that gates the PUT: routine_diff against the source
     # routine must be EMPTY, across every field the spec round-trips —
-    # notes, rep ranges, supersets, rest, and a set with no type key.
+    # notes, rep ranges (half-open included, as on the live account),
+    # supersets, rest, and a set with no type key.
     typeless_set = make_routine_set(60, None, rep_range={"start": 8, "end": 12})
     del typeless_set["type"]
+    half_open_set = make_routine_set(
+        17.5, None, rep_range={"start": 8, "end": None}
+    )
     routine = make_routine(
         "r9",
         "Push Day A",
         exercises=[
             make_routine_exercise(
-                sets=[make_routine_set(80, 5), typeless_set],
+                sets=[make_routine_set(80, 5), typeless_set, half_open_set],
                 rest_seconds=90,
             ),
             make_routine_exercise(
