@@ -7,7 +7,7 @@ import asyncio
 import logging
 import sys
 from collections.abc import Awaitable, Callable, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -221,7 +221,7 @@ def _coach_recap(
     store: CacheStore,
     records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
-    today: object,
+    today: date,
 ) -> str | None:
     """Combine the 'since your last briefing' recaps (coach memory + adherence).
 

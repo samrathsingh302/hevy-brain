@@ -22,7 +22,9 @@ dependencies = [
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.25",
+    "pytest-cov>=6",
     "ruff==0.15.16",
+    "mypy==2.1.0",
 ]
 
 [project.urls]
@@ -34,3 +36,10 @@ hevy-brain = "hevy_brain.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["hevy_brain*"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["hevy_brain"]
+# Third-party deps (aiohttp/anthropic/yaml) ship partial or no stubs; we type
+# our own code, not theirs. Kept green in CI — tighten incrementally.
+ignore_missing_imports = true

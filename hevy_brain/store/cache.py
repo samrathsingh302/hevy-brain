@@ -110,7 +110,9 @@ class CacheStore:
         Last write wins: if the API returns several entries for one date,
         the final one silently replaces the rest.
         """
-        by_date = {m.get("date"): m for m in measurements if m.get("date")}
+        by_date: dict[str, dict[str, Any]] = {
+            str(m["date"]): m for m in measurements if m.get("date")
+        }
         self.measurements = [by_date[d] for d in sorted(by_date)]
 
     def save(self) -> None:
