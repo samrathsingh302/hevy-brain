@@ -27,6 +27,9 @@ training history**, generated and kept in sync as the notes below.
   one evergreen note per exercise (PR history, est. 1RM), a dashboard, body
   measurement log, and weekly/monthly reviews. All with frontmatter for
   Dataview/Bases and wikilinks between everything.
+- **Progress charts** — a weekly-volume trend on the dashboard and an est. 1RM
+  trend per exercise, rendered as native Mermaid charts (zero dependencies).
+  Toggle/tune via the `[charts]` config block.
 - **Analytics** — volume per muscle group, push/pull balance, streaks,
   plateau detection (stalled est. 1RM), and week-over-week overload tracking.
 - **AI coach (free by default)** — `hevy-brain coach` writes a self-contained

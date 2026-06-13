@@ -16,10 +16,31 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice6-workout-fixup.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice7-progress-charts.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 7 (A1 progress charts) shipped (`3a75d7c`):** zero-dependency
+  progress charts in the vault, rendered as Mermaid `xychart-beta` (Obsidian
+  renders them natively). New `vault/charts.py` adds a **12-week
+  weekly-volume bar** on the Dashboard (contiguous window — untrained weeks
+  are 0 bars, so a lapse reads honestly; ISO-week `W##` labels) and a
+  **per-exercise est-1RM bar** over the last 10 loaded sessions
+  (`best_e1rm_kg > 0` only; `mm-dd` labels, padded nearest-5 band). Both are
+  **bars on purpose** (Mermaid lines can render blank under some Obsidian
+  themes, and bars avoid false continuity across irregular sessions). Guards:
+  non-finite points dropped (a stray NaN can't abort the build), `<2`/all-zero
+  → no chart, flat series never collapses the axis, titles/labels cleaned of
+  grammar-breaking chars; a `None` chart leaves no orphan heading. Config-gated
+  by a new `[charts]` block (`enabled`/`volume_weeks=12`/`e1rm_points=10`);
+  the monthly-review chart was deliberately cut (low value-to-clutter). 223
+  offline tests (was 204), ruff clean. Built with the ultracode workflow
+  protocol — a **de-risk** fan-out (caught a build-aborting `int(NaN)`
+  blocker; drove ISO labels, contiguous window, bars-over-lines) and an
+  **adversarial 4-lens review** (no blockers/majors survived; test-hardening
+  findings folded in) before commit. **Live:** vault rebuilt (Dashboard + 85
+  exercise notes), charts verified against the real account. `HevyBrain
+  Coach` still pending first fire (Sat 13/06; next 14/06 19:00).
 - **Slice 6 (F3 `push workout --update`) shipped (`62c0dfb` + `f77b3ac` +
   `6125239`):** completes the **write-back trio** (workout create + routine
   edit + workout fix-up). `hevy-brain push workout <file> --update
@@ -157,10 +178,11 @@ integration); fully refactored into this CLI — the HA code is gone.
    `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Build order:
    ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
    ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
-   ~~F3 `push workout --update`~~ (all done — write-back trio complete).
-1. **Next slice** (carry-on prompt in the newest dated handoff): A1
-   progress charts (Mermaid xychart, zero deps) or C1 coach memory
-   (last-recommendations + computed "was it followed?") or F4
+   ~~F3 `push workout --update`~~ (write-back trio complete) →
+   ~~A1 progress charts~~ (done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): C1 coach
+   memory (last-recommendations + computed "was it followed?") or A2
+   year-in-review note (totals, PRs, best month, streaks) or F4
    (exercise-history endpoint). E4 (ingest programming episodes) stays an
    atlas-pipeline task; E2's briefings upgrade to corpus-grounded
    automatically once claims exist.
@@ -185,6 +207,8 @@ integration); fully refactored into this CLI — the HA code is gone.
   Secrets only in env vars `HEVY_API_KEY` / `ANTHROPIC_API_KEY`. `[knowledge]`
   block tunes the read-only bridge (`path` defaults to vault root; `topics`
   defaults to `["training"]`) — coach grounds advice in those cited claims.
+  `[charts]` block (`enabled`/`volume_weeks`/`e1rm_points`) toggles/tunes the
+  Mermaid progress charts auto-generated into the Dashboard + exercise notes.
 - Cache: `data/` JSON (gitignored) is the source of truth; vault rebuildable
   offline from it. First sync = full backfill; then `/workouts/events` cursor.
 - Safety: path-jailed atomic vault writes · user edits below
@@ -192,4 +216,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (204 passed) + `python -m ruff check hevy_brain tests`.
+  (223 passed) + `python -m ruff check hevy_brain tests`.
