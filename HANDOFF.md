@@ -16,10 +16,32 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice9-year-in-review.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice10-verify-exercise.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 10 (F4 exercise-history integrity check) shipped (`55d4081`):**
+  `hevy-brain verify exercise <name>` cross-checks the cache's per-exercise
+  stats (sessions, best weight, best est-1RM, total volume) against Hevy's
+  authoritative `GET /v1/exercise_history/{id}` and reports drift — the
+  fence-respecting reading of F4: a **staleness check, not a live read path**
+  (the network call is made only by this command; the vault build stays fully
+  offline — F4-as-literally-written would have broken that fence and added no
+  new data, since a full-sync cache already holds every set). New client method
+  `async_get_exercise_history` (read-only); new `analytics/reconcile.py`
+  (tolerant payload parser, server aggregate mirroring `prs.exercise_histories`
+  with the same Epley formula, cache-vs-server compare at 0.5 kg / 0.1%-of-
+  volume tolerance, case-insensitive name resolution — exact > unique substring,
+  ambiguous lists candidates); `verify exercise` subcommand (exit 1 on drift);
+  `guide`/`push`/`verify` group dispatch extracted to helpers to keep `main()`
+  under the ruff branch limit. 264 offline tests (was 248), ruff clean.
+  **Live (read-only) caught a real schema error:** the assumed
+  events-with-nested-`sets` shape was wrong — the first live run returned 445
+  entries with zero volume; the real response is **one entry per set** under
+  `exercise_history` (top-level `weight_kg`/`reps`/`workout_id`). After the fix,
+  "Incline Bench Press (Dumbbell)" reconciles exactly — 131 sessions / 84 kg /
+  96.27 e1rm / 185,262 kg, cache matches Hevy. `HevyBrain Coach` still pending
+  first fire (next Sun 14/06 19:00 — tomorrow).
 - **Slice 9 (A2 year-in-review) shipped (`ce4d6cc`):** one
   `Reviews/<year> Year in Review.md` per calendar year of training — totals
   (sessions/volume/reps/active days/longest streak), an embedded 12-bar
@@ -215,12 +237,13 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
    ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
    ~~F3 `push workout --update`~~ (write-back trio complete) →
-   ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ (done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): F4
-   (exercise-history endpoint), extend C1 to guide-draft adherence (grade
-   whether a pushed Return/Redesign draft was trained to its loads — needs a
-   draft pushed first), or A4 session-quality patterns (time-of-day, RPE
-   coverage, duration trends). E4 (ingest programming episodes) stays an
+   ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ →
+   ~~F4 exercise-history integrity check~~ (done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): extend C1 to
+   guide-draft adherence (grade whether a pushed Return/Redesign draft was
+   trained to its loads — needs a draft pushed first), A4 session-quality
+   patterns (time-of-day, RPE coverage, duration trends), or A5
+   bodyweight×strength ratio trends. E4 (ingest programming episodes) stays an
    atlas-pipeline task; E2's briefings upgrade to corpus-grounded
    automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
@@ -233,7 +256,8 @@ integration); fully refactored into this CLI — the HA code is gone.
 ## Key facts
 
 - Commands: `hevy-brain full | sync | vault | coach [--api] | guide
-  return|redesign | ask "…" | status | push workout [--update]|routine|measurement …`
+  return|redesign | ask "…" | status | verify exercise "…" | push workout
+  [--update]|routine|measurement …`
   — reads automatic, **writes to Hevy only via explicit `push`**. Routine
   edits: duplicate the note into `Routines/Drafts/`, edit the frontmatter,
   `push routine <file>`. Workout fix-ups: duplicate the workout note into
@@ -253,4 +277,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (248 passed) + `python -m ruff check hevy_brain tests`.
+  (264 passed) + `python -m ruff check hevy_brain tests`.
