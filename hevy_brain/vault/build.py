@@ -66,7 +66,7 @@ def build_vault(
         "measurements": int(
             writer.write(
                 "Measurements/Body Log.md",
-                dashboards.render_body_log(store.measurements, today),
+                dashboards.render_body_log(store.measurements, histories, today),
             )
         ),
         "routines": routines.generate_routine_notes(
