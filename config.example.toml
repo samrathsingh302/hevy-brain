@@ -51,6 +51,8 @@ push_pull_low = 0.8
 push_pull_high = 1.25
 review_weeks = 4
 review_months = 2
+lapse_nudge_days = 7  # quiet days before the Dashboard shows a nudge (0 = off);
+                      # escalates to a `guide return` prompt at guide.lapse_days
 
 # Optional manual muscle-group overrides (substring -> group), e.g.:
 # [analytics.muscle_overrides]

@@ -60,6 +60,8 @@ def build_vault(
                     templates=store.exercise_templates,
                     overrides=config.muscle_overrides,
                     volume_weeks=volume_weeks,
+                    lapse_nudge_days=config.lapse_nudge_days,
+                    guide_lapse_days=config.guide_lapse_days,
                 ),
             )
         ),

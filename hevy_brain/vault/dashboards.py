@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from ..analytics import patterns, session_quality, stats, strength_ratio
+from ..analytics import comeback, patterns, session_quality, stats, strength_ratio
 from ..analytics.prs import recent_prs
 from . import charts
 from .writer import VaultWriter, render_note
@@ -17,6 +17,31 @@ def _link(workout_id: str, workout_paths: dict[str, str], fallback: str) -> str:
     path = workout_paths.get(workout_id, "")
     name = path.rsplit("/", 1)[-1].removesuffix(".md")
     return f"[[{name}]]" if name else fallback
+
+
+def _lapse_callout(
+    records: list[dict[str, Any]],
+    today: date,
+    nudge_days: int,
+    lapse_days: int,
+) -> list[str]:
+    """Render a quiet-streak nudge callout for the top, or [] when none is due."""
+    nudge = comeback.lapse_nudge(
+        records, today, nudge_days=nudge_days, lapse_days=lapse_days
+    )
+    if not nudge:
+        return []
+    last = nudge["last_workout_date"].isoformat()
+    title = nudge["last_workout_title"]
+    tail = (
+        "That's a lapse — run `hevy-brain guide return` for a scaled comeback plan."
+        if nudge["severity"] == "lapse"
+        else "Time to get back in?"
+    )
+    return [
+        f"\n> [!warning] **{nudge['days_since']} days** since your last session "
+        f"({last}, _{title}_). {tail}"
+    ]
 
 
 def _muscle_table(volumes: dict[str, float]) -> list[str]:
@@ -73,6 +98,8 @@ def render_dashboard(
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
     volume_weeks: int = 0,
+    lapse_nudge_days: int = 0,
+    guide_lapse_days: int = 14,
 ) -> str:
     """Render the main Dashboard.md (managed content)."""
     agg = stats.compute_aggregates(records, today)
@@ -93,6 +120,7 @@ def render_dashboard(
     lines = ["# Hevy Dashboard"]
     if user.get("username"):
         lines.append(f"\nAthlete: **{user['username']}**")
+    lines.extend(_lapse_callout(records, today, lapse_nudge_days, guide_lapse_days))
     lines.append(
         f"\n## Totals\n"
         f"- **{agg['total_workouts']}** workouts tracked · "

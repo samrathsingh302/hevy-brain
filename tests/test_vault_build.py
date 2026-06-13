@@ -133,6 +133,24 @@ def test_enabled_charts_omit_heading_when_series_too_short() -> None:
     assert "Volume trend" not in dashboard
 
 
+def test_dashboard_lapse_callout(raw_workouts: dict) -> None:
+    records = build_records(raw_workouts)  # last session 2026-06-08
+    histories = exercise_histories(records)
+
+    # Recent training (2 days) with nudging enabled -> no callout.
+    recent = render_dashboard(
+        records, histories, {}, {}, date(2026, 6, 10), lapse_nudge_days=7
+    )
+    assert "since your last session" not in recent
+
+    # 20 quiet days -> a lapse callout that points at guide return.
+    lapsed = render_dashboard(
+        records, histories, {}, {}, date(2026, 6, 28), lapse_nudge_days=7
+    )
+    assert "20 days" in lapsed
+    assert "guide return" in lapsed
+
+
 def test_generated_workout_note_round_trips(
     tmp_path: Path, raw_workouts: dict
 ) -> None:
