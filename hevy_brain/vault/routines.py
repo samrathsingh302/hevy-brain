@@ -46,8 +46,14 @@ def routine_exercises_spec(routine: dict[str, Any]) -> list[dict[str, Any]]:
             entry["rest_seconds"] = exercise["rest_seconds"]
         if exercise.get("notes"):
             entry["notes"] = exercise["notes"]
+        # The push parser defaults a missing type to "normal"; carrying the
+        # default here keeps an unedited draft an exact no-op in routine_diff
+        # even when the API omits the type.
         entry["sets"] = [
-            {k: s[k] for k in _SET_SPEC_KEYS if s.get(k) is not None}
+            {
+                "type": "normal",
+                **{k: s[k] for k in _SET_SPEC_KEYS if s.get(k) is not None},
+            }
             for s in exercise.get("sets", [])
         ]
         spec.append(entry)

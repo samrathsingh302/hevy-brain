@@ -37,6 +37,7 @@ class Config:
     guide_load_fraction: float = 0.6
     guide_draft_limit: int = 3
     guide_baseline_weeks: int = 4
+    guide_redesign_weeks: int = 8
 
     @property
     def vault_root(self) -> Path:
@@ -113,4 +114,5 @@ def load_config(
         guide_load_fraction=float(guide.get("load_fraction", 0.6)),
         guide_draft_limit=int(guide.get("draft_limit", 3)),
         guide_baseline_weeks=int(guide.get("baseline_weeks", 4)),
+        guide_redesign_weeks=int(guide.get("redesign_weeks", 8)),
     )

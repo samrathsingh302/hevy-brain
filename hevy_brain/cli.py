@@ -359,6 +359,87 @@ def _cmd_guide_return(config: Config) -> int:
     return 0
 
 
+def _cmd_guide_redesign(config: Config) -> int:
+    from .analytics.prs import exercise_histories
+    from .analytics.redesign import training_snapshot
+    from .coach import redesign
+    from .models import build_records
+    from .vault.drafts import generate_redesign_drafts
+
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    today = datetime.now(tz=UTC).date()
+    records = build_records(store.workouts)
+    histories = exercise_histories(records)
+    snapshot = training_snapshot(
+        records,
+        histories,
+        weeks=config.guide_redesign_weeks,
+        templates=store.exercise_templates,
+        overrides=config.muscle_overrides,
+        plateau_weeks=config.plateau_weeks,
+        push_pull_low=config.push_pull_low,
+        push_pull_high=config.push_pull_high,
+    )
+    if snapshot is None:
+        print("No dated workouts in the cache.", file=sys.stderr)
+        return 1
+
+    writer = VaultWriter(config.vault_root)
+    config.vault_root.mkdir(parents=True, exist_ok=True)
+    written, skipped = generate_redesign_drafts(
+        writer,
+        store.routines,
+        snapshot["workout_titles"],
+        limit=config.guide_draft_limit,
+    )
+
+    knowledge, retrieval = _load_knowledge_for_question(
+        config, redesign.REDESIGN_QUERY
+    )
+    available = sorted(histories)
+    if store.exercise_templates:
+        available = sorted(
+            set(available)
+            | {t.get("title") or "" for t in store.exercise_templates.values()}
+            - {""}
+        )
+    context = redesign.build_redesign_context(
+        snapshot,
+        today=today,
+        draft_paths=[*written, *skipped],
+        available=available,
+        knowledge=knowledge,
+    )
+    note_path = redesign.redesign_briefing_path(today)
+    writer.write(
+        note_path,
+        redesign.render_redesign_briefing(context, today, retrieval=retrieval),
+    )
+
+    print(
+        f"Snapshot: {snapshot['sessions']} sessions over "
+        f"{snapshot['weeks']} weeks ending "
+        f"{snapshot['window_end'].isoformat()} "
+        f"({len(snapshot['plateaus'])} plateaus, push/pull "
+        f"{snapshot['push_pull_flag'] or 'n/a'})."
+    )
+    print(f"Redesign briefing written: {config.vault_root / note_path}")
+    print(f"Knowledge bridge: {retrieval}.")
+    for path in written:
+        print(f"Draft written: {config.vault_root / path}")
+    for path in skipped:
+        print(f"Draft already exists (kept your copy): {config.vault_root / path}")
+    print(
+        "Open the briefing in Claude Code and ask Claude to redesign the "
+        "programme; apply it by editing a draft's frontmatter, then "
+        "'hevy-brain push routine <file> --dry-run'."
+    )
+    return 0
+
+
 async def _cmd_push_workout(config: Config, file: Path) -> int:
     from .writeback.hevy_push import (
         PlannedWorkoutError,
@@ -526,6 +607,13 @@ def build_parser() -> argparse.ArgumentParser:
             "and Return Week 1 routine drafts"
         ),
     )
+    guide_sub.add_parser(
+        "redesign",
+        help=(
+            "Programme change: current split/volume/plateau snapshot, "
+            "briefing, and editable Redesign routine drafts"
+        ),
+    )
 
     push = sub.add_parser("push", help="Write data TO Hevy (always manual)")
     push_sub = push.add_subparsers(dest="push_command", required=True)
@@ -583,8 +671,12 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_ask(config, args.question)
     if args.command == "status":
         return _cmd_status(config)
-    if args.command == "guide" and args.guide_command == "return":
-        return _cmd_guide_return(config)
+    if args.command == "guide":
+        if args.guide_command == "return":
+            return _cmd_guide_return(config)
+        if args.guide_command == "redesign":
+            return _cmd_guide_redesign(config)
+        return 1
     if args.command == "push":
         if args.push_command == "workout":
             return asyncio.run(_cmd_push_workout(config, args.file))

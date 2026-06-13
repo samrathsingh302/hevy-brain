@@ -1,23 +1,30 @@
-"""Return-week routine drafts (`Routines/Drafts/`), ready for `push routine`.
+"""Routine drafts (`Routines/Drafts/`), ready for `push routine`.
 
-A draft is a copy of an existing Hevy routine with loads scaled down for the
-first week back after a lapse. It keeps the original ``hevy_routine_id`` so
-the slice-1 round-trip applies unchanged: review the frontmatter, then
-``hevy-brain push routine <draft> --dry-run`` to preview and push.
+Two kinds of draft, both copies of an existing Hevy routine that keep the
+original ``hevy_routine_id`` so the slice-1 round-trip applies unchanged
+(review the frontmatter, then ``hevy-brain push routine <draft> --dry-run``):
+
+- **Return-week drafts** (`guide return`): loads scaled down for the first
+  week back after a lapse.
+- **Redesign drafts** (`guide redesign`): unchanged copies — an editing
+  canvas for a programme change. Pushing one unedited is a no-op by
+  construction ("no changes — nothing to push").
 
 Safety properties:
 
 - **Write-once.** A draft is user-owned the moment it exists — regenerating
   never overwrites an existing draft file.
 - **No data loss.** Pushing a draft PUT-replaces the routine in Hevy, so the
-  draft body carries an original → week-1 load table; restoring is pushing
-  the original loads back (the managed note keeps them until the next sync).
-- The load fraction is a configurable default, NOT a cited recommendation —
-  programming claims are not in the knowledge corpus yet (general-knowledge).
+  draft body carries the original loads; restoring is pushing the original
+  spec back (the managed note keeps it until the next sync).
+- The return-week load fraction is a configurable default, NOT a cited
+  recommendation — programming claims are not in the knowledge corpus yet
+  (general-knowledge).
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from .routines import ROUTINE_NOTE_TYPE, routine_exercises_spec
@@ -25,6 +32,7 @@ from .writer import VaultWriter, render_note, sanitize_filename
 
 DRAFTS_DIR = "Routines/Drafts"
 RETURN_PREFIX = "Return Week 1"
+REDESIGN_PREFIX = "Redesign"
 
 
 def scale_weight(weight_kg: float, fraction: float, step: float = 2.5) -> float:
@@ -91,21 +99,22 @@ def _pushable(routine: dict[str, Any]) -> bool:
     )
 
 
-def _load_row(original: dict[str, Any], scaled: dict[str, Any], index: int) -> str:
-    def fmt(s: dict[str, Any]) -> str:
-        weight = s.get("weight_kg")
-        reps = s.get("reps")
-        rep_range = s.get("rep_range") or {}
-        if reps is not None:
-            reps_text = str(reps)
-        elif rep_range.get("start") is not None:
-            reps_text = f"{rep_range['start']}–{rep_range.get('end', '?')}"
-        else:
-            reps_text = "—"
-        weight_text = f"{weight:g} kg" if weight is not None else "BW"
-        return f"{weight_text} × {reps_text}"
+def _format_set(s: dict[str, Any]) -> str:
+    weight = s.get("weight_kg")
+    reps = s.get("reps")
+    rep_range = s.get("rep_range") or {}
+    if reps is not None:
+        reps_text = str(reps)
+    elif rep_range.get("start") is not None:
+        reps_text = f"{rep_range['start']}–{rep_range.get('end', '?')}"
+    else:
+        reps_text = "—"
+    weight_text = f"{weight:g} kg" if weight is not None else "BW"
+    return f"{weight_text} × {reps_text}"
 
-    return f"| {index} | {fmt(original)} | {fmt(scaled)} |"
+
+def _load_row(original: dict[str, Any], scaled: dict[str, Any], index: int) -> str:
+    return f"| {index} | {_format_set(original)} | {_format_set(scaled)} |"
 
 
 def render_return_draft(
@@ -156,20 +165,71 @@ def render_return_draft(
     return rel_path, render_note(frontmatter, "\n".join(lines))
 
 
-def generate_return_drafts(
+def render_redesign_draft(routine: dict[str, Any]) -> tuple[str, str]:
+    """Render one redesign draft note. Returns (relative path, content).
+
+    The frontmatter carries the routine's CURRENT spec unchanged (title
+    included), so pushing the draft before editing it is a guaranteed no-op —
+    the draft is a canvas for the redesign, not a load change.
+    """
+    title = routine.get("title") or "Routine"
+    original_spec = routine_exercises_spec(routine)
+
+    frontmatter: dict[str, Any] = {
+        "type": ROUTINE_NOTE_TYPE,
+        "hevy_routine_id": routine["id"],
+        "title": title,
+        "exercises": original_spec,
+        "tags": ["hevy/routine/draft"],
+    }
+    # PUT is a full replacement — without this, pushing wipes routine notes.
+    if routine.get("notes"):
+        frontmatter["notes"] = routine["notes"]
+
+    lines = [
+        f"# {REDESIGN_PREFIX} — {title}",
+        (
+            "\nThis draft starts as an exact copy of the routine, so pushing "
+            "it **unedited sends nothing** ('no changes'). Apply the redesign "
+            "by editing the frontmatter spec (exercises, sets, reps, loads, "
+            "rest, title), guided by the Redesign Briefing in `Coach/`."
+        ),
+        (
+            f"\n> [!warning] Pushing this draft **replaces** the routine "
+            f"'{title}' in Hevy (PUT, full replacement). Preview first: "
+            "`hevy-brain push routine <this file> --dry-run`. The original "
+            "spec stays in the table below and in the managed note until the "
+            "next sync."
+        ),
+    ]
+    for exercise in original_spec:
+        lines.append(f"\n## {exercise['name']}")
+        lines.append("\n| Set | Current |")
+        lines.append("| --- | ------- |")
+        for index, current_set in enumerate(exercise["sets"], start=1):
+            lines.append(f"| {index} | {_format_set(current_set)} |")
+
+    rel_path = f"{DRAFTS_DIR}/{sanitize_filename(f'{REDESIGN_PREFIX} — {title}')}.md"
+    return rel_path, render_note(frontmatter, "\n".join(lines))
+
+
+def _generate_drafts(
     writer: VaultWriter,
     routines: dict[str, dict[str, Any]],
     recent_titles: list[str],
     *,
-    fraction: float,
-    limit: int = 3,
+    render: Callable[[dict[str, Any]], tuple[str, str]],
+    limit: int,
 ) -> tuple[list[str], list[str]]:
-    """Write return-week drafts (write-once). Returns (written, skipped)."""
+    """Write drafts for the selected routines (write-once).
+
+    Returns (written, skipped) relative paths.
+    """
     written: list[str] = []
     skipped: list[str] = []
     seen: set[str] = set()
     for routine in select_return_routines(routines, recent_titles, limit):
-        rel_path, content = render_return_draft(routine, fraction=fraction)
+        rel_path, content = render(routine)
         if rel_path in seen:
             # Duplicate titles: same id-suffix scheme as the managed notes.
             rel_path = f"{rel_path[: -len('.md')]} ({routine['id'][:8]}).md"
@@ -180,3 +240,34 @@ def generate_return_drafts(
         writer.write(rel_path, content)
         written.append(rel_path)
     return written, skipped
+
+
+def generate_return_drafts(
+    writer: VaultWriter,
+    routines: dict[str, dict[str, Any]],
+    recent_titles: list[str],
+    *,
+    fraction: float,
+    limit: int = 3,
+) -> tuple[list[str], list[str]]:
+    """Write return-week drafts (write-once). Returns (written, skipped)."""
+    return _generate_drafts(
+        writer,
+        routines,
+        recent_titles,
+        render=lambda routine: render_return_draft(routine, fraction=fraction),
+        limit=limit,
+    )
+
+
+def generate_redesign_drafts(
+    writer: VaultWriter,
+    routines: dict[str, dict[str, Any]],
+    recent_titles: list[str],
+    *,
+    limit: int = 3,
+) -> tuple[list[str], list[str]]:
+    """Write redesign canvas drafts (write-once). Returns (written, skipped)."""
+    return _generate_drafts(
+        writer, routines, recent_titles, render=render_redesign_draft, limit=limit
+    )
