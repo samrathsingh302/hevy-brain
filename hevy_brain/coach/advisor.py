@@ -282,7 +282,9 @@ def generate_report(
     return report
 
 
-def render_coach_note(report: CoachReport, today: date) -> str:
+def render_coach_note(
+    report: CoachReport, today: date, recap: str | None = None
+) -> str:
     """Render a coach report as a managed vault note."""
     frontmatter = {
         "date": today.isoformat(),
@@ -292,6 +294,8 @@ def render_coach_note(report: CoachReport, today: date) -> str:
     }
     lines = [f"# Coach Recommendations — {today.isoformat()}"]
     lines.append(f"\n{report.summary}")
+    if recap:
+        lines.append(f"\n{recap}")
     for finding in report.findings:
         lines.append(f"\n## {finding.title}")
         lines.append(f"*Category: {finding.category}*")
@@ -319,13 +323,15 @@ def briefing_note_path(today: date) -> str:
     return f"Coach/{today.isoformat()} Briefing.md"
 
 
-def render_briefing(context: str, today: date) -> str:
+def render_briefing(context: str, today: date, recap: str | None = None) -> str:
     """Render a self-contained coaching briefing (no API call, no cost).
 
     The note bundles the coaching instructions with the computed training
     data so it can be analyzed by Claude under an existing subscription
     (Claude Code or claude.ai) instead of a metered API call. Whatever the
-    coach writes below the managed marker is preserved on regeneration.
+    coach writes below the managed marker is preserved on regeneration. An
+    optional ``recap`` (coach memory) is shown up top so Claude's analysis is
+    continuity-aware.
     """
     frontmatter = {
         "date": today.isoformat(),
@@ -346,9 +352,15 @@ def render_briefing(context: str, today: date) -> str:
             "claim below, or `[general-knowledge]` when it is not. Never label "
             "general knowledge as cited."
         ),
-        "\n## Coach instructions",
-        f"\n{SYSTEM_PROMPT}",
-        "\n## Your training data",
-        f"\n{context}",
     ]
+    if recap:
+        lines.append(f"\n{recap}")
+    lines.extend(
+        [
+            "\n## Coach instructions",
+            f"\n{SYSTEM_PROMPT}",
+            "\n## Your training data",
+            f"\n{context}",
+        ]
+    )
     return render_note(frontmatter, "\n".join(lines))

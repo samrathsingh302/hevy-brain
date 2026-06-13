@@ -209,3 +209,104 @@ def test_briefing_with_knowledge_grounds_advice(raw_workouts: dict) -> None:
 
     assert advisor.KNOWLEDGE_HEADING in note
     assert "[[xJ0IBzCjEPk#^claim-22]]" in note
+
+
+# --- coach memory recap (C1) -------------------------------------------------
+
+
+def test_render_briefing_includes_recap_when_given(raw_workouts: dict) -> None:
+    records = build_records(raw_workouts)
+    histories = exercise_histories(records)
+    context = advisor.build_context(records, histories, TODAY)
+
+    recap = "## Since your last briefing\n- Sessions logged since: **3**"
+    note = advisor.render_briefing(context, TODAY, recap=recap)
+    assert "## Since your last briefing" in note
+    assert "Sessions logged since: **3**" in note
+
+    plain = advisor.render_briefing(context, TODAY)
+    assert "Since your last briefing" not in plain
+
+
+def test_render_coach_note_includes_recap_when_given() -> None:
+    note = advisor.render_coach_note(
+        _report(), TODAY, recap="## Since your last briefing\n- foo"
+    )
+    assert "## Since your last briefing" in note
+    assert "- foo" in note
+
+
+def test_cmd_coach_free_persists_focus_and_shows_recap(
+    tmp_path, raw_workouts: dict
+) -> None:
+    from datetime import UTC, datetime
+
+    from hevy_brain import cli
+    from hevy_brain.config import Config
+    from hevy_brain.store.cache import CacheStore
+
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+    )
+    store = CacheStore(config.data_dir)
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    store.save()
+
+    today = datetime.now(tz=UTC).date()
+    note_path = config.vault_root / advisor.briefing_note_path(today)
+
+    # First run: no prior snapshot -> no recap, but a snapshot is persisted.
+    assert cli._cmd_coach(config, use_api=False) == 0
+    after_first = CacheStore(config.data_dir)
+    assert len(after_first.meta.get("coach_focus", [])) == 1
+    assert after_first.meta["coach_focus"][0]["path"] == "free"
+    assert "Since your last briefing" not in note_path.read_text(encoding="utf-8")
+
+    # Seed an older prior snapshot so the next run has new sessions to grade.
+    after_first.meta["coach_focus"] = [
+        {
+            "taken_on": "2026-05-20",
+            "path": "free",
+            "sessions_last_7d": 0,
+            "current_streak_days": 0,
+            "push_pull_ratio": None,
+            "plateau_weeks": 4,
+            "plateaus": [],
+        }
+    ]
+    after_first.save()
+
+    assert cli._cmd_coach(config, use_api=False) == 0
+    note = note_path.read_text(encoding="utf-8")
+    assert "Since your last briefing" in note
+    assert "Sessions logged since" in note
+    assert len(CacheStore(config.data_dir).meta["coach_focus"]) == 2
+
+
+def test_cmd_coach_api_persists_focus_snapshot(
+    tmp_path, raw_workouts: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from hevy_brain import cli
+    from hevy_brain.config import Config
+    from hevy_brain.store.cache import CacheStore
+
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+    )
+    store = CacheStore(config.data_dir)
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    store.save()
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(advisor, "generate_report", lambda *_a, **_k: _report())
+
+    assert cli._cmd_coach(config, use_api=True) == 0
+    focus = CacheStore(config.data_dir).meta.get("coach_focus", [])
+    assert len(focus) == 1
+    assert focus[0]["path"] == "api"
