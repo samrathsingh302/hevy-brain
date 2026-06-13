@@ -16,10 +16,27 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice10-verify-exercise.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice11-session-quality.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 11 (A4 session-quality patterns) shipped (`eb7036f`):** a new
+  "Session quality" block on the Dashboard — time-of-day distribution (part-of-
+  day buckets from each workout's recorded start hour) + the modal training
+  time, **RPE logging coverage over working sets** (warm-ups excluded), and a
+  session-duration summary (avg/median/range) with a recent-vs-prior trend.
+  New pure/offline `analytics/session_quality.py`
+  (`part_of_day`/`time_of_day_counts`/`rpe_coverage`/`duration_summary`/
+  `session_quality`); rendered by `_session_quality_lines` in `dashboards.py`,
+  inserted after Muscle balance. Always-on like muscle balance (lightweight
+  derived text, no config, no command). Guards: empty buckets omitted, coverage
+  `None` when no working sets, sessions with no end time excluded from duration
+  (a missing end never reads as 0 min), whole section omitted when there's
+  nothing to show. 285 offline tests (was 264), ruff clean. **Live:** vault
+  rebuild re-rendered **only** the Dashboard (idempotent) — evening trainer
+  (209 evening sessions), **28%** RPE coverage (1,189/4,249 working sets — real
+  room to improve, surfaced honestly), avg 63 / median 57 min sessions. `HevyBrain
+  Coach` still pending first fire (next Sun 14/06 19:00 — tomorrow).
 - **Slice 10 (F4 exercise-history integrity check) shipped (`55d4081`):**
   `hevy-brain verify exercise <name>` cross-checks the cache's per-exercise
   stats (sessions, best weight, best est-1RM, total volume) against Hevy's
@@ -238,12 +255,13 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
    ~~F3 `push workout --update`~~ (write-back trio complete) →
    ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ →
-   ~~F4 exercise-history integrity check~~ (done).
+   ~~F4 exercise-history integrity check~~ → ~~A4 session-quality patterns~~
+   (done).
 1. **Next slice** (carry-on prompt in the newest dated handoff): extend C1 to
    guide-draft adherence (grade whether a pushed Return/Redesign draft was
-   trained to its loads — needs a draft pushed first), A4 session-quality
-   patterns (time-of-day, RPE coverage, duration trends), or A5
-   bodyweight×strength ratio trends. E4 (ingest programming episodes) stays an
+   trained to its loads — needs a draft pushed first), A5 bodyweight×strength
+   ratio trends (vault-local), or A6 Dataview/Bases starter pack
+   (`Hevy/Queries.md`). E4 (ingest programming episodes) stays an
    atlas-pipeline task; E2's briefings upgrade to corpus-grounded
    automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
@@ -277,4 +295,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (264 passed) + `python -m ruff check hevy_brain tests`.
+  (285 passed) + `python -m ruff check hevy_brain tests`.
