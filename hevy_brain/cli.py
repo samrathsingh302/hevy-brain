@@ -217,7 +217,7 @@ def _cmd_ask(config: Config, question: str) -> int:
 
 def _cmd_coach(config: Config, *, use_api: bool) -> int:
     from .analytics.prs import exercise_histories
-    from .coach import advisor
+    from .coach import advisor, memory
     from .models import build_records
 
     store = CacheStore(config.data_dir)
@@ -240,6 +240,39 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     writer = VaultWriter(config.vault_root)
     config.vault_root.mkdir(parents=True, exist_ok=True)
 
+    # Coach memory: grade the prior run's objective focus against newer data,
+    # then capture this run's focus for next time. Grade BEFORE recording so we
+    # compare against the previous snapshot, not this one. The recap is a
+    # non-essential extra — never let it break the core briefing (the scheduled
+    # coach runs unattended), so degrade to no-recap on any unexpected error.
+    try:
+        recap = memory.grade_focus(
+            memory.latest_focus(store.meta),
+            records,
+            histories,
+            today,
+            plateau_weeks=config.plateau_weeks,
+            templates=store.exercise_templates,
+            overrides=config.muscle_overrides,
+        )
+    except Exception:  # noqa: BLE001 - recap is best-effort, must not break coach
+        recap = None
+
+    def _save_focus(path: str) -> None:
+        memory.record_focus(
+            store.meta,
+            memory.build_focus_snapshot(
+                records,
+                histories,
+                today,
+                path=path,
+                plateau_weeks=config.plateau_weeks,
+                templates=store.exercise_templates,
+                overrides=config.muscle_overrides,
+            ),
+        )
+        store.save()
+
     claim_note = (
         f"{len(knowledge)} cited claims loaded"
         if knowledge
@@ -249,9 +282,12 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     if not use_api:
         # Default: free briefing analyzed via your Claude subscription.
         note_path = advisor.briefing_note_path(today)
-        writer.write(note_path, advisor.render_briefing(context, today))
+        writer.write(note_path, advisor.render_briefing(context, today, recap=recap))
+        _save_focus("free")
         print(f"Free coaching briefing written: {config.vault_root / note_path}")
         print(f"Knowledge bridge: {claim_note}.")
+        if recap:
+            print("Included a 'since your last briefing' recap from coach memory.")
         print(
             "Open it in Claude Code (or paste into claude.ai) and ask Claude to "
             "act as the coach and analyze it - no API key, no per-call cost."
@@ -266,12 +302,12 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
         advisor.check_budget(store.meta, today, config.coach_max_calls_per_day)
         report = advisor.generate_report(context, model=config.coach_model)
         advisor.record_call(store.meta)
-        store.save()
+        _save_focus("api")
     except advisor.CoachError as err:
         print(f"Coach failed: {err}", file=sys.stderr)
         return 1
     note_path = advisor.coach_note_path(today)
-    writer.write(note_path, advisor.render_coach_note(report, today))
+    writer.write(note_path, advisor.render_coach_note(report, today, recap=recap))
     print(f"Coach note written: {config.vault_root / note_path}")
     print(f"Knowledge bridge: {claim_note}.")
     print(f"\n{report.summary}")
