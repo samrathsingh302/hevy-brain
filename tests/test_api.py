@@ -161,6 +161,17 @@ class TestEndpointDispatch:
         assert kwargs["url"].endswith("/workouts/w1")
         assert kwargs["json"] == body
 
+    async def test_exercise_history_endpoint(self) -> None:
+        response = _build_response(json_payload={"events": []})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        await client.async_get_exercise_history("tmpl-123")
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["method"] == "get"
+        assert kwargs["url"].endswith("/exercise_history/tmpl-123")
+
     async def test_exercise_templates_endpoint(self) -> None:
         response = _build_response(json_payload={"exercise_templates": []})
         session = _build_session(response)

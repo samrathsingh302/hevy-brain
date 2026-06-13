@@ -659,6 +659,71 @@ def _cmd_status(config: Config) -> int:
     return 0
 
 
+async def _cmd_verify_exercise(config: Config, name: str) -> int:
+    from .analytics import reconcile
+    from .analytics.prs import exercise_histories
+    from .api.client import HevyApiClientError
+    from .models import build_records
+
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    histories = exercise_histories(build_records(store.workouts))
+    title, candidates = reconcile.resolve_exercise(histories, name)
+    if title is None:
+        if candidates:
+            print(f"'{name}' is ambiguous - did you mean:", file=sys.stderr)
+            for candidate in candidates:
+                print(f"  {candidate}", file=sys.stderr)
+        else:
+            print(f"No trained exercise matches '{name}'.", file=sys.stderr)
+        return 1
+    history = histories[title]
+    template_id = history.get("template_id")
+    if not template_id:
+        print(
+            f"'{title}' has no template id in the cache - cannot query Hevy.",
+            file=sys.stderr,
+        )
+        return 1
+
+    async def run(client: HevyApiClient) -> int:
+        try:
+            payload = await client.async_get_exercise_history(template_id)
+        except HevyApiClientError as err:
+            print(f"Could not fetch history from Hevy: {err}", file=sys.stderr)
+            return 1
+        server_sets = reconcile.extract_server_sets(payload)
+        if not server_sets:
+            print(
+                f"Hevy returned no recognisable history for '{title}' "
+                f"(template {template_id}). The endpoint's response shape may "
+                "have changed.",
+                file=sys.stderr,
+            )
+            return 1
+        rows = reconcile.compare(history, reconcile.aggregate_server(server_sets))
+        print(f"Verifying '{title}' (template {template_id}) against Hevy:")
+        print(f"  {'metric':<16}{'cache':>14}{'server':>14}   status")
+        for row in rows:
+            status = "ok" if row["ok"] else "DRIFT"
+            print(
+                f"  {row['metric']:<16}{row['cache']:>14.2f}"
+                f"{row['server']:>14.2f}   {status}"
+            )
+        if any(not row["ok"] for row in rows):
+            print(
+                "\nCache is behind Hevy for this exercise - "
+                "run 'hevy-brain sync' to catch up."
+            )
+            return 1
+        print("\nCache matches Hevy for this exercise.")
+        return 0
+
+    return await _with_client(config, run)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -685,6 +750,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use the metered Anthropic API instead (needs ANTHROPIC_API_KEY)",
     )
     sub.add_parser("status", help="Show cache and config status")
+
+    verify = sub.add_parser(
+        "verify",
+        help="Cross-check cached stats against Hevy's authoritative data",
+    )
+    verify_sub = verify.add_subparsers(dest="verify_command", required=True)
+    verify_exercise = verify_sub.add_parser(
+        "exercise",
+        help="Check one exercise's cached stats against Hevy (detects a stale cache)",
+    )
+    verify_exercise.add_argument(
+        "name", help='Exercise name, case-insensitive (e.g. "Bench Press")'
+    )
 
     ask = sub.add_parser(
         "ask",
@@ -764,6 +842,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _dispatch_guide(config: Config, args: argparse.Namespace) -> int:
+    if args.guide_command == "return":
+        return _cmd_guide_return(config)
+    if args.guide_command == "redesign":
+        return _cmd_guide_redesign(config)
+    return 1
+
+
+def _dispatch_push(config: Config, args: argparse.Namespace) -> int:
+    if args.push_command == "workout":
+        return asyncio.run(
+            _cmd_push_workout(
+                config, args.file, update=args.update, dry_run=args.dry_run
+            )
+        )
+    if args.push_command == "routine":
+        return asyncio.run(_cmd_push_routine(config, args.file, dry_run=args.dry_run))
+    return asyncio.run(_cmd_push_measurement(config, args))
+
+
+def _dispatch_verify(config: Config, args: argparse.Namespace) -> int:
+    if args.verify_command == "exercise":
+        return asyncio.run(_cmd_verify_exercise(config, args.name))
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
     _configure_output()
@@ -786,24 +890,12 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_ask(config, args.question)
     if args.command == "status":
         return _cmd_status(config)
+    if args.command == "verify":
+        return _dispatch_verify(config, args)
     if args.command == "guide":
-        if args.guide_command == "return":
-            return _cmd_guide_return(config)
-        if args.guide_command == "redesign":
-            return _cmd_guide_redesign(config)
-        return 1
+        return _dispatch_guide(config, args)
     if args.command == "push":
-        if args.push_command == "workout":
-            return asyncio.run(
-                _cmd_push_workout(
-                    config, args.file, update=args.update, dry_run=args.dry_run
-                )
-            )
-        if args.push_command == "routine":
-            return asyncio.run(
-                _cmd_push_routine(config, args.file, dry_run=args.dry_run)
-            )
-        return asyncio.run(_cmd_push_measurement(config, args))
+        return _dispatch_push(config, args)
     return 1
 
 
