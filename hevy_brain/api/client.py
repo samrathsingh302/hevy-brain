@@ -115,6 +115,18 @@ class HevyApiClient:
             params={"page": page, "pageSize": page_size},
         )
 
+    async def async_get_exercise_history(self, template_id: str) -> dict[str, Any]:
+        """Get the full set-by-set history for one exercise template.
+
+        Authoritative on the server side; used by `verify` to detect when the
+        local cache has drifted behind Hevy (read-only — never on the vault
+        build path, which stays offline).
+        """
+        return await self._api_wrapper(
+            method="get",
+            url=f"{BASE_URL}/exercise_history/{template_id}",
+        )
+
     async def async_get_routines(
         self, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
     ) -> dict[str, Any]:
