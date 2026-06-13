@@ -698,6 +698,26 @@ def _cmd_status(config: Config) -> int:
     return 0
 
 
+def _cmd_doctor(config: Config) -> int:
+    from . import doctor
+
+    store = CacheStore(config.data_dir)
+    checks = doctor.run_checks(config, store, datetime.now(tz=UTC))
+    labels = {doctor.OK: "OK  ", doctor.WARN: "WARN", doctor.FAIL: "FAIL"}
+    print(f"hevy-brain doctor - base: {config.base_dir}")
+    for check in checks:
+        print(f"  [{labels[check.status]}] {check.name}: {check.detail}")
+    worst = doctor.worst_status(checks)
+    if worst == doctor.FAIL:
+        print("\nFAIL - fix the items above before relying on the pipeline.")
+        return 1
+    if worst == doctor.WARN:
+        print("\nWARN - usable, but review the warnings above.")
+        return 0
+    print("\nAll checks passed.")
+    return 0
+
+
 async def _cmd_verify_exercise(config: Config, name: str) -> int:
     from .analytics import reconcile
     from .analytics.prs import exercise_histories
@@ -789,6 +809,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use the metered Anthropic API instead (needs ANTHROPIC_API_KEY)",
     )
     sub.add_parser("status", help="Show cache and config status")
+    sub.add_parser(
+        "doctor", help="Run read-only health checks (key, vault, cache freshness)"
+    )
 
     verify = sub.add_parser(
         "verify",
@@ -929,6 +952,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_ask(config, args.question)
     if args.command == "status":
         return _cmd_status(config)
+    if args.command == "doctor":
+        return _cmd_doctor(config)
     if args.command == "verify":
         return _dispatch_verify(config, args)
     if args.command == "guide":
