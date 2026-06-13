@@ -16,10 +16,26 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice8-coach-memory.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice9-year-in-review.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 9 (A2 year-in-review) shipped (`ce4d6cc`):** one
+  `Reviews/<year> Year in Review.md` per calendar year of training — totals
+  (sessions/volume/reps/active days/longest streak), an embedded 12-bar
+  monthly-volume Mermaid chart (reuses A1's renderer; hardcoded month labels
+  for byte-identical rebuilds), best month, muscle balance + push/pull,
+  most-trained lifts (distinct-workout session counts), and that year's PRs
+  (top 10 + "…and N more"). New `vault/yearreview.py`; wired into `build_vault`
+  (one note per year with workouts, no config). `patterns.volume_by_group`
+  gained a group-name tiebreak so muscle-balance order is input-independent.
+  248 offline tests (was 239), ruff clean, idempotent. Built inline (no
+  product fork) + **adversarial 4-lens review** (no blockers/majors; the
+  top-exercise session over-count, the tiebreak, and a within-year-streak doc
+  note folded in). **Live:** rebuilt 4 year notes (2023–2026), 0 other notes
+  re-rendered; 2024 verified (125 sessions / 705,293 kg / longest streak 6 /
+  274 PRs, all consistent). `HevyBrain Coach` still pending first fire
+  (Sat 13/06; next 14/06 19:00).
 - **Slice 8 (C1 coach memory) shipped (`7ae9930`):** the coach now remembers
   what the data flagged and grades how it moved. Each `coach` run persists an
   objective focus snapshot to `meta["coach_focus"]` (consistency, push/pull
@@ -199,13 +215,14 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
    ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
    ~~F3 `push workout --update`~~ (write-back trio complete) →
-   ~~A1 progress charts~~ → ~~C1 coach memory~~ (done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): A2
-   year-in-review note (totals, PRs, best month, streaks; self-contained like
-   A1) or F4 (exercise-history endpoint) or extend C1 to guide-draft
-   adherence (grade whether a pushed Return/Redesign draft was trained to its
-   loads). E4 (ingest programming episodes) stays an atlas-pipeline task;
-   E2's briefings upgrade to corpus-grounded automatically once claims exist.
+   ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ (done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): F4
+   (exercise-history endpoint), extend C1 to guide-draft adherence (grade
+   whether a pushed Return/Redesign draft was trained to its loads — needs a
+   draft pushed first), or A4 session-quality patterns (time-of-day, RPE
+   coverage, duration trends). E4 (ingest programming episodes) stays an
+   atlas-pipeline task; E2's briefings upgrade to corpus-grounded
+   automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -236,4 +253,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (239 passed) + `python -m ruff check hevy_brain tests`.
+  (248 passed) + `python -m ruff check hevy_brain tests`.

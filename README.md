@@ -25,8 +25,9 @@ training history**, generated and kept in sync as the notes below.
   sync and deduplicated by date.
 - **Obsidian notes** — one note per workout (set-by-set tables, PR callouts),
   one evergreen note per exercise (PR history, est. 1RM), a dashboard, body
-  measurement log, and weekly/monthly reviews. All with frontmatter for
-  Dataview/Bases and wikilinks between everything.
+  measurement log, and weekly / monthly / yearly reviews (each year-in-review
+  has totals, best month, top lifts, PRs, and a monthly-volume chart). All with
+  frontmatter for Dataview/Bases and wikilinks between everything.
 - **Progress charts** — a weekly-volume trend on the dashboard and an est. 1RM
   trend per exercise, rendered as native Mermaid charts (zero dependencies).
   Toggle/tune via the `[charts]` config block.
