@@ -16,10 +16,26 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice14-lapse-nudge.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice15-queries-pack.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 15 (A6 Dataview/Bases starter pack) shipped (`b1c3c17`):** new
+  `vault/queries.py` renders a managed `Hevy/Queries.md` — ready-made Dataview
+  queries over the frontmatter the notes already carry (`#hevy/workout`,
+  `#hevy/exercise`, `#hevy/review/{weekly,monthly}`): recent workouts, biggest
+  sessions, this month's training, strongest lifts by est-1RM, most-trained,
+  lifts going stale, weekly/monthly review logs, plus a short Obsidian Bases
+  pointer. The queries run **live** in Obsidian (Dataview plugin), so the note
+  is **static** (no per-build timestamp) — written once, never churns — and the
+  user can add their own queries below the `%% hevy-brain:end %%` marker
+  (preserved on regen). Wired into `build_vault` as the `queries` category. 322
+  offline tests (was 318), incl. a guard that every workout/exercise field the
+  queries reference is real frontmatter (catches schema drift); ruff clean.
+  **Live:** vault rebuild wrote `Queries.md`, re-rendered nothing else, and a
+  second build was **0 changes** (idempotent). This completes **section A
+  (Insights)** of the roadmap. `HevyBrain Coach` still pending first fire (next
+  Sun 14/06 19:00 — tomorrow).
 - **Slice 14 (A3 lapse-detection nudge) shipped (`ea459e8`):** a quiet-streak
   `[!warning]` callout at the **top of the Dashboard** once training goes quiet.
   New `comeback.lapse_nudge(records, today, *, nudge_days, lapse_days)` returns
@@ -312,13 +328,15 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~F4 exercise-history integrity check~~ → ~~A4 session-quality patterns~~ →
    ~~C1 ext: guide-draft adherence~~ (capture path awaits a real pushed+trained
    draft for full live proof) → ~~A5 bodyweight×strength ratio trends~~ →
-   ~~A3 lapse-detection nudge~~ (done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): A6
-   Dataview/Bases starter pack (`Hevy/Queries.md`) is the last unbuilt A-item;
-   then the open thread is proving slice 12's adherence capture path live (push
-   a guide draft, train it, run coach). E4 (ingest programming episodes) stays
-   an atlas-pipeline task; E2's briefings upgrade to corpus-grounded
-   automatically once claims exist.
+   ~~A3 lapse-detection nudge~~ → ~~A6 Dataview/Bases starter pack~~
+   (done — **section A complete**).
+1. **Next slice** (carry-on prompt in the newest dated handoff): section A
+   (Insights) is fully built. Open threads are (a) proving slice 12's adherence
+   capture path live (push a guide draft, train it, run coach), and (b) the
+   pre-public checklist (key rotation → flip visibility). Otherwise the
+   roadmap's remaining depth is the C-series (coach/guide). E4 (ingest
+   programming episodes) stays an atlas-pipeline task; E2's briefings upgrade to
+   corpus-grounded automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -350,4 +368,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (318 passed) + `python -m ruff check hevy_brain tests`.
+  (322 passed) + `python -m ruff check hevy_brain tests`.
