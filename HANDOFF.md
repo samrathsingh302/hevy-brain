@@ -16,10 +16,25 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice13-strength-ratio.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice14-lapse-nudge.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 14 (A3 lapse-detection nudge) shipped (`ea459e8`):** a quiet-streak
+  `[!warning]` callout at the **top of the Dashboard** once training goes quiet.
+  New `comeback.lapse_nudge(records, today, *, nudge_days, lapse_days)` returns
+  the `lapse_status` facts + a `severity` — `nudge` from `nudge_days`,
+  escalating to `lapse` once the gap reaches `lapse_days` (the guide-return
+  threshold); None below `nudge_days`, with no history, or disabled
+  (`nudge_days <= 0`). `_lapse_callout` renders a gentle "time to get back in?"
+  or, at lapse severity, a pointer to `hevy-brain guide return`. New config
+  `[analytics] lapse_nudge_days` (default 7); `render_dashboard` gained
+  `lapse_nudge_days`/`guide_lapse_days` params (both no-op-safe defaults so
+  existing callers/tests are unaffected); build.py wires the real thresholds.
+  318 offline tests (was 313), ruff clean. **Live:** vault rebuild re-rendered
+  **only** the Dashboard (idempotent) — the real **63-day** lapse (last session
+  2026-04-11) surfaces as a callout pointing at `guide return`. `HevyBrain
+  Coach` still pending first fire (next Sun 14/06 19:00 — tomorrow).
 - **Slice 13 (A5 strength-to-bodyweight ratios) shipped (`43ae67a`):** new
   pure/offline `analytics/strength_ratio.py` pairs bodyweight (from body
   measurements) with est-1RMs (from histories) — `latest_bodyweight`/
@@ -296,12 +311,14 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ →
    ~~F4 exercise-history integrity check~~ → ~~A4 session-quality patterns~~ →
    ~~C1 ext: guide-draft adherence~~ (capture path awaits a real pushed+trained
-   draft for full live proof) → ~~A5 bodyweight×strength ratio trends~~ (done).
+   draft for full live proof) → ~~A5 bodyweight×strength ratio trends~~ →
+   ~~A3 lapse-detection nudge~~ (done).
 1. **Next slice** (carry-on prompt in the newest dated handoff): A6
-   Dataview/Bases starter pack (`Hevy/Queries.md`), A3 lapse-detection nudge
-   (dashboard/review callout after N quiet days), or A4-followups. E4 (ingest
-   programming episodes) stays an atlas-pipeline task; E2's briefings upgrade to
-   corpus-grounded automatically once claims exist.
+   Dataview/Bases starter pack (`Hevy/Queries.md`) is the last unbuilt A-item;
+   then the open thread is proving slice 12's adherence capture path live (push
+   a guide draft, train it, run coach). E4 (ingest programming episodes) stays
+   an atlas-pipeline task; E2's briefings upgrade to corpus-grounded
+   automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -333,4 +350,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (313 passed) + `python -m ruff check hevy_brain tests`.
+  (318 passed) + `python -m ruff check hevy_brain tests`.
