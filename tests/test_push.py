@@ -469,6 +469,97 @@ def test_unwrap_workout_handles_wrapper_shapes() -> None:
     assert unwrap_workout(None) is None
 
 
+def _workout_note_file(tmp_path: Path, *, edited: bool) -> tuple[Path, dict]:
+    """Render a managed workout note; optionally edit a weight in the draft."""
+    raw = make_workout(
+        "w1", "Push Day", exercises=[make_exercise(sets=[make_set(60, 8)])]
+    )
+    text = render_workout_note(build_workout_record(raw), [])
+    if edited:
+        text = text.replace("weight_kg: 60", "weight_kg: 65")
+    file = tmp_path / "note.md"
+    file.write_text(text, encoding="utf-8")
+    return file, raw
+
+
+async def test_cmd_push_workout_update_dry_run_sends_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from hevy_brain import cli
+
+    file, raw = _workout_note_file(tmp_path, edited=True)
+    client = MagicMock()
+    client.async_get_workout = AsyncMock(return_value={"workout": raw})
+    client.async_update_workout = AsyncMock(return_value={})
+
+    async def fake_with_client(config, runner):
+        return await runner(client)
+
+    monkeypatch.setattr(cli, "_with_client", fake_with_client)
+
+    assert (
+        await cli._cmd_push_workout(MagicMock(), file, update=True, dry_run=True) == 0
+    )
+    client.async_update_workout.assert_not_awaited()
+
+    assert (
+        await cli._cmd_push_workout(MagicMock(), file, update=True, dry_run=False) == 0
+    )
+    client.async_update_workout.assert_awaited_once()
+    workout_id, body = client.async_update_workout.await_args.args
+    assert workout_id == "w1"
+    assert body["workout"]["exercises"][0]["sets"][0]["weight_kg"] == 65
+
+
+async def test_cmd_push_workout_update_skips_put_when_no_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from hevy_brain import cli
+
+    file, raw = _workout_note_file(tmp_path, edited=False)
+    client = MagicMock()
+    client.async_get_workout = AsyncMock(return_value={"workout": raw})
+    client.async_update_workout = AsyncMock(return_value={})
+
+    async def fake_with_client(config, runner):
+        return await runner(client)
+
+    monkeypatch.setattr(cli, "_with_client", fake_with_client)
+
+    assert (
+        await cli._cmd_push_workout(MagicMock(), file, update=True, dry_run=False) == 0
+    )
+    client.async_update_workout.assert_not_awaited()
+
+
+async def test_cmd_push_workout_dry_run_without_update_is_rejected(
+    tmp_path: Path,
+) -> None:
+    from hevy_brain import cli
+
+    file = tmp_path / "note.md"
+    file.write_text("placeholder", encoding="utf-8")
+
+    assert (
+        await cli._cmd_push_workout(MagicMock(), file, update=False, dry_run=True) == 1
+    )
+
+
+def test_parser_wires_push_workout_update_flags() -> None:
+    from hevy_brain.cli import build_parser
+
+    args = build_parser().parse_args(
+        ["push", "workout", "note.md", "--update", "--dry-run"]
+    )
+    assert args.push_command == "workout"
+    assert args.update is True
+    assert args.dry_run is True
+
+    plain = build_parser().parse_args(["push", "workout", "note.md"])
+    assert plain.update is False
+    assert plain.dry_run is False
+
+
 async def test_push_measurement_posts() -> None:
     client = MagicMock()
     client.async_create_body_measurement = AsyncMock(return_value={})

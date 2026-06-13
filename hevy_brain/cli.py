@@ -440,7 +440,17 @@ def _cmd_guide_redesign(config: Config) -> int:
     return 0
 
 
-async def _cmd_push_workout(config: Config, file: Path) -> int:
+async def _cmd_push_workout(
+    config: Config, file: Path, *, update: bool = False, dry_run: bool = False
+) -> int:
+    if update:
+        return await _cmd_push_workout_update(config, file, dry_run=dry_run)
+    if dry_run:
+        print(
+            "--dry-run only applies to 'push workout --update'.", file=sys.stderr
+        )
+        return 1
+
     from .writeback.hevy_push import (
         PlannedWorkoutError,
         parse_planned_workout,
@@ -463,6 +473,59 @@ async def _cmd_push_workout(config: Config, file: Path) -> int:
     async def run(client: HevyApiClient) -> int:
         await push_workout(client, body)
         print("Workout created in Hevy. Run 'hevy-brain full' to pull it back.")
+        return 0
+
+    return await _with_client(config, run)
+
+
+async def _cmd_push_workout_update(
+    config: Config, file: Path, *, dry_run: bool
+) -> int:
+    from .api.client import HevyApiClientError
+    from .writeback.hevy_push import (
+        WorkoutNoteError,
+        parse_workout_note,
+        push_workout_update,
+        unwrap_workout,
+        workout_diff,
+    )
+
+    try:
+        workout_id, body = parse_workout_note(file)
+    except (WorkoutNoteError, OSError) as err:
+        print(f"Cannot parse workout note: {err}", file=sys.stderr)
+        return 1
+
+    async def run(client: HevyApiClient) -> int:
+        try:
+            current = unwrap_workout(await client.async_get_workout(workout_id))
+        except HevyApiClientError as err:
+            print(f"Cannot fetch workout {workout_id}: {err}", file=sys.stderr)
+            return 1
+        if current is None:
+            print(f"Workout {workout_id} not found in Hevy.", file=sys.stderr)
+            return 1
+
+        diff = workout_diff(current, body)
+        title = body["workout"]["title"]
+        if not diff:
+            print(f"Workout '{title}': no changes — nothing to push.")
+            return 0
+        print(f"Workout '{title}' ({workout_id}) — changes to push:")
+        for line in diff:
+            print(f"  {line}")
+        if dry_run:
+            print("Dry run — nothing sent.")
+            return 0
+        try:
+            await push_workout_update(client, workout_id, body)
+        except HevyApiClientError as err:
+            print(f"Push failed: {err}", file=sys.stderr)
+            return 1
+        print(
+            "Workout updated in Hevy (full replacement). "
+            "Run 'hevy-brain full' to refresh the vault."
+        )
         return 0
 
     return await _with_client(config, run)
@@ -619,9 +682,25 @@ def build_parser() -> argparse.ArgumentParser:
     push_sub = push.add_subparsers(dest="push_command", required=True)
 
     push_workout = push_sub.add_parser(
-        "workout", help="Create a workout in Hevy from a planned-workout note"
+        "workout",
+        help="Create a workout from a planned note, or fix a logged one (--update)",
     )
-    push_workout.add_argument("file", type=Path, help="Planned-workout .md file")
+    push_workout.add_argument(
+        "file",
+        type=Path,
+        help="Planned-workout note (create) or workout note (--update)",
+    )
+    push_workout.add_argument(
+        "--update",
+        action="store_true",
+        help="Update the logged workout named by the note's hevy_id "
+        "(PUT, full replacement) instead of creating a new one",
+    )
+    push_workout.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="With --update: show the diff against Hevy and stop — send nothing",
+    )
 
     push_routine = push_sub.add_parser(
         "routine",
@@ -679,7 +758,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if args.command == "push":
         if args.push_command == "workout":
-            return asyncio.run(_cmd_push_workout(config, args.file))
+            return asyncio.run(
+                _cmd_push_workout(
+                    config, args.file, update=args.update, dry_run=args.dry_run
+                )
+            )
         if args.push_command == "routine":
             return asyncio.run(
                 _cmd_push_routine(config, args.file, dry_run=args.dry_run)
