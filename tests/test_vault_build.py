@@ -5,11 +5,15 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from conftest import make_workout
+from conftest import make_exercise, make_set, make_workout
 
+from hevy_brain.analytics.prs import exercise_histories
 from hevy_brain.config import Config
+from hevy_brain.models import build_records
 from hevy_brain.store.cache import CacheStore
 from hevy_brain.vault.build import build_vault
+from hevy_brain.vault.dashboards import render_dashboard
+from hevy_brain.vault.exercises import render_exercise_note
 from hevy_brain.vault.workouts import workout_note_paths
 
 TODAY = date(2026, 6, 10)
@@ -56,6 +60,76 @@ def test_build_vault_generates_all_notes(tmp_path: Path, raw_workouts: dict) -> 
 
     dashboard = (root / "Dashboard.md").read_text(encoding="utf-8")
     assert "3** workouts" in dashboard or "**3** workouts" in dashboard
+
+
+def test_charts_render_in_dashboard_and_exercise_notes(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+
+    root = config.vault_root
+    dashboard = (root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "xychart-beta" in dashboard
+    assert "Volume trend (last 12 weeks)" in dashboard
+
+    # Bench is performed in w1 and w3 -> 2 loaded sessions -> an e1RM trend.
+    bench = (root / "Exercises" / "Bench Press (Barbell).md").read_text(
+        encoding="utf-8"
+    )
+    assert "xychart-beta" in bench
+    assert "est. 1RM trend" in bench
+
+
+def test_charts_omitted_when_disabled(tmp_path: Path, raw_workouts: dict) -> None:
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+        charts_enabled=False,
+    )
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+
+    root = config.vault_root
+    dashboard = (root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "xychart-beta" not in dashboard
+    assert "Volume trend" not in dashboard  # no orphan heading either
+    bench = (root / "Exercises" / "Bench Press (Barbell).md").read_text(
+        encoding="utf-8"
+    )
+    assert "xychart-beta" not in bench
+    assert "est. 1RM trend" not in bench  # no orphan heading either
+
+
+def test_enabled_charts_omit_heading_when_series_too_short() -> None:
+    """F7 at the render boundary: charts ON, but a None chart (too few points)
+    must leave NO orphan heading — the case the disabled test can't reach
+    because the disabled guard short-circuits before chart_section is called."""
+    records = build_records(
+        {
+            "a": make_workout(
+                "a",
+                start="2026-06-08T17:00:00+00:00",
+                end="2026-06-08T18:00:00+00:00",
+                exercises=[make_exercise("Bench", "T-B", [make_set(60, 8)])],
+            )
+        }
+    )
+    # One loaded session -> e1RM chart is None even with charts enabled.
+    note = render_exercise_note(
+        exercise_histories(records)["Bench"], {}, e1rm_max_points=10
+    )
+    assert "xychart-beta" not in note
+    assert "est. 1RM trend" not in note
+
+    # Empty window -> all-zero volume series -> chart None, heading omitted.
+    dashboard = render_dashboard([], {}, {}, {}, TODAY, volume_weeks=12)
+    assert "xychart-beta" not in dashboard
+    assert "Volume trend" not in dashboard
 
 
 def test_generated_workout_note_round_trips(

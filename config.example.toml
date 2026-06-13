@@ -38,6 +38,13 @@ baseline_weeks = 4    # pre-lapse window the baselines are computed over
 # `hevy-brain guide redesign` — programme-change briefing + editable drafts.
 redesign_weeks = 8    # window (ending at the last workout) the snapshot covers
 
+[charts]
+# Progress charts in notes, rendered as Mermaid xychart-beta (zero deps —
+# Obsidian renders them natively). Set enabled = false to omit all charts.
+enabled = true
+volume_weeks = 12  # weeks of weekly-volume trend on the Dashboard
+e1rm_points = 10   # most-recent loaded sessions in each exercise's e1RM trend
+
 [analytics]
 plateau_weeks = 4
 push_pull_low = 0.8

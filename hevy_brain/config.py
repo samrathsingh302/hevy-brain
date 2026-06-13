@@ -38,6 +38,9 @@ class Config:
     guide_draft_limit: int = 3
     guide_baseline_weeks: int = 4
     guide_redesign_weeks: int = 8
+    charts_enabled: bool = True
+    charts_volume_weeks: int = 12
+    charts_e1rm_points: int = 10
 
     @property
     def vault_root(self) -> Path:
@@ -80,6 +83,7 @@ def load_config(
     analytics = raw.get("analytics", {})
     knowledge = raw.get("knowledge", {})
     guide = raw.get("guide", {})
+    charts = raw.get("charts", {})
 
     vault_path = Path(vault.get("path", "vault_staging"))
     if not vault_path.is_absolute():
@@ -115,4 +119,7 @@ def load_config(
         guide_draft_limit=int(guide.get("draft_limit", 3)),
         guide_baseline_weeks=int(guide.get("baseline_weeks", 4)),
         guide_redesign_weeks=int(guide.get("redesign_weeks", 8)),
+        charts_enabled=bool(charts.get("enabled", True)),
+        charts_volume_weeks=int(charts.get("volume_weeks", 12)),
+        charts_e1rm_points=int(charts.get("e1rm_points", 10)),
     )

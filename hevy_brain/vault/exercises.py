@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from . import charts
 from .writer import VaultWriter, render_note, sanitize_filename
 
 _MAX_PR_ROWS = 15
@@ -15,7 +16,11 @@ def exercise_note_path(title: str) -> str:
     return f"Exercises/{sanitize_filename(title)}.md"
 
 
-def render_exercise_note(history: dict[str, Any], workout_paths: dict[str, str]) -> str:
+def render_exercise_note(
+    history: dict[str, Any],
+    workout_paths: dict[str, str],
+    e1rm_max_points: int = 0,
+) -> str:
     """Render an exercise note from its history (managed content)."""
     frontmatter = {
         "exercise": history["title"],
@@ -35,6 +40,15 @@ def render_exercise_note(history: dict[str, Any], workout_paths: dict[str, str])
         f"**{history['best_weight_kg']:g} kg** · best est. 1RM "
         f"**{history['best_e1rm_kg']:.1f} kg**"
     )
+
+    if e1rm_max_points:
+        lines.extend(
+            charts.chart_section(
+                "est. 1RM trend",
+                charts.e1rm_chart(history, e1rm_max_points),
+                caption="Loaded sessions only (bodyweight/cardio excluded).",
+            )
+        )
 
     if history["prs"]:
         lines.append("\n## PR history")
@@ -72,11 +86,12 @@ def generate_exercise_notes(
     writer: VaultWriter,
     histories: dict[str, dict[str, Any]],
     workout_paths: dict[str, str],
+    e1rm_max_points: int = 0,
 ) -> int:
     """Write all exercise notes. Returns number of files changed."""
     changed = 0
     for history in histories.values():
-        note = render_exercise_note(history, workout_paths)
+        note = render_exercise_note(history, workout_paths, e1rm_max_points)
         if writer.write(exercise_note_path(history["title"]), note):
             changed += 1
     return changed

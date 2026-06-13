@@ -7,6 +7,7 @@ from typing import Any
 
 from ..analytics import patterns, stats
 from ..analytics.prs import recent_prs
+from . import charts
 from .writer import VaultWriter, render_note
 
 _RECENT_WORKOUTS = 10
@@ -34,6 +35,7 @@ def render_dashboard(
     today: date,
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
+    volume_weeks: int = 0,
 ) -> str:
     """Render the main Dashboard.md (managed content)."""
     agg = stats.compute_aggregates(records, today)
@@ -68,6 +70,14 @@ def render_dashboard(
         f"- This year: **{agg['year_count']}** sessions, "
         f"**{agg['volume_year_kg']:,.0f} kg**"
     )
+
+    if volume_weeks:
+        lines.extend(
+            charts.chart_section(
+                f"Volume trend (last {volume_weeks} weeks)",
+                charts.weekly_volume_chart(records, volume_weeks, today),
+            )
+        )
 
     lines.append("\n## Muscle balance (last 28 days)")
     if volumes_28d:
