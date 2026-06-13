@@ -29,10 +29,13 @@ def build_vault(
     histories = exercise_histories(records)
     workout_paths = workouts.workout_note_paths(records)
 
+    volume_weeks = config.charts_volume_weeks if config.charts_enabled else 0
+    e1rm_points = config.charts_e1rm_points if config.charts_enabled else 0
+
     changed = {
         "workouts": workouts.generate_workout_notes(writer, records, histories),
         "exercises": exercises.generate_exercise_notes(
-            writer, histories, workout_paths
+            writer, histories, workout_paths, e1rm_max_points=e1rm_points
         ),
         "reviews": dashboards.generate_reviews(
             writer,
@@ -56,6 +59,7 @@ def build_vault(
                     today,
                     templates=store.exercise_templates,
                     overrides=config.muscle_overrides,
+                    volume_weeks=volume_weeks,
                 ),
             )
         ),
