@@ -2,6 +2,33 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 13/06/2026 — slice 4: live write path verified + `ask` (C2)
+- **First real PUT to Hevy.** `push routine` live-verified end to end:
+  dry-run diff → PUT (routine `upper` → `Return Week 1 — upper` at 60%
+  loads, 200 OK) → `full` round-trip. The PUT initially 400'd, which
+  surfaced four fixes (all live-verified after):
+  - Hevy rejects `"notes": ""` and treats a *missing* key as "clear the
+    notes" (PUT is full replacement — semantics confirmed empirically);
+    `parse_routine_note` now omits empty notes.
+  - 4xx errors surface the server's response body (the 400 was
+    undebuggable without it).
+  - CLI output reconfigured with `errors="replace"` — the diff preview's
+    `→` crashed default cp1252 Windows consoles mid-print.
+  - Routines renamed in Hevy no longer orphan their old-title note: a
+    managed-note sweep archives them (user files and `Drafts/` untouched).
+- New `hevy-brain ask "…"` — one question, one free briefing
+  (`Coach/<date> Ask — <slug> (<digest>).md`): question-driven knowledge
+  retrieval (topics named in the question, then significant terms down the
+  claims-index/grep path, config-topic fallback) with an honest retrieval
+  summary; full data context; shared provenance rules. Live: 223 claims.
+- Fresh-eyes verifier (fix-first) caught two MAJORs pre-commit: the managed
+  marker quoted in briefing callouts split `VaultWriter.write` at the
+  mention (notes duplicated on every regen — latent in coach + guide
+  briefings too; marker now only counts at line start), and overlong words
+  defeated slug truncation (WinError crash; slugs now hard-cut + digest
+  suffix so colliding slugs never rebind a preserved answer).
+- 161 offline tests (was 135), ruff clean.
+
 ## 13/06/2026 — slice 3: `guide return` (comeback protocol, E1)
 - New `hevy-brain guide return`: detects the lapse from the cache
   (`analytics/comeback.py` — days since last workout vs `[guide] lapse_days`),
