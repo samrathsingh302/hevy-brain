@@ -16,10 +16,30 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice4-live-put-and-ask.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice5-guide-redesign.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 5 (E2 `guide redesign`) shipped (`f17257a` + `f05704d`):**
+  `hevy-brain guide redesign` snapshots the current programme from the
+  cache — split, weekly **working** sets per muscle group (warm-ups
+  excluded), push/pull flag, untrained groups, plateaus — with the window
+  anchored at the **last workout** (lapse-proof), writes a free
+  `Coach/<date> Redesign Briefing.md` with an up-front corpus-gap callout
+  (no programming claims until E4, an atlas-pipeline task) and 88 cited
+  claims via question-style retrieval, plus write-once `Redesign — <title>`
+  drafts that are exact copies (unedited push = "no changes", pinned by
+  `routine_diff == []` test and verified live). Pre-commit verifier:
+  warm-up inflation (MAJOR), short-history dilution, null-title crash,
+  set-type normalisation, dispatch fall-through — all fixed. The live
+  dry-run surfaced a real API quirk: **half-open rep ranges**
+  (`{start: 8, end: null}` = "8+ reps") were rejected by the push parser,
+  breaking the edit flow for `push 1` — parser now keeps a null `end`
+  verbatim, tables render "8+", both unedited drafts dry-run clean against
+  the real server. 187 offline tests (was 161), ruff clean. New config:
+  `[guide] redesign_weeks` (default 8). Shim + scheduled tasks confirmed
+  healthy this session (sync ran 01:38 exit 0; coach first fires Sun 14/06
+  19:00).
 - **Slice 4 (live write path + C2 `ask`) shipped (`381efa3`):** the
   **first real PUT to Hevy is done and round-trip-verified** — routine
   `upper` is now `Return Week 1 — upper` at 60% loads (restore file:
@@ -111,22 +131,25 @@ integration); fully refactored into this CLI — the HA code is gone.
 0. **North star + roadmap defined 12/06/2026** — lives in the vault:
    `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Build order:
    ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
-   ~~live write path~~ → ~~C2 `ask`~~ (all done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): E2
-   `guide redesign` (honesty-labelled until E4 ingestion lands in
-   atlas-pipeline) or F3 `push workout --update` (small).
-2. Housekeeping: re-run `pip install -e ".[dev]"` (stale `hevy-brain.exe`
-   shim) and confirm the scheduled tasks still execute; consider pushing
-   `Return Week 1 — push 1` / `pull 1` when training resumes.
-3. Optional: open `Hevy/Coach/2026-06-12 Return Briefing.md` in Claude and
-   ask it to write the comeback protocol; output goes below the
-   `%% hevy-brain:end %%` marker.
+   ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ (all done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): F3
+   `push workout --update` (fix a logged workout from its note; small —
+   completes the write-back trio) or A1 progress charts / C1 coach
+   memory. E4 (ingest programming episodes) stays an atlas-pipeline task;
+   E2's briefings upgrade to corpus-grounded automatically once claims
+   exist.
+2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
+   resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
+   after week 1.
+3. Optional: open `Hevy/Coach/2026-06-13 Redesign Briefing.md` (or the
+   2026-06-12 Return Briefing) in Claude and ask it to write the
+   redesign/comeback; output goes below the `%% hevy-brain:end %%` marker.
 
 ## Key facts
 
-- Commands: `hevy-brain full | sync | vault | coach [--api] | guide return |
-  ask "…" | status | push workout|routine|measurement …` — reads automatic, **writes to
-  Hevy only via explicit `push`**. Routine edits: duplicate the note into
+- Commands: `hevy-brain full | sync | vault | coach [--api] | guide
+  return|redesign | ask "…" | status | push workout|routine|measurement …`
+  — reads automatic, **writes to Hevy only via explicit `push`**. Routine edits: duplicate the note into
   `Routines/Drafts/`, edit the frontmatter, `push routine <file>` (managed
   notes regenerate hourly — don't edit in place).
 - Config: `config.toml` (local, untracked — copy from `config.example.toml`).
@@ -140,4 +163,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (161 passed) + `python -m ruff check hevy_brain tests`.
+  (187 passed) + `python -m ruff check hevy_brain tests`.
