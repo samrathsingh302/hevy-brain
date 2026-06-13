@@ -31,6 +31,20 @@ def test_knowledge_path_and_topics_override(tmp_path: Path) -> None:
     assert config.knowledge_topics == ["training", "sleep"]
 
 
+def test_vault_subfolder_defaults_to_hevy(tmp_path: Path) -> None:
+    """No config (and no [vault] subfolder) must land notes in 'Hevy/', matching
+    the README / config.example / CLAUDE.md — not a stale 'Fitness/Hevy'."""
+    no_config = load_config(base_dir=tmp_path)  # no config.toml at all
+    assert no_config.vault_subfolder == "Hevy"
+
+    (tmp_path / "config.toml").write_text(
+        "[vault]\npath = 'v'\n", encoding="utf-8"  # [vault] present, no subfolder
+    )
+    no_subfolder = load_config(base_dir=tmp_path)
+    assert no_subfolder.vault_subfolder == "Hevy"
+    assert no_subfolder.vault_root == no_subfolder.vault_path / "Hevy"
+
+
 def test_charts_config_defaults_and_overrides(tmp_path: Path) -> None:
     (tmp_path / "config.toml").write_text(
         "[vault]\npath = 'v'\n", encoding="utf-8"

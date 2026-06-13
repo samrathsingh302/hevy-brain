@@ -20,7 +20,7 @@ class Config:
 
     base_dir: Path
     vault_path: Path
-    vault_subfolder: str = "Fitness/Hevy"
+    vault_subfolder: str = "Hevy"
     knowledge_path: Path | None = None
     knowledge_topics: list[str] = field(default_factory=lambda: ["training"])
     data_dir: Path = Path("data")
@@ -102,7 +102,7 @@ def load_config(
     return Config(
         base_dir=base,
         vault_path=vault_path,
-        vault_subfolder=vault.get("subfolder", "Fitness/Hevy"),
+        vault_subfolder=vault.get("subfolder", "Hevy"),
         knowledge_path=knowledge_path,
         knowledge_topics=list(knowledge.get("topics", ["training"])),
         data_dir=data_dir,
