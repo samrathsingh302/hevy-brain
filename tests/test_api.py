@@ -137,6 +137,30 @@ class TestEndpointDispatch:
         assert kwargs["url"].endswith("/routines/r1")
         assert kwargs["json"] == body
 
+    async def test_single_workout_endpoint(self) -> None:
+        response = _build_response(json_payload={"workout": {"id": "w1"}})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        await client.async_get_workout("w1")
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["method"] == "get"
+        assert kwargs["url"].endswith("/workouts/w1")
+
+    async def test_update_workout_puts_full_body(self) -> None:
+        response = _build_response(json_payload={"workout": {"id": "w1"}})
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+        body = {"workout": {"title": "Push Day", "exercises": []}}
+
+        await client.async_update_workout("w1", body)
+
+        kwargs = session.request.await_args.kwargs
+        assert kwargs["method"] == "put"
+        assert kwargs["url"].endswith("/workouts/w1")
+        assert kwargs["json"] == body
+
     async def test_exercise_templates_endpoint(self) -> None:
         response = _build_response(json_payload={"exercise_templates": []})
         session = _build_session(response)

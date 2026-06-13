@@ -152,6 +152,23 @@ class HevyApiClient:
             data=body,
         )
 
+    async def async_get_workout(self, workout_id: str) -> dict[str, Any]:
+        """Get a single workout by id."""
+        return await self._api_wrapper(
+            method="get",
+            url=f"{BASE_URL}/workouts/{workout_id}",
+        )
+
+    async def async_update_workout(
+        self, workout_id: str, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """PUT (full replacement) a workout — there is no partial update."""
+        return await self._api_wrapper(
+            method="put",
+            url=f"{BASE_URL}/workouts/{workout_id}",
+            data=body,
+        )
+
     async def async_create_body_measurement(
         self, body: dict[str, Any]
     ) -> dict[str, Any]:
