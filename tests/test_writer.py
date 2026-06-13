@@ -46,6 +46,27 @@ def test_user_content_below_marker_preserved(tmp_path: Path) -> None:
     assert text.index(MANAGED_MARKER) < text.index("My personal thoughts.")
 
 
+def test_inline_marker_mention_never_splits_the_note(tmp_path: Path) -> None:
+    """Briefing instructions quote the marker in backticks; regenerating such
+    a note must stay idempotent and must not duplicate content (verifier
+    finding 13/06/2026: every re-ask grew the note by one full briefing)."""
+    writer = VaultWriter(tmp_path)
+    content = f"# Briefing\n\n> Write the answer below the `{MANAGED_MARKER}` marker."
+
+    assert writer.write("Coach/ask.md", content) is True
+    assert writer.write("Coach/ask.md", content) is False  # idempotent regen
+    target = tmp_path / "Coach" / "ask.md"
+    text = target.read_text(encoding="utf-8")
+    assert text.count("# Briefing") == 1
+
+    # The user's answer below the REAL (line-anchored) marker still survives.
+    target.write_text(text + "\nMy answer.\n", encoding="utf-8")
+    writer.write("Coach/ask.md", content + " v2")
+    text = target.read_text(encoding="utf-8")
+    assert text.count("# Briefing") == 1
+    assert "My answer." in text
+
+
 def test_existing_unmanaged_file_content_kept(tmp_path: Path) -> None:
     target = tmp_path / "note.md"
     target.write_text("Pre-existing user note.\n", encoding="utf-8")

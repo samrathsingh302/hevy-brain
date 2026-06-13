@@ -6,7 +6,7 @@ import argparse
 import asyncio
 import logging
 import sys
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -112,6 +112,107 @@ def _load_knowledge(config: Config, topics: list[str] | None = None) -> list:
     except (KnowledgeAccessError, OSError) as err:
         LOGGER.warning("Knowledge base unavailable: %s", err)
     return claims
+
+
+def _load_knowledge_for_question(config: Config, question: str) -> tuple[list, str]:
+    """Question-driven retrieval down the routing order (degrade gracefully).
+
+    Topics named in the question come first, then the question's significant
+    terms as a claims-index / notes-grep pattern. With no match at all, the
+    configured base topics are the fallback so the pack is never silently
+    empty. Returns (claims, one-line retrieval summary).
+    """
+    from .coach.ask import question_pattern, question_terms
+    from .knowledge import Claim, KnowledgeAccessError, KnowledgeBase
+
+    claims: list[Claim] = []
+    seen: set[tuple[str, str]] = set()
+    parts: list[str] = []
+
+    def _add(batch: Sequence[Claim]) -> int:
+        added = 0
+        for claim in batch:
+            key = (claim.source_id, claim.anchor)
+            if key not in seen:
+                seen.add(key)
+                claims.append(claim)
+                added += 1
+        return added
+
+    try:
+        kb = KnowledgeBase(config.knowledge_root)
+        question_lower = question.lower()
+        matched = [
+            topic
+            for topic in kb.available_topics()
+            if topic.lower() in question_lower
+            and _add(kb.retrieve(topic=topic).claims)
+        ]
+        if matched:
+            parts.append("topics: " + ", ".join(matched))
+        pattern = question_pattern(question_terms(question))
+        if pattern:
+            result = kb.retrieve(pattern=pattern)
+            added = _add(result.claims)
+            if added:
+                parts.append(f"pattern via {result.step} (+{added})")
+        if not claims:
+            fallback = [
+                topic
+                for topic in config.knowledge_topics
+                if _add(kb.retrieve(topic=topic).claims)
+            ]
+            if fallback:
+                parts.append(
+                    "no question match — fallback topics: " + ", ".join(fallback)
+                )
+    except (KnowledgeAccessError, OSError) as err:
+        LOGGER.warning("Knowledge base unavailable: %s", err)
+        parts.append("retrieval aborted early — pack may be partial")
+    summary = " · ".join(parts) if parts else "corpus gap — no claims matched"
+    return claims, f"{summary} · {len(claims)} claims"
+
+
+def _cmd_ask(config: Config, question: str) -> int:
+    from .analytics.prs import exercise_histories
+    from .coach import advisor, ask
+    from .models import build_records
+
+    question = question.strip()
+    if not question:
+        print('Provide a question, e.g. hevy-brain ask "..."', file=sys.stderr)
+        return 1
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    today = datetime.now(tz=UTC).date()
+    records = build_records(store.workouts)
+    histories = exercise_histories(records)
+    knowledge, retrieval = _load_knowledge_for_question(config, question)
+    context = advisor.build_context(
+        records,
+        histories,
+        today,
+        templates=store.exercise_templates,
+        overrides=config.muscle_overrides,
+        plateau_weeks=config.plateau_weeks,
+        knowledge=knowledge,
+    )
+    writer = VaultWriter(config.vault_root)
+    config.vault_root.mkdir(parents=True, exist_ok=True)
+    note_path = ask.ask_note_path(today, question)
+    writer.write(
+        note_path,
+        ask.render_ask_briefing(question, context, today, retrieval=retrieval),
+    )
+    print(f"Ask briefing written: {config.vault_root / note_path}")
+    print(f"Knowledge bridge: {retrieval}.")
+    print(
+        "Open it in Claude Code (or paste into claude.ai) and ask Claude to "
+        "act as the coach and answer the question - no API key, no per-call cost."
+    )
+    return 0
 
 
 def _cmd_coach(config: Config, *, use_api: bool) -> int:
@@ -405,6 +506,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub.add_parser("status", help="Show cache and config status")
 
+    ask = sub.add_parser(
+        "ask",
+        help="Answer one specific question, grounded in your data + cited claims",
+    )
+    ask.add_argument(
+        "question",
+        help='The question, quoted (e.g. "How do I get my bench moving again?")',
+    )
+
     guide = sub.add_parser(
         "guide", help="Scenario guidance grounded in your data + cited claims"
     )
@@ -469,6 +579,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_cmd_full(config))
     if args.command == "coach":
         return _cmd_coach(config, use_api=args.api)
+    if args.command == "ask":
+        return _cmd_ask(config, args.question)
     if args.command == "status":
         return _cmd_status(config)
     if args.command == "guide" and args.guide_command == "return":
