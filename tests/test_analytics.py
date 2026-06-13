@@ -102,6 +102,23 @@ def test_volume_by_group_and_push_pull(raw_workouts: dict) -> None:
     assert ratio > 1
 
 
+def test_volume_by_group_breaks_exact_ties_by_name() -> None:
+    # chest (bench) and back (row) both 50*8 = 400 kg -> ascending name on the tie
+    records = build_records(
+        {
+            "a": make_workout(
+                "a",
+                exercises=[
+                    make_exercise("Bench Press (Barbell)", "T-B", [make_set(50, 8)]),
+                    make_exercise("Bent Over Row (Barbell)", "T-ROW", [make_set(50, 8)], 1),
+                ],
+            )
+        }
+    )
+    volumes = patterns.volume_by_group(records)
+    assert list(volumes)[:2] == ["back", "chest"]
+
+
 def test_plateau_detection() -> None:
     # 4 recent sessions stuck at 100kg e1rm; prior window reached the same.
     workouts = {}

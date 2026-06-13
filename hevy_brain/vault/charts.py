@@ -163,6 +163,41 @@ def weekly_volume_chart(
     )
 
 
+_MONTHS = (
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)
+
+
+def monthly_volume_points(
+    records: list[dict[str, Any]], year: int
+) -> tuple[list[str], list[float]]:
+    """Twelve monthly volume buckets (Jan-Dec) for one calendar year.
+
+    Always 12 bars so an untrained month reads as an empty bar, not a gap.
+    Labels are fixed English month abbreviations (locale-independent, so a
+    rebuild stays byte-identical).
+    """
+    totals = [0.0] * 12
+    for record in records:
+        record_date = record["start_time"].date()
+        if record_date.year == year:
+            totals[record_date.month - 1] += record["volume_kg"]
+    return list(_MONTHS), [round(v) for v in totals]
+
+
+def monthly_volume_chart(records: list[dict[str, Any]], year: int) -> str | None:
+    """Monthly-volume bar chart for a year-in-review note."""
+    labels, values = monthly_volume_points(records, year)
+    return mermaid_xychart(
+        f"Monthly volume {year} (kg)",
+        labels,
+        values,
+        y_label="Volume (kg)",
+        zero_baseline=True,
+    )
+
+
 def e1rm_points(
     history: dict[str, Any], max_points: int
 ) -> tuple[list[str], list[float]]:

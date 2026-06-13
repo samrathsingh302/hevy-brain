@@ -198,6 +198,37 @@ def test_e1rm_points_widen_to_year_when_window_spans_years() -> None:
     assert labels == ["24-11-02", "26-06-08"]
 
 
+def test_monthly_volume_points_buckets_by_month_and_year() -> None:
+    records = build_records(
+        {
+            "a": _vol_workout("a", "2026-03-10T17:00:00+00:00", 100),  # Mar, vol 1000
+            "b": _vol_workout("b", "2026-03-20T17:00:00+00:00", 50),  # Mar, vol 500
+            "c": _vol_workout("c", "2026-08-01T17:00:00+00:00", 80),  # Aug, vol 800
+            "d": _vol_workout("d", "2025-03-01T17:00:00+00:00", 999),  # other year
+        }
+    )
+    labels, values = charts.monthly_volume_points(records, 2026)
+
+    assert labels == [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ]
+    assert len(values) == 12
+    assert values[2] == 1500  # March = 1000 + 500
+    assert values[7] == 800  # August
+    assert sum(values) == 2300  # 2025 excluded
+
+
+def test_monthly_volume_chart_renders() -> None:
+    records = build_records(
+        {"a": _vol_workout("a", "2026-03-10T17:00:00+00:00", 100)}
+    )
+    chart = charts.monthly_volume_chart(records, 2026)
+    assert "Monthly volume 2026 (kg)" in chart
+    assert 'x-axis ["Jan", "Feb"' in chart
+    assert '"Dec"]' in chart
+
+
 def test_e1rm_chart_none_for_bodyweight_only_exercise() -> None:
     records = build_records(
         {
