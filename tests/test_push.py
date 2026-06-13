@@ -136,6 +136,19 @@ def test_parse_routine_note(tmp_path: Path) -> None:
     assert routine["exercises"][1]["notes"] == "slow eccentric"
 
 
+def test_parse_routine_note_omits_empty_notes(tmp_path: Path) -> None:
+    """Hevy 400s on "notes": "" — a note without routine notes must omit the
+    key entirely (verified live 13/06/2026: omission = no notes in Hevy)."""
+    file = tmp_path / "routine.md"
+    file.write_text(
+        ROUTINE_NOTE.replace("notes: focus on tempo\n", ""), encoding="utf-8"
+    )
+
+    _, body = parse_routine_note(file)
+
+    assert "notes" not in body["routine"]
+
+
 @pytest.mark.parametrize(
     ("needle", "replacement", "match"),
     [

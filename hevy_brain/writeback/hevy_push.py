@@ -250,14 +250,15 @@ def parse_routine_note(path: Path) -> tuple[str, dict[str, Any]]:
             exercise["notes"] = str(raw["notes"])
         exercises.append(exercise)
 
-    body = {
-        "routine": {
-            "title": str(title),
-            "notes": str(data.get("notes") or ""),
-            "exercises": exercises,
-        }
-    }
-    return str(routine_id), body
+    routine: dict[str, Any] = {"title": str(title)}
+    # Hevy rejects "notes": "" with a 400 and treats a missing key as "clear
+    # the notes" (PUT is a full replacement) — verified live 13/06/2026. So:
+    # notes in the frontmatter are sent; no notes line means none in Hevy.
+    notes = str(data.get("notes") or "")
+    if notes:
+        routine["notes"] = notes
+    routine["exercises"] = exercises
+    return str(routine_id), {"routine": routine}
 
 
 def _set_summary(routine_set: dict[str, Any]) -> str:

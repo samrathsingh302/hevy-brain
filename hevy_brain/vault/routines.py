@@ -11,7 +11,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from .writer import VaultWriter, render_note, sanitize_filename
+import yaml
+
+from .writer import MANAGED_MARKER, VaultWriter, render_note, sanitize_filename
 
 ROUTINE_NOTE_TYPE = "hevy-routine"
 
@@ -141,6 +143,45 @@ def render_routine_note(
         "from Hevy on every sync."
     )
     return render_note(frontmatter, "\n".join(lines))
+
+
+def _is_managed_routine_note(text: str) -> bool:
+    if MANAGED_MARKER not in text or not text.startswith("---"):
+        return False
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return False
+    try:
+        data = yaml.safe_load(parts[1])
+    except yaml.YAMLError:
+        return False
+    return isinstance(data, dict) and data.get("type") == ROUTINE_NOTE_TYPE
+
+
+def archive_stale_routine_notes(
+    writer: VaultWriter, active_paths: set[str]
+) -> int:
+    """Archive managed routine notes no active routine owns.
+
+    A routine renamed in Hevy (e.g. by a draft push) gets a note at its new
+    title, leaving the old-title note behind — the store only remembers
+    deletions, not old titles. Only notes hevy-brain wrote (managed marker +
+    ``type: hevy-routine``) are touched; user files and ``Drafts/`` are not.
+    Returns the number of notes archived.
+    """
+    routines_dir = writer.root / "Routines"
+    if not routines_dir.is_dir():
+        return 0
+    archived = 0
+    for path in sorted(routines_dir.glob("*.md")):
+        rel_path = f"Routines/{path.name}"
+        if rel_path in active_paths:
+            continue
+        if not _is_managed_routine_note(path.read_text(encoding="utf-8")):
+            continue
+        if writer.archive(rel_path):
+            archived += 1
+    return archived
 
 
 def generate_routine_notes(

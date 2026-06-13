@@ -17,17 +17,13 @@ from hevy_brain.api.client import (
 )
 
 
-def _build_response(*, status: int = 200, json_payload: Any = None) -> MagicMock:
+def _build_response(
+    *, status: int = 200, json_payload: Any = None, body_text: str = ""
+) -> MagicMock:
     response = MagicMock()
     response.status = status
     response.json = AsyncMock(return_value=json_payload or {})
-    response.raise_for_status = MagicMock()
-    if status >= 400 and status not in (401, 403, 409):
-        response.raise_for_status.side_effect = aiohttp.ClientResponseError(
-            request_info=MagicMock(),
-            history=(),
-            status=status,
-        )
+    response.text = AsyncMock(return_value=body_text)
     return response
 
 
@@ -183,6 +179,27 @@ class TestErrorHandling:
         client = HevyApiClient(api_key="key", session=session)
 
         with pytest.raises(HevyApiClientCommunicationError):
+            await client.async_get_workout_count()
+
+    async def test_400_error_surfaces_server_body(self) -> None:
+        """The live PUT 400 was undebuggable until the response body was
+        read — the server says exactly which field it rejected."""
+        response = _build_response(
+            status=400,
+            body_text='{"error":"\\"routine.notes\\" is not allowed to be empty"}',
+        )
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        with pytest.raises(HevyApiClientError, match=r"routine\.notes"):
+            await client.async_update_routine("r1", {"routine": {}})
+
+    async def test_400_without_body_still_reports_status(self) -> None:
+        response = _build_response(status=400)
+        session = _build_session(response)
+        client = HevyApiClient(api_key="key", session=session)
+
+        with pytest.raises(HevyApiClientError, match=r"400.*no response body"):
             await client.async_get_workout_count()
 
     async def test_timeout_raises_communication_error(self) -> None:

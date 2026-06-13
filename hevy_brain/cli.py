@@ -22,6 +22,18 @@ from .vault.writer import VaultWriter
 LOGGER = logging.getLogger("hevy_brain")
 
 
+def _configure_output() -> None:
+    """Never crash on printing.
+
+    Windows consoles often default to cp1252, which cannot encode characters
+    the diff preview uses (e.g. '→').
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
 def _require_api_key(config: Config) -> str:
     key = config.hevy_api_key
     if not key:
@@ -441,6 +453,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
+    _configure_output()
     args = build_parser().parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.WARNING,

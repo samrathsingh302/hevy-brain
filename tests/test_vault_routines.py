@@ -111,6 +111,46 @@ def test_deleted_routine_note_archives(tmp_path: Path) -> None:
     assert (root / "Archive" / "Pull Day A.md").exists()
 
 
+def test_renamed_routine_archives_old_title_note(tmp_path: Path) -> None:
+    """A routine renamed in Hevy (same id, new title — e.g. after a draft
+    push) must not leave the old-title note behind forever (live finding,
+    13/06/2026: 'upper' lingered after becoming 'Return Week 1 — upper')."""
+    config = _config(tmp_path)
+    store = _store(tmp_path, [make_routine("r1", "upper")])
+    build_vault(config, store, today=TODAY)
+
+    store.set_routines([make_routine("r1", "Return Week 1 — upper")])
+    changed = build_vault(config, store, today=TODAY)
+
+    root = config.vault_root
+    assert changed["archived"] == 1
+    assert not (root / "Routines" / "upper.md").exists()
+    assert (root / "Archive" / "upper.md").exists()
+    assert (root / "Routines" / "Return Week 1 — upper.md").is_file()
+
+
+def test_stale_sweep_leaves_user_files_and_drafts_alone(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, [make_routine("r1", "upper")])
+    build_vault(config, store, today=TODAY)
+
+    root = config.vault_root
+    user_file = root / "Routines" / "my plan ideas.md"
+    user_file.write_text("# scratch — not hevy-brain's\n", encoding="utf-8")
+    draft = root / "Routines" / "Drafts" / "Return Week 1 — upper.md"
+    draft.parent.mkdir(parents=True, exist_ok=True)
+    draft.write_text(
+        (root / "Routines" / "upper.md").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    changed = build_vault(config, store, today=TODAY)
+
+    assert changed["archived"] == 0
+    assert user_file.is_file()
+    assert draft.is_file()
+
+
 def test_reused_title_never_archives_the_active_note(tmp_path: Path) -> None:
     """A deleted routine whose title was reused by a newer active routine must
     not drag the active note into Archive/."""

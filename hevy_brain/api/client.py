@@ -29,15 +29,21 @@ class HevyApiClientConflictError(HevyApiClientError):
     """Exception to indicate the server reported a duplicate (HTTP 409)."""
 
 
-def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
-    """Verify that the response is valid."""
+async def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
+    """Verify that the response is valid, surfacing the server's error body."""
     if response.status in (401, 403):
         msg = "Invalid API key"
         raise HevyApiClientAuthenticationError(msg)
     if response.status == 409:
         msg = "Resource already exists for the given key"
         raise HevyApiClientConflictError(msg)
-    response.raise_for_status()
+    if response.status < 400:
+        return
+    detail = (await response.text())[:500] or "no response body"
+    msg = f"API error {response.status}: {detail}"
+    if response.status >= 500:
+        raise HevyApiClientCommunicationError(msg)
+    raise HevyApiClientError(msg)
 
 
 class HevyApiClient:
@@ -191,7 +197,7 @@ class HevyApiClient:
                     params=params,
                     json=data,
                 )
-                _verify_response_or_raise(response)
+                await _verify_response_or_raise(response)
                 return await response.json()
 
         except TimeoutError as exception:
