@@ -38,6 +38,9 @@ training history**, generated and kept in sync as the notes below.
   no per-call cost.** An opt-in `--api` flag uses the metered Anthropic API
   for full automation instead. Either way, every claim cites your actual
   numbers and exercise swaps are restricted to exercises that exist in Hevy.
+  Each briefing also carries a **"since your last briefing"** recap — an
+  honest, objective read of how the plateaus, consistency, and balance it
+  flagged last time have actually moved (it grades the data, never the advice).
 - **Write-back** — log body measurements, create workouts, edit routines, and
   fix logged workouts (typo'd weight, forgotten set) in Hevy — all from the
   CLI / their notes, with a diff preview before any change is sent. Writes are
