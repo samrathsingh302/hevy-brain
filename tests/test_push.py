@@ -6,18 +6,31 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from conftest import make_routine, make_routine_exercise, make_routine_set
+from conftest import (
+    make_exercise,
+    make_routine,
+    make_routine_exercise,
+    make_routine_set,
+    make_set,
+    make_workout,
+)
 
 from hevy_brain.api.client import HevyApiClientConflictError
+from hevy_brain.models import build_workout_record
 from hevy_brain.vault.routines import render_routine_note
+from hevy_brain.vault.workouts import render_workout_note
 from hevy_brain.writeback.hevy_push import (
     PlannedWorkoutError,
     RoutineNoteError,
+    WorkoutNoteError,
     parse_planned_workout,
     parse_routine_note,
+    parse_workout_note,
     push_measurement,
     routine_diff,
     unwrap_routine,
+    unwrap_workout,
+    workout_diff,
 )
 
 PLANNED = """\
@@ -91,6 +104,19 @@ def test_parse_requires_sets(tmp_path: Path) -> None:
     file.write_text(text, encoding="utf-8")
 
     with pytest.raises(PlannedWorkoutError, match="sets"):
+        parse_planned_workout(file)
+
+
+def test_parse_planned_workout_validates_rpe(tmp_path: Path) -> None:
+    """Workout sets accept RPE only at 6-10 in halves, shared by the create
+    and update parsers."""
+    text = PLANNED.replace(
+        "{ weight_kg: 10, reps: 12 }", "{ weight_kg: 10, reps: 12, rpe: 8.3 }"
+    )
+    file = tmp_path / "plan.md"
+    file.write_text(text, encoding="utf-8")
+
+    with pytest.raises(PlannedWorkoutError, match="RPE"):
         parse_planned_workout(file)
 
 
@@ -295,6 +321,152 @@ async def test_cmd_push_routine_skips_put_when_no_changes(
 
     assert await cli._cmd_push_routine(MagicMock(), file, dry_run=False) == 0
     client.async_update_routine.assert_not_awaited()
+
+
+# --- Workout fix-up (F3): push workout --update -------------------------------
+
+WORKOUT_NOTE = """\
+---
+type: hevy-workout
+hevy_id: w1
+date: '2026-06-08'
+title: Push Day
+start_time: '2026-06-08T17:00:00+00:00'
+end_time: '2026-06-08T18:00:00+00:00'
+is_private: false
+exercises:
+  - name: Bench Press (Barbell)
+    exercise_template_id: T-BENCH
+    sets:
+      - { type: normal, weight_kg: 60, reps: 8 }
+      - { type: failure, weight_kg: 65, reps: 5, rpe: 8.5 }
+  - name: Lateral Raise (Dumbbell)
+    exercise_template_id: T-LAT
+    notes: slow eccentric
+    sets:
+      - { weight_kg: 10, reps: 12 }
+tags:
+  - hevy/workout
+---
+
+# Push Day
+Anything below the frontmatter is ignored by the parser.
+"""
+
+
+def test_parse_workout_note(tmp_path: Path) -> None:
+    file = tmp_path / "workout.md"
+    file.write_text(WORKOUT_NOTE, encoding="utf-8")
+
+    workout_id, body = parse_workout_note(file)
+
+    assert workout_id == "w1"
+    workout = body["workout"]
+    assert workout["title"] == "Push Day"
+    assert workout["start_time"] == "2026-06-08T17:00:00+00:00"
+    assert workout["is_private"] is False
+    bench = workout["exercises"][0]
+    assert bench["exercise_template_id"] == "T-BENCH"
+    assert bench["sets"][1]["type"] == "failure"
+    assert bench["sets"][1]["rpe"] == 8.5
+    assert workout["exercises"][1]["notes"] == "slow eccentric"
+
+
+def test_parse_workout_note_validates_rpe(tmp_path: Path) -> None:
+    """Workout sets DO support RPE (unlike routine sets), but only 6-10 in
+    half-point steps (carry-on gotcha for F3)."""
+    file = tmp_path / "workout.md"
+    file.write_text(WORKOUT_NOTE.replace("rpe: 8.5", "rpe: 8.3"), encoding="utf-8")
+
+    with pytest.raises(WorkoutNoteError, match="RPE"):
+        parse_workout_note(file)
+
+
+def test_parse_workout_note_requires_times(tmp_path: Path) -> None:
+    """PUT is a full replacement — a missing time must never silently reset the
+    logged session to 'now'."""
+    file = tmp_path / "workout.md"
+    file.write_text(
+        WORKOUT_NOTE.replace("start_time: '2026-06-08T17:00:00+00:00'\n", ""),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(WorkoutNoteError, match="start_time"):
+        parse_workout_note(file)
+
+
+@pytest.mark.parametrize(
+    ("needle", "replacement", "match"),
+    [
+        ("type: hevy-workout", "type: hevy-routine", "type"),
+        ("hevy_id: w1\n", "", "hevy_id"),
+        ("title: Push Day\n", "", "title"),
+    ],
+)
+def test_parse_workout_note_rejects_bad_notes(
+    tmp_path: Path, needle: str, replacement: str, match: str
+) -> None:
+    file = tmp_path / "workout.md"
+    file.write_text(WORKOUT_NOTE.replace(needle, replacement), encoding="utf-8")
+
+    with pytest.raises(WorkoutNoteError, match=match):
+        parse_workout_note(file)
+
+
+def test_unedited_workout_note_diffs_clean(tmp_path: Path) -> None:
+    """A vault-rendered workout note parsed straight back must diff empty
+    against the workout it was rendered from — the round-trip guarantee, with
+    RPE, a superset and an exercise note all surviving the trip."""
+    raw = make_workout(
+        "w1",
+        "Push Day",
+        exercises=[
+            {
+                **make_exercise(
+                    sets=[
+                        make_set(60, 8),
+                        make_set(65, 5, type="failure", rpe=8.5),
+                    ]
+                ),
+                "superset_id": 0,
+                "notes": "tempo",
+            },
+            make_exercise("Lateral Raise (Dumbbell)", "T-LAT", [make_set(10, 12)], 1),
+        ],
+    )
+    record = build_workout_record(raw)
+    file = tmp_path / "note.md"
+    file.write_text(render_workout_note(record, []), encoding="utf-8")
+
+    workout_id, body = parse_workout_note(file)
+
+    assert workout_id == "w1"
+    assert workout_diff(raw, body) == []
+
+
+def test_workout_diff_reports_changes(tmp_path: Path) -> None:
+    raw = make_workout(
+        "w1", "Push Day", exercises=[make_exercise(sets=[make_set(60, 8)])]
+    )
+    record = build_workout_record(raw)
+    file = tmp_path / "note.md"
+    text = render_workout_note(record, []).replace("weight_kg: 60", "weight_kg: 65")
+    text = text.replace("title: Push Day", "title: Push Day (fixed)")
+    file.write_text(text, encoding="utf-8")
+
+    _, body = parse_workout_note(file)
+    diff = workout_diff(raw, body)
+
+    assert any("title" in line for line in diff)
+    assert any("60kg" in line and "65kg" in line for line in diff)
+
+
+def test_unwrap_workout_handles_wrapper_shapes() -> None:
+    assert unwrap_workout({"workout": {"id": "w1"}}) == {"id": "w1"}
+    assert unwrap_workout({"workout": [{"id": "w1"}]}) == {"id": "w1"}
+    assert unwrap_workout({"id": "w1"}) == {"id": "w1"}
+    assert unwrap_workout({"workout": []}) is None
+    assert unwrap_workout(None) is None
 
 
 async def test_push_measurement_posts() -> None:
