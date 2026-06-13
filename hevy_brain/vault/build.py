@@ -9,7 +9,7 @@ from ..analytics.prs import exercise_histories
 from ..config import Config
 from ..models import build_records
 from ..store.cache import CacheStore
-from . import dashboards, exercises, routines, workouts, yearreview
+from . import dashboards, exercises, queries, routines, workouts, yearreview
 from .writer import VaultWriter
 
 
@@ -71,6 +71,7 @@ def build_vault(
                 dashboards.render_body_log(store.measurements, histories, today),
             )
         ),
+        "queries": int(writer.write("Queries.md", queries.render_queries())),
         "routines": routines.generate_routine_notes(
             writer, store.routines, store.routine_folders
         ),
