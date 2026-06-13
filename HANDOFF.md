@@ -16,10 +16,30 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice7-progress-charts.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice8-coach-memory.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 8 (C1 coach memory) shipped (`7ae9930`):** the coach now remembers
+  what the data flagged and grades how it moved. Each `coach` run persists an
+  objective focus snapshot to `meta["coach_focus"]` (consistency, push/pull
+  ratio, flagged plateaus + their est-1RM — no Claude prose); the next run
+  re-derives those from workouts logged **after** the prior snapshot and
+  renders a `## Since your last briefing` recap (plateaus
+  improved/held/regressed/can't-grade, sessions + PRs since, consistency,
+  push/pull movement). **Honest by construction** — it grades the objective
+  *situation* the advice addressed, never Claude's free-text recs (opaque,
+  below the marker); the note says so. New `coach/memory.py` (tolerant of a
+  hand-edited/old-schema `meta.json` — never crashes the unattended run);
+  both coach paths persist the snapshot (the **free path now saves the cache**,
+  which it previously never did); grade-before-record. 239 offline tests (was
+  223), ruff clean. Built via the ultracode protocol — a 3-approach **design
+  panel** (all converged on grading objective signals, never prose) and an
+  **adversarial 4-lens review** (no blockers/majors; robustness + coverage
+  findings folded in). **Live:** free `coach` run persisted the first snapshot
+  (`{path: free, sessions_last_7d: 0, plateaus: []}` — honestly reflecting the
+  lapse); no recap on a first run. `HevyBrain Coach` still pending first fire
+  (Sat 13/06; next 14/06 19:00) — it will now also persist a snapshot.
 - **Slice 7 (A1 progress charts) shipped (`3a75d7c`):** zero-dependency
   progress charts in the vault, rendered as Mermaid `xychart-beta` (Obsidian
   renders them natively). New `vault/charts.py` adds a **12-week
@@ -179,13 +199,13 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
    ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
    ~~F3 `push workout --update`~~ (write-back trio complete) →
-   ~~A1 progress charts~~ (done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): C1 coach
-   memory (last-recommendations + computed "was it followed?") or A2
-   year-in-review note (totals, PRs, best month, streaks) or F4
-   (exercise-history endpoint). E4 (ingest programming episodes) stays an
-   atlas-pipeline task; E2's briefings upgrade to corpus-grounded
-   automatically once claims exist.
+   ~~A1 progress charts~~ → ~~C1 coach memory~~ (done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): A2
+   year-in-review note (totals, PRs, best month, streaks; self-contained like
+   A1) or F4 (exercise-history endpoint) or extend C1 to guide-draft
+   adherence (grade whether a pushed Return/Redesign draft was trained to its
+   loads). E4 (ingest programming episodes) stays an atlas-pipeline task;
+   E2's briefings upgrade to corpus-grounded automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -216,4 +236,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (223 passed) + `python -m ruff check hevy_brain tests`.
+  (239 passed) + `python -m ruff check hevy_brain tests`.
