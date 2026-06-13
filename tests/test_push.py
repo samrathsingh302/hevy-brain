@@ -136,6 +136,26 @@ def test_parse_routine_note(tmp_path: Path) -> None:
     assert routine["exercises"][1]["notes"] == "slow eccentric"
 
 
+def test_parse_routine_note_accepts_half_open_rep_range(tmp_path: Path) -> None:
+    """The live account has a set with rep_range {start: 8, end: null} ("8+
+    reps" in Hevy). Full-replacement fidelity: parse it and keep the null
+    end exactly as the API returned it (found live 13/06/2026 — the old
+    parser rejected the routine's own unedited note)."""
+    file = tmp_path / "routine.md"
+    file.write_text(
+        ROUTINE_NOTE.replace(
+            "rep_range: { start: 5, end: 8 }",
+            "rep_range: { start: 5, end: null }",
+        ),
+        encoding="utf-8",
+    )
+
+    _, body = parse_routine_note(file)
+
+    sets = body["routine"]["exercises"][0]["sets"]
+    assert sets[1]["rep_range"] == {"start": 5, "end": None}
+
+
 def test_parse_routine_note_omits_empty_notes(tmp_path: Path) -> None:
     """Hevy 400s on "notes": "" — a note without routine notes must omit the
     key entirely (verified live 13/06/2026: omission = no notes in Hevy)."""
@@ -156,7 +176,7 @@ def test_parse_routine_note_omits_empty_notes(tmp_path: Path) -> None:
         ("hevy_routine_id: r1\n", "", "hevy_routine_id"),
         ("title: Push Day A\n", "", "title"),
         ("reps: 12", "reps: 12, rpe: 8", "RPE"),
-        ("rep_range: { start: 5, end: 8 }", "rep_range: { start: 5 }", "rep_range"),
+        ("rep_range: { start: 5, end: 8 }", "rep_range: { end: 8 }", "rep_range"),
     ],
 )
 def test_parse_routine_note_rejects_bad_notes(

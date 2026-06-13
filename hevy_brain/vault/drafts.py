@@ -106,7 +106,8 @@ def _format_set(s: dict[str, Any]) -> str:
     if reps is not None:
         reps_text = str(reps)
     elif rep_range.get("start") is not None:
-        reps_text = f"{rep_range['start']}–{rep_range.get('end', '?')}"
+        start, end = rep_range["start"], rep_range.get("end")
+        reps_text = f"{start}–{end}" if end is not None else f"{start}+"
     else:
         reps_text = "—"
     weight_text = f"{weight:g} kg" if weight is not None else "BW"
