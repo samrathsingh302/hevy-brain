@@ -6,6 +6,7 @@ automatically.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,9 @@ from typing import Any
 import yaml
 
 from ..api.client import HevyApiClient, HevyApiClientConflictError
+from ..models import build_workout_record, parse_iso
 from ..vault.routines import ROUTINE_NOTE_TYPE, routine_exercises_spec
+from ..vault.workouts import WORKOUT_NOTE_TYPE, workout_exercises_spec
 
 PLANNED_WORKOUT_TYPE = "hevy-planned-workout"
 
@@ -39,9 +42,16 @@ MEASUREMENT_FIELDS = (
 
 _SET_TYPES = ("warmup", "normal", "failure", "dropset")
 
+# Hevy workout sets accept RPE 6-10 in half-point steps (routine sets do not).
+_VALID_RPE = frozenset({6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0})
+
 
 class PlannedWorkoutError(Exception):
     """Raised when a planned-workout note cannot be parsed."""
+
+
+class WorkoutNoteError(Exception):
+    """Raised when a logged-workout note cannot be parsed for an update."""
 
 
 class RoutineNoteError(Exception):
@@ -76,7 +86,8 @@ def _coerce_iso(value: Any, fallback: datetime) -> str:
     return fallback.isoformat()
 
 
-def _parse_set(raw: Any, exercise_name: str) -> dict[str, Any]:
+def _parse_workout_set(raw: Any, exercise_name: str) -> dict[str, Any]:
+    """Parse one workout set. Workout sets accept RPE (6-10 in halves)."""
     if not isinstance(raw, dict):
         msg = f"{exercise_name}: each set must be a mapping, got {raw!r}"
         raise PlannedWorkoutError(msg)
@@ -94,25 +105,19 @@ def _parse_set(raw: Any, exercise_name: str) -> dict[str, Any]:
     ):
         if raw.get(key) is not None:
             parsed[key] = caster(raw[key])
+    if parsed.get("rpe") is not None and parsed["rpe"] not in _VALID_RPE:
+        msg = (
+            f"{exercise_name}: RPE must be 6–10 in half-point steps, "
+            f"got {parsed['rpe']:g}."
+        )
+        raise PlannedWorkoutError(msg)
     return parsed
 
 
-def parse_planned_workout(path: Path) -> dict[str, Any]:
-    """Parse a planned-workout note into a POST /v1/workouts body."""
-    data = _read_frontmatter(path)
-    if data.get("type") != PLANNED_WORKOUT_TYPE:
-        msg = (
-            f"{path.name}: frontmatter 'type' must be "
-            f"'{PLANNED_WORKOUT_TYPE}' (got {data.get('type')!r})."
-        )
-        raise PlannedWorkoutError(msg)
-
-    title = data.get("title")
-    if not title:
-        msg = f"{path.name}: 'title' is required."
-        raise PlannedWorkoutError(msg)
-
-    raw_exercises = data.get("exercises")
+def _parse_workout_exercises(
+    raw_exercises: Any, path: Path
+) -> list[dict[str, Any]]:
+    """Parse the 'exercises' list shared by create and update workout bodies."""
     if not isinstance(raw_exercises, list) or not raw_exercises:
         msg = f"{path.name}: 'exercises' must be a non-empty list."
         raise PlannedWorkoutError(msg)
@@ -130,13 +135,32 @@ def parse_planned_workout(path: Path) -> dict[str, Any]:
             raise PlannedWorkoutError(msg)
         exercise: dict[str, Any] = {
             "exercise_template_id": str(template_id),
-            "sets": [_parse_set(s, str(name)) for s in sets],
+            "sets": [_parse_workout_set(s, str(name)) for s in sets],
         }
         if raw.get("notes"):
             exercise["notes"] = str(raw["notes"])
         if raw.get("superset_id") is not None:
             exercise["superset_id"] = int(raw["superset_id"])
         exercises.append(exercise)
+    return exercises
+
+
+def parse_planned_workout(path: Path) -> dict[str, Any]:
+    """Parse a planned-workout note into a POST /v1/workouts body."""
+    data = _read_frontmatter(path)
+    if data.get("type") != PLANNED_WORKOUT_TYPE:
+        msg = (
+            f"{path.name}: frontmatter 'type' must be "
+            f"'{PLANNED_WORKOUT_TYPE}' (got {data.get('type')!r})."
+        )
+        raise PlannedWorkoutError(msg)
+
+    title = data.get("title")
+    if not title:
+        msg = f"{path.name}: 'title' is required."
+        raise PlannedWorkoutError(msg)
+
+    exercises = _parse_workout_exercises(data.get("exercises"), path)
 
     now = datetime.now(tz=UTC)
     workout: dict[str, Any] = {
@@ -149,6 +173,58 @@ def parse_planned_workout(path: Path) -> dict[str, Any]:
     if data.get("description"):
         workout["description"] = str(data["description"])
     return {"workout": workout}
+
+
+def parse_workout_note(path: Path) -> tuple[str, dict[str, Any]]:
+    """Parse a logged-workout note into (workout_id, PUT /v1/workouts/{id} body).
+
+    Accepts any note whose frontmatter has ``type: hevy-workout`` — the
+    managed note or (safer, since managed notes regenerate on sync) a draft
+    copy of it. PUT is a FULL replacement: the body is built entirely from
+    the note, so start_time/end_time are required (a missing time must never
+    silently reset the logged session to "now").
+    """
+    try:
+        data = _read_frontmatter(path)
+    except PlannedWorkoutError as err:
+        raise WorkoutNoteError(str(err)) from err
+
+    if data.get("type") != WORKOUT_NOTE_TYPE:
+        msg = (
+            f"{path.name}: frontmatter 'type' must be "
+            f"'{WORKOUT_NOTE_TYPE}' (got {data.get('type')!r})."
+        )
+        raise WorkoutNoteError(msg)
+
+    workout_id = data.get("hevy_id")
+    if not workout_id:
+        msg = f"{path.name}: 'hevy_id' is required."
+        raise WorkoutNoteError(msg)
+
+    title = data.get("title")
+    if not title:
+        msg = f"{path.name}: 'title' is required."
+        raise WorkoutNoteError(msg)
+
+    if data.get("start_time") is None or data.get("end_time") is None:
+        msg = f"{path.name}: 'start_time' and 'end_time' are required for an update."
+        raise WorkoutNoteError(msg)
+
+    try:
+        exercises = _parse_workout_exercises(data.get("exercises"), path)
+        now = datetime.now(tz=UTC)
+        workout: dict[str, Any] = {
+            "title": str(title),
+            "start_time": _coerce_iso(data.get("start_time"), now),
+            "end_time": _coerce_iso(data.get("end_time"), now),
+            "is_private": bool(data.get("is_private", False)),
+            "exercises": exercises,
+        }
+    except PlannedWorkoutError as err:
+        raise WorkoutNoteError(str(err)) from err
+    if data.get("description"):
+        workout["description"] = str(data["description"])
+    return str(workout_id), {"workout": workout}
 
 
 async def push_workout(client: HevyApiClient, body: dict[str, Any]) -> dict[str, Any]:
@@ -279,26 +355,40 @@ def _set_summary(routine_set: dict[str, Any]) -> str:
     return " ".join(str(p) for p in parts)
 
 
+def _workout_set_summary(workout_set: dict[str, Any]) -> str:
+    parts = [workout_set.get("type", "normal")]
+    if workout_set.get("weight_kg") is not None:
+        parts.append(f"{workout_set['weight_kg']:g}kg")
+    if workout_set.get("reps") is not None:
+        parts.append(f"×{workout_set['reps']}")
+    if workout_set.get("duration_seconds"):
+        parts.append(f"{workout_set['duration_seconds']}s")
+    if workout_set.get("distance_meters"):
+        parts.append(f"{workout_set['distance_meters']}m")
+    if workout_set.get("rpe") is not None:
+        parts.append(f"RPE {workout_set['rpe']:g}")
+    return " ".join(str(p) for p in parts)
+
+
 def _comparable_exercise(spec: dict[str, Any]) -> dict[str, Any]:
     """Strip display-only keys so server and note specs compare equal."""
     return {k: v for k, v in spec.items() if k != "name"}
 
 
-def routine_diff(current: dict[str, Any], body: dict[str, Any]) -> list[str]:
-    """Human-readable diff between the routine in Hevy and the note's body.
+def _exercise_diff(
+    cur_exercises: list[dict[str, Any]],
+    new_exercises: list[dict[str, Any]],
+    *,
+    set_summary: Callable[[dict[str, Any]], str],
+    exercise_keys: tuple[str, ...],
+) -> list[str]:
+    """Diff two normalised exercise-spec lists (shared by routines + workouts).
 
-    Empty list = no changes. Compared on the same normalised spec the vault
-    notes are generated from, so an unedited note diffs clean.
+    Callers supply the per-set renderer and which per-exercise keys to compare;
+    top-level fields (title/notes/times) are diffed by the caller. Empty list
+    for identical lists, so an unedited note round-trips clean.
     """
     lines: list[str] = []
-    new = body["routine"]
-    if (current.get("title") or "") != new["title"]:
-        lines.append(f"~ title: {current.get('title')!r} → {new['title']!r}")
-    if (current.get("notes") or "") != (new.get("notes") or ""):
-        lines.append("~ routine notes changed")
-
-    cur_exercises = routine_exercises_spec(current)
-    new_exercises = new["exercises"]
     for index in range(max(len(cur_exercises), len(new_exercises))):
         if index >= len(cur_exercises):
             added = new_exercises[index]
@@ -333,9 +423,9 @@ def routine_diff(current: dict[str, Any], body: dict[str, Any]) -> list[str]:
             if a != b:
                 lines.append(
                     f"~ {label}: set {set_index}: "
-                    f"{_set_summary(a)} → {_set_summary(b)}"
+                    f"{set_summary(a)} → {set_summary(b)}"
                 )
-        for key in ("rest_seconds", "superset_id", "notes"):
+        for key in exercise_keys:
             if cur.get(key) != new_ex.get(key):
                 lines.append(
                     f"~ {label}: {key}: {cur.get(key)!r} → {new_ex.get(key)!r}"
@@ -343,10 +433,84 @@ def routine_diff(current: dict[str, Any], body: dict[str, Any]) -> list[str]:
     return lines
 
 
+def routine_diff(current: dict[str, Any], body: dict[str, Any]) -> list[str]:
+    """Human-readable diff between the routine in Hevy and the note's body.
+
+    Empty list = no changes. Compared on the same normalised spec the vault
+    notes are generated from, so an unedited note diffs clean.
+    """
+    lines: list[str] = []
+    new = body["routine"]
+    if (current.get("title") or "") != new["title"]:
+        lines.append(f"~ title: {current.get('title')!r} → {new['title']!r}")
+    if (current.get("notes") or "") != (new.get("notes") or ""):
+        lines.append("~ routine notes changed")
+    lines += _exercise_diff(
+        routine_exercises_spec(current),
+        new["exercises"],
+        set_summary=_set_summary,
+        exercise_keys=("rest_seconds", "superset_id", "notes"),
+    )
+    return lines
+
+
+def _to_utc(value: Any) -> datetime | None:
+    """Normalise an ISO string or datetime to a UTC-aware datetime.
+
+    PyYAML loads an unquoted timestamp as a (UTC-converted) datetime and a
+    quoted one as a string; the parser emits ISO strings. Normalising both
+    sides means an unedited time never shows as a spurious diff.
+    """
+    dt = parse_iso(value) if isinstance(value, str) else value
+    if not isinstance(dt, datetime):
+        return None
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+
+
+def workout_diff(current: dict[str, Any], body: dict[str, Any]) -> list[str]:
+    """Human-readable diff between the workout in Hevy and the note's body.
+
+    Empty list = no changes. The server payload is normalised through the same
+    record→spec path the vault notes are built from, so an unedited note diffs
+    clean.
+    """
+    lines: list[str] = []
+    new = body["workout"]
+    if (current.get("title") or "") != new["title"]:
+        lines.append(f"~ title: {current.get('title')!r} → {new['title']!r}")
+    if (current.get("description") or "") != (new.get("description") or ""):
+        lines.append("~ workout description changed")
+    cur_private = bool(current.get("is_private", False))
+    new_private = bool(new.get("is_private", False))
+    if cur_private != new_private:
+        lines.append(f"~ is_private: {cur_private} → {new_private}")
+    for field in ("start_time", "end_time"):
+        if _to_utc(current.get(field)) != _to_utc(new.get(field)):
+            lines.append(f"~ {field}: {current.get(field)} → {new.get(field)}")
+
+    record = build_workout_record(current)
+    lines += _exercise_diff(
+        workout_exercises_spec(record),
+        new["exercises"],
+        set_summary=_workout_set_summary,
+        exercise_keys=("superset_id", "notes"),
+    )
+    return lines
+
+
 def unwrap_routine(payload: Any) -> dict[str, Any] | None:
     """Pull the routine object out of a GET /v1/routines/{id} response."""
+    return _unwrap(payload, "routine")
+
+
+def unwrap_workout(payload: Any) -> dict[str, Any] | None:
+    """Pull the workout object out of a GET /v1/workouts/{id} response."""
+    return _unwrap(payload, "workout")
+
+
+def _unwrap(payload: Any, key: str) -> dict[str, Any] | None:
     if isinstance(payload, dict):
-        inner = payload.get("routine", payload)
+        inner = payload.get(key, payload)
         if isinstance(inner, list):
             inner = inner[0] if inner else None
         return inner if isinstance(inner, dict) else None
@@ -358,6 +522,13 @@ async def push_routine(
 ) -> dict[str, Any]:
     """PUT (full replacement) a routine in Hevy."""
     return await client.async_update_routine(routine_id, body)
+
+
+async def push_workout_update(
+    client: HevyApiClient, workout_id: str, body: dict[str, Any]
+) -> dict[str, Any]:
+    """PUT (full replacement) a logged workout in Hevy."""
+    return await client.async_update_workout(workout_id, body)
 
 
 async def push_measurement(

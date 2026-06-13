@@ -49,11 +49,31 @@ def test_build_vault_generates_all_notes(tmp_path: Path, raw_workouts: dict) -> 
         encoding="utf-8"
     )
     assert "hevy_id: w3" in workout_text
+    assert "type: hevy-workout" in workout_text
     assert "[[Bench Press (Barbell)]]" in workout_text
     assert "PR" in workout_text  # w3 sets a bench weight PR
+    assert "push workout <file> --update" in workout_text  # fix-up callout
 
     dashboard = (root / "Dashboard.md").read_text(encoding="utf-8")
     assert "3** workouts" in dashboard or "**3** workouts" in dashboard
+
+
+def test_generated_workout_note_round_trips(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    """A managed workout note from the real build path must parse back into a
+    no-op PUT body — the fix-up round-trip guarantee, end to end."""
+    from hevy_brain.writeback.hevy_push import parse_workout_note, workout_diff
+
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+    build_vault(config, store, today=TODAY)
+
+    note = config.vault_root / "Workouts" / "2026-06-08 Push Day.md"
+    workout_id, body = parse_workout_note(note)
+
+    assert workout_id == "w3"
+    assert workout_diff(raw_workouts["w3"], body) == []
 
 
 def test_build_vault_is_idempotent(tmp_path: Path, raw_workouts: dict) -> None:

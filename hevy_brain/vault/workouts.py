@@ -1,4 +1,12 @@
-"""One markdown note per workout."""
+"""One markdown note per workout.
+
+The frontmatter carries the FULL editable workout spec (same shape the
+``push workout --update`` parser reads), so a logged workout can be fixed
+from its note: duplicate it into ``Workouts/Drafts/``, correct the
+frontmatter, then ``hevy-brain push workout <file> --update``. Managed notes
+themselves are regenerated from the cache on every vault build — edits
+belong in a draft copy, not in place.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +14,47 @@ from typing import Any
 
 from ..analytics.prs import epley_1rm, prs_for_workout
 from .writer import VaultWriter, render_note, sanitize_filename
+
+WORKOUT_NOTE_TYPE = "hevy-workout"
+
+_SET_SPEC_KEYS = (
+    "type",
+    "weight_kg",
+    "reps",
+    "distance_meters",
+    "duration_seconds",
+    "rpe",
+    "custom_metric",
+)
+
+
+def workout_exercises_spec(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract the editable exercise spec from a processed workout record.
+
+    This is the exact shape the push-workout parser consumes; None/empty
+    fields are dropped so the frontmatter stays readable. Defaulting a
+    missing set type to "normal" matches the parser, keeping an unedited
+    draft an exact no-op in workout_diff.
+    """
+    spec: list[dict[str, Any]] = []
+    for exercise in record["exercises"]:
+        entry: dict[str, Any] = {
+            "name": exercise.get("title") or "Unknown Exercise",
+            "exercise_template_id": exercise.get("template_id", ""),
+        }
+        if exercise.get("superset_id") is not None:
+            entry["superset_id"] = exercise["superset_id"]
+        if exercise.get("notes"):
+            entry["notes"] = exercise["notes"]
+        entry["sets"] = [
+            {
+                "type": "normal",
+                **{k: s[k] for k in _SET_SPEC_KEYS if s.get(k) is not None},
+            }
+            for s in exercise.get("sets", [])
+        ]
+        spec.append(entry)
+    return spec
 
 
 def workout_note_paths(records: list[dict[str, Any]]) -> dict[str, str]:
@@ -60,17 +109,22 @@ def render_workout_note(
     """Render a full workout note (managed content, no marker)."""
     start = record["start_time"]
     frontmatter = {
+        "type": WORKOUT_NOTE_TYPE,
         "hevy_id": record["id"],
         "date": start.date().isoformat(),
         "title": record["title"],
         "start_time": start.isoformat(),
         "end_time": record["end_time"].isoformat() if record["end_time"] else None,
+        "is_private": record.get("is_private", False),
         "duration_min": round(record["duration_seconds"] / 60, 1),
         "volume_kg": round(record["volume_kg"], 1),
         "total_reps": record["total_reps"],
         "exercise_count": record["exercise_count"],
+        "exercises": workout_exercises_spec(record),
         "tags": ["hevy/workout"],
     }
+    if record.get("description"):
+        frontmatter["description"] = record["description"]
 
     lines: list[str] = [f"# {record['title']}"]
     lines.append(
@@ -102,6 +156,12 @@ def render_workout_note(
             f"**Top weight:** {exercise['max_weight_kg']:g} kg"
         )
 
+    lines.append(
+        "\n> [!info] To fix this workout (typo'd weight, forgotten set): "
+        "duplicate the note into `Workouts/Drafts/`, correct the "
+        "frontmatter, then run `hevy-brain push workout <file> --update`. "
+        "This managed note is regenerated from Hevy on every sync."
+    )
     return render_note(frontmatter, "\n".join(lines))
 
 
