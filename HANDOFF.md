@@ -16,10 +16,27 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice16-doctor.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice17-hardening.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 17 (Tier-1 pre-public hardening) shipped (`606791b` + `c2bb72c`):**
+  audit-driven fixes + portfolio polish ahead of the public flip. **Correctness/
+  doc-drift:** README "60 tests" → 333 (×2; was undersold 5×); `config`
+  `vault_subfolder` default `Fitness/Hevy` → `Hevy` (dataclass + load_config,
+  matching all docs — a no-config quick-try landed notes in the wrong folder;
+  regression-tested); `coach --api` now persists the **billed call before** the
+  focus-snapshot save (a later save failure could drop the count and let the
+  daily budget guard over-bill); `_coach_recap` extracted to keep `_cmd_coach`
+  under the statement limit (behaviour identical). **Tooling:** CI test matrix
+  now **3.12 + 3.13** (was 3.13-only despite `requires-python>=3.12`); pytest
+  runs with coverage (**88%**); **mypy** added (`==2.1.0`, `[tool.mypy]`,
+  wired into Lint CI) — package type-checks **clean** (41 files; two fixes:
+  `today: date` in `_coach_recap`, str-keyed dict in `set_measurements`);
+  `pytest-cov` dev dep; `.pre-commit-config.yaml` mirrors CI (ruff + mypy,
+  versions pinned). 333 offline tests (was 332), ruff + mypy clean. **No live
+  account interaction** — pure offline/CI work. `HevyBrain Coach` still pending
+  first fire (next Sun 14/06 19:00 — tomorrow).
 - **Slice 16 (D2 `hevy-brain doctor`) shipped (`b124856`):** new
   `hevy_brain/doctor.py` + `doctor` command — a pure, offline, read-only
   diagnostic. `run_checks(config, store, now)` reports OK/WARN/FAIL across: Hevy
@@ -342,17 +359,19 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~C1 ext: guide-draft adherence~~ (capture path awaits a real pushed+trained
    draft for full live proof) → ~~A5 bodyweight×strength ratio trends~~ →
    ~~A3 lapse-detection nudge~~ → ~~A6 Dataview/Bases starter pack~~
-   (section A complete) → ~~D2 `doctor`~~ (done).
+   (section A complete) → ~~D2 `doctor`~~ → ~~Tier-1 pre-public hardening~~
+   (done). A "what else" plan (3-lens research: values/audit/opportunities) was
+   run 13/06 — see the slice-17 dated handoff for the full tiered backlog.
 1. **Next slice** (carry-on prompt in the newest dated handoff): roadmap
-   sections A, C, D are now fully built (D1 folded into slice 1, D3 operational,
-   D2 done). Remaining are **user-gated threads**, not solo-buildable: (a)
-   proving slice 12's adherence capture path live (push a guide draft, train it,
-   run coach — needs a real push + training); (b) the pre-public checklist (key
-   rotation → flip visibility — Samrath's call). E4 (ingest programming
-   episodes) stays an atlas-pipeline task; E2's briefings upgrade to
-   corpus-grounded automatically once claims exist. **The standalone build queue
-   is essentially drained** — next session is likely polish/hardening or one of
-   the user-gated threads.
+   sections A, C, D are built; Tier-1 hardening is done. Remaining
+   **solo-buildable** options from the "what else" plan: **B1 per-lift
+   progression targets** (the one genuinely-missing feature — "next time try
+   X kg × Y" on exercise notes, from e1RM + weekly_overload; ~M), or Tier-3
+   in-spirit features (deload-readiness flag, volume-landmark check, consistency
+   heatmap, `doctor` vault-drift check, `export --csv`, `diff`). **User-gated**
+   (need Samrath): (a) live-prove slice 12's adherence capture (push a guide
+   draft, train it, run coach); (b) pre-public checklist (key rotation → flip
+   visibility). E4 (ingest programming episodes) stays an atlas-pipeline task.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -384,4 +403,5 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (332 passed) + `python -m ruff check hevy_brain tests`.
+  (333 passed, 88% cov) + `python -m ruff check hevy_brain tests` + `python -m
+  mypy` (clean). Optional: `pre-commit install` (hooks mirror CI).
