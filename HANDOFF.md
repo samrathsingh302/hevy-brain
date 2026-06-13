@@ -16,10 +16,35 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice5-guide-redesign.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice6-workout-fixup.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 6 (F3 `push workout --update`) shipped (`62c0dfb` + `f77b3ac` +
+  `6125239`):** completes the **write-back trio** (workout create + routine
+  edit + workout fix-up). `hevy-brain push workout <file> --update
+  [--dry-run]` fixes a logged workout (typo'd weight, forgotten set, missing
+  RPE) from a draft of its note: GET `/v1/workouts/{id}` → diff preview →
+  PUT (full replacement), no-changes short-circuit, mirrors `push routine`.
+  New client methods `async_get_workout`/`async_update_workout`. Workout
+  notes are now **round-trippable**: frontmatter carries `type:
+  hevy-workout`, `is_private`, `description`, and the full editable
+  `exercises` spec, plus a fix-up callout; `build_workout_record` carries
+  `is_private` + `superset_id`. `parse_workout_note` validates **RPE 6-10 in
+  halves** (workout sets support RPE; routine sets don't — shared by the
+  create + update parsers) and **requires start/end times** (a
+  full-replacement PUT must never reset the session to "now"). New
+  `workout_diff` + `unwrap_workout` ride a **shared `_exercise_diff` loop**
+  (`routine_diff` refactored onto it, behaviour identical); `_to_utc`
+  normalises times so an unedited time is never a spurious diff. The id
+  comes from the note's `hevy_id` (no id arg). The whole vault was rebuilt
+  (285 workout notes picked up the new frontmatter). 204 offline tests (was
+  187), ruff clean. **Live (read-only):** unedited note `--update
+  --dry-run` = "no changes" (round-trip holds against the real server +
+  first live use of the new GET endpoint); an edited Drafts copy rendered a
+  correct `sets 3 → 4` / weight+RPE diff, nothing sent. **No live workout
+  PUT yet** — first real edited push should still `--dry-run` first.
+  `HevyBrain Coach` still pending first fire (Sat 13/06; next 14/06 19:00).
 - **Slice 5 (E2 `guide redesign`) shipped (`f17257a` + `f05704d`):**
   `hevy-brain guide redesign` snapshots the current programme from the
   cache — split, weekly **working** sets per muscle group (warm-ups
@@ -131,13 +156,14 @@ integration); fully refactored into this CLI — the HA code is gone.
 0. **North star + roadmap defined 12/06/2026** — lives in the vault:
    `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Build order:
    ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
-   ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ (all done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): F3
-   `push workout --update` (fix a logged workout from its note; small —
-   completes the write-back trio) or A1 progress charts / C1 coach
-   memory. E4 (ingest programming episodes) stays an atlas-pipeline task;
-   E2's briefings upgrade to corpus-grounded automatically once claims
-   exist.
+   ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
+   ~~F3 `push workout --update`~~ (all done — write-back trio complete).
+1. **Next slice** (carry-on prompt in the newest dated handoff): A1
+   progress charts (Mermaid xychart, zero deps) or C1 coach memory
+   (last-recommendations + computed "was it followed?") or F4
+   (exercise-history endpoint). E4 (ingest programming episodes) stays an
+   atlas-pipeline task; E2's briefings upgrade to corpus-grounded
+   automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -148,10 +174,13 @@ integration); fully refactored into this CLI — the HA code is gone.
 ## Key facts
 
 - Commands: `hevy-brain full | sync | vault | coach [--api] | guide
-  return|redesign | ask "…" | status | push workout|routine|measurement …`
-  — reads automatic, **writes to Hevy only via explicit `push`**. Routine edits: duplicate the note into
-  `Routines/Drafts/`, edit the frontmatter, `push routine <file>` (managed
-  notes regenerate hourly — don't edit in place).
+  return|redesign | ask "…" | status | push workout [--update]|routine|measurement …`
+  — reads automatic, **writes to Hevy only via explicit `push`**. Routine
+  edits: duplicate the note into `Routines/Drafts/`, edit the frontmatter,
+  `push routine <file>`. Workout fix-ups: duplicate the workout note into
+  `Workouts/Drafts/`, correct the frontmatter, `push workout <file>
+  --update` (id read from `hevy_id`). Both: managed notes regenerate hourly
+  — edit a draft, don't edit in place. First push of any edit: `--dry-run`.
 - Config: `config.toml` (local, untracked — copy from `config.example.toml`).
   Secrets only in env vars `HEVY_API_KEY` / `ANTHROPIC_API_KEY`. `[knowledge]`
   block tunes the read-only bridge (`path` defaults to vault root; `topics`
@@ -163,4 +192,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (187 passed) + `python -m ruff check hevy_brain tests`.
+  (204 passed) + `python -m ruff check hevy_brain tests`.
