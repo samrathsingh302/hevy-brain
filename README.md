@@ -78,8 +78,8 @@ lives in `writeback/` and is only reachable from explicit CLI commands.
 - **Crash-safe sync cursor** — the events cursor and sync metadata roll back
   if a sync fails before the cache is persisted, so a retry replays the same
   events instead of silently skipping them (regression-tested).
-- **Offline test suite** — 332 pytest tests, no network, the real account is
-  never touched by tests; ruff lint + format enforced in CI.
+- **Offline test suite** — 333 pytest tests (88% coverage), no network, the
+  real account is never touched by tests; ruff lint + format + mypy enforced in CI.
 - **Secrets stay out of files** — API keys come from environment variables
   only; personal workout data and config never leave the machine (gitignored).
 
@@ -182,7 +182,7 @@ Registers two Task Scheduler jobs: `hevy-brain full` hourly and
 
 ```powershell
 pip install -e ".[dev]"
-python -m pytest tests -q     # 332 tests, no network, no real API calls
+python -m pytest tests -q     # 333 tests, no network, no real API calls
 python -m ruff check hevy_brain tests
 python -m ruff format hevy_brain tests
 ```
