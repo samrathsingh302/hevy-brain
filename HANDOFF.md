@@ -16,10 +16,23 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice15-queries-pack.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice16-doctor.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 16 (D2 `hevy-brain doctor`) shipped (`b124856`):** new
+  `hevy_brain/doctor.py` + `doctor` command — a pure, offline, read-only
+  diagnostic. `run_checks(config, store, now)` reports OK/WARN/FAIL across: Hevy
+  API key (FAIL if missing), Anthropic key (WARN if absent — `coach --api`
+  only), vault path exists (FAIL), cache non-empty (FAIL), sync freshness vs the
+  hourly task (WARN if >25h/never; tolerant of a naive timestamp), and vault
+  built (WARN if no Dashboard.md). CLI exits 1 only on FAIL (WARN is still
+  usable); output is ASCII so it reads clean on a cp1252 console. `run_checks`
+  never touches Hevy. 332 offline tests (was 322), ruff clean. **Live:** against
+  the real environment — key set, 285 workouts cached, **last synced 0.4h ago**
+  (hourly task confirmed healthy), vault built; only the optional Anthropic key
+  warns. `HevyBrain Coach` still pending first fire (next Sun 14/06 19:00 —
+  tomorrow).
 - **Slice 15 (A6 Dataview/Bases starter pack) shipped (`b1c3c17`):** new
   `vault/queries.py` renders a managed `Hevy/Queries.md` — ready-made Dataview
   queries over the frontmatter the notes already carry (`#hevy/workout`,
@@ -329,14 +342,17 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~C1 ext: guide-draft adherence~~ (capture path awaits a real pushed+trained
    draft for full live proof) → ~~A5 bodyweight×strength ratio trends~~ →
    ~~A3 lapse-detection nudge~~ → ~~A6 Dataview/Bases starter pack~~
-   (done — **section A complete**).
-1. **Next slice** (carry-on prompt in the newest dated handoff): section A
-   (Insights) is fully built. Open threads are (a) proving slice 12's adherence
-   capture path live (push a guide draft, train it, run coach), and (b) the
-   pre-public checklist (key rotation → flip visibility). Otherwise the
-   roadmap's remaining depth is the C-series (coach/guide). E4 (ingest
-   programming episodes) stays an atlas-pipeline task; E2's briefings upgrade to
-   corpus-grounded automatically once claims exist.
+   (section A complete) → ~~D2 `doctor`~~ (done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): roadmap
+   sections A, C, D are now fully built (D1 folded into slice 1, D3 operational,
+   D2 done). Remaining are **user-gated threads**, not solo-buildable: (a)
+   proving slice 12's adherence capture path live (push a guide draft, train it,
+   run coach — needs a real push + training); (b) the pre-public checklist (key
+   rotation → flip visibility — Samrath's call). E4 (ingest programming
+   episodes) stays an atlas-pipeline task; E2's briefings upgrade to
+   corpus-grounded automatically once claims exist. **The standalone build queue
+   is essentially drained** — next session is likely polish/hardening or one of
+   the user-gated threads.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -347,8 +363,8 @@ integration); fully refactored into this CLI — the HA code is gone.
 ## Key facts
 
 - Commands: `hevy-brain full | sync | vault | coach [--api] | guide
-  return|redesign | ask "…" | status | verify exercise "…" | push workout
-  [--update]|routine|measurement …`
+  return|redesign | ask "…" | status | doctor | verify exercise "…" | push
+  workout [--update]|routine|measurement …`
   — reads automatic, **writes to Hevy only via explicit `push`**. Routine
   edits: duplicate the note into `Routines/Drafts/`, edit the frontmatter,
   `push routine <file>`. Workout fix-ups: duplicate the workout note into
@@ -368,4 +384,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (322 passed) + `python -m ruff check hevy_brain tests`.
+  (332 passed) + `python -m ruff check hevy_brain tests`.
