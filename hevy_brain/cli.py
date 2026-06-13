@@ -216,9 +216,47 @@ def _cmd_ask(config: Config, question: str) -> int:
     return 0
 
 
+def _coach_recap(
+    config: Config,
+    store: CacheStore,
+    records: list[dict[str, Any]],
+    histories: dict[str, dict[str, Any]],
+    today: object,
+) -> str | None:
+    """Combine the 'since your last briefing' recaps (coach memory + adherence).
+
+    Best-effort by design: each half degrades to None on any error so the
+    unattended scheduled coach run can never be broken by a recap. Grades only
+    objective signals, never the written advice.
+    """
+    from .coach import adherence, memory
+
+    try:
+        memory_recap = memory.grade_focus(
+            memory.latest_focus(store.meta),
+            records,
+            histories,
+            today,
+            plateau_weeks=config.plateau_weeks,
+            templates=store.exercise_templates,
+            overrides=config.muscle_overrides,
+        )
+    except Exception:  # noqa: BLE001 - best-effort, must not break coach
+        memory_recap = None
+    try:
+        adherence_recap = adherence.grade_target(
+            adherence.latest_target(store.meta),
+            records,
+            templates=store.exercise_templates,
+        )
+    except Exception:  # noqa: BLE001 - best-effort, must not break coach
+        adherence_recap = None
+    return "\n".join(p for p in (memory_recap, adherence_recap) if p) or None
+
+
 def _cmd_coach(config: Config, *, use_api: bool) -> int:
     from .analytics.prs import exercise_histories
-    from .coach import adherence, advisor, memory
+    from .coach import advisor, memory
     from .models import build_records
 
     store = CacheStore(config.data_dir)
@@ -241,36 +279,12 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     writer = VaultWriter(config.vault_root)
     config.vault_root.mkdir(parents=True, exist_ok=True)
 
-    # Coach memory: grade the prior run's objective focus against newer data,
-    # then capture this run's focus for next time. Grade BEFORE recording so we
-    # compare against the previous snapshot, not this one. The recap is a
-    # non-essential extra — never let it break the core briefing (the scheduled
-    # coach runs unattended), so degrade to no-recap on any unexpected error.
-    try:
-        recap = memory.grade_focus(
-            memory.latest_focus(store.meta),
-            records,
-            histories,
-            today,
-            plateau_weeks=config.plateau_weeks,
-            templates=store.exercise_templates,
-            overrides=config.muscle_overrides,
-        )
-    except Exception:  # noqa: BLE001 - recap is best-effort, must not break coach
-        recap = None
-
-    # Guide-draft adherence: grade the most recently pushed Return/Redesign
-    # draft against workouts trained since. Best-effort like the recap above —
-    # appended below it so both retrospectives sit together up top.
-    try:
-        adherence_recap = adherence.grade_target(
-            adherence.latest_target(store.meta),
-            records,
-            templates=store.exercise_templates,
-        )
-    except Exception:  # noqa: BLE001 - adherence is best-effort, must not break coach
-        adherence_recap = None
-    recap = "\n".join(part for part in (recap, adherence_recap) if part) or None
+    # Coach memory + guide-draft adherence: grade the prior run's objective
+    # focus and the most recent pushed draft against newer data. Grade BEFORE
+    # recording this run's focus so we compare against the previous snapshot.
+    # Both are best-effort (see _coach_recap) — the scheduled coach runs
+    # unattended and must never break on a recap.
+    recap = _coach_recap(config, store, records, histories, today)
 
     def _save_focus(path: str) -> None:
         memory.record_focus(
@@ -315,7 +329,11 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     try:
         advisor.check_budget(store.meta, today, config.coach_max_calls_per_day)
         report = advisor.generate_report(context, model=config.coach_model)
+        # Persist the billed call immediately — before the focus snapshot — so a
+        # later save failure can't lose the count and let the daily budget guard
+        # under-count (and over-bill) on the next run.
         advisor.record_call(store.meta)
+        store.save()
         _save_focus("api")
     except advisor.CoachError as err:
         print(f"Coach failed: {err}", file=sys.stderr)
