@@ -16,10 +16,27 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice3-guide-return.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice4-live-put-and-ask.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 4 (live write path + C2 `ask`) shipped (`381efa3`):** the
+  **first real PUT to Hevy is done and round-trip-verified** — routine
+  `upper` is now `Return Week 1 — upper` at 60% loads (restore file:
+  `Routines/Drafts/RESTORE upper (original).md`; `push 1`/`pull 1` drafts
+  still unpushed). The 400 it initially hit produced four live-verified
+  fixes: empty `notes` omitted from PUT bodies (Hevy rejects `""`; a
+  missing key CLEARS notes — confirmed empirically), 4xx errors surface
+  the server body, CLI printing survives cp1252 consoles, and renamed
+  routines' orphaned notes are swept to `Archive/`. New `hevy-brain ask
+  "…"` writes a free question-specific briefing
+  (`Coach/<date> Ask — <slug> (<digest>).md`) with question-driven cited
+  claims and an honest retrieval summary (live: 223 claims). Verifier
+  caught pre-commit: inline marker mentions split `VaultWriter.write`
+  (notes duplicated on regen — fixed line-anchored, protects all
+  briefings) and a slug-truncation crash. 161 offline tests, ruff clean.
+  **Gotcha:** the `hevy-brain.exe` shim went stale (`python -m
+  hevy_brain.cli` works; re-run `pip install -e ".[dev]"`).
 - **Slice 3 (E1 `guide return`) shipped (`1286dcd`):** `hevy-brain guide
   return` detects the lapse from the cache, computes pre-lapse baselines
   (window ends at the last workout), writes a free `Coach/<date> Return
@@ -92,17 +109,15 @@ integration); fully refactored into this CLI — the HA code is gone.
 ## Not done yet (pick up here)
 
 0. **North star + roadmap defined 12/06/2026** — lives in the vault:
-   `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Main use case:
-   guidance on editing training (return-from-lapse, programme redesign)
-   grounded in BOTH the Hevy data and the atlas-pipeline knowledge notes,
-   plus full plan editing via the API. Build order: ~~routines sync/edit~~
-   → ~~knowledge bridge~~ → ~~`guide return`~~ (all done).
-1. **Live verification of the write path** (next session, first item):
-   `push routine --dry-run` on a `Return Week 1` draft, review the diff,
-   first real PUT with Samrath's go, `full` to confirm the round-trip.
-2. **Next slice** (carry-on prompt in the newest dated handoff): C2
-   `hevy-brain ask "…"` (small, generalises E1) or E2 `guide redesign`
-   (honesty-labelled until E4 ingestion lands in atlas-pipeline).
+   `C:\Users\samra\Atlas\projects\hevy-brain-roadmap.md`. Build order:
+   ~~routines sync/edit~~ → ~~knowledge bridge~~ → ~~`guide return`~~ →
+   ~~live write path~~ → ~~C2 `ask`~~ (all done).
+1. **Next slice** (carry-on prompt in the newest dated handoff): E2
+   `guide redesign` (honesty-labelled until E4 ingestion lands in
+   atlas-pipeline) or F3 `push workout --update` (small).
+2. Housekeeping: re-run `pip install -e ".[dev]"` (stale `hevy-brain.exe`
+   shim) and confirm the scheduled tasks still execute; consider pushing
+   `Return Week 1 — push 1` / `pull 1` when training resumes.
 3. Optional: open `Hevy/Coach/2026-06-12 Return Briefing.md` in Claude and
    ask it to write the comeback protocol; output goes below the
    `%% hevy-brain:end %%` marker.
@@ -110,7 +125,7 @@ integration); fully refactored into this CLI — the HA code is gone.
 ## Key facts
 
 - Commands: `hevy-brain full | sync | vault | coach [--api] | guide return |
-  status | push workout|routine|measurement …` — reads automatic, **writes to
+  ask "…" | status | push workout|routine|measurement …` — reads automatic, **writes to
   Hevy only via explicit `push`**. Routine edits: duplicate the note into
   `Routines/Drafts/`, edit the frontmatter, `push routine <file>` (managed
   notes regenerate hourly — don't edit in place).
@@ -125,4 +140,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (135 passed) + `python -m ruff check hevy_brain tests`.
+  (161 passed) + `python -m ruff check hevy_brain tests`.
