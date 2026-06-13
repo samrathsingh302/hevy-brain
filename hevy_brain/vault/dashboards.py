@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from ..analytics import patterns, stats
+from ..analytics import patterns, session_quality, stats
 from ..analytics.prs import recent_prs
 from . import charts
 from .writer import VaultWriter, render_note
@@ -25,6 +25,43 @@ def _muscle_table(volumes: dict[str, float]) -> list[str]:
     for group, volume in volumes.items():
         lines.append(f"| {group} | {volume:,.0f} | {volume / total:.0%} |")
     return lines
+
+
+def _session_quality_lines(records: list[dict[str, Any]]) -> list[str]:
+    """Render the Session quality block, or [] when there's nothing to show."""
+    data = session_quality.session_quality(records)
+    rows: list[str] = []
+
+    time_of_day = data["time_of_day"]
+    if time_of_day:
+        modal = max(time_of_day, key=lambda part: time_of_day[part])
+        spread = " · ".join(f"{part} {count}" for part, count in time_of_day.items())
+        rows.append(f"- **When:** {spread} — most often **{modal}**")
+
+    rpe = data["rpe"]
+    if rpe["coverage"] is not None:
+        rows.append(
+            f"- **RPE logged:** {rpe['coverage']:.0%} of working sets "
+            f"({rpe['rpe_sets']:,}/{rpe['working_sets']:,})"
+        )
+
+    duration = data["duration"]
+    if duration["sessions"]:
+        trend = ""
+        prior_avg = duration["prior_avg_min"]
+        if prior_avg is not None:
+            delta = duration["recent_avg_min"] - prior_avg
+            arrow = "up" if delta > 1 else "down" if delta < -1 else "flat"
+            trend = f" · recent {duration['recent_avg_min']:.0f} min ({arrow})"
+        rows.append(
+            f"- **Duration:** avg **{duration['avg_min']:.0f} min** "
+            f"(median {duration['median_min']:.0f}, range "
+            f"{duration['shortest_min']:.0f}–{duration['longest_min']:.0f}){trend}"
+        )
+
+    if not rows:
+        return []
+    return ["\n## Session quality", *rows]
 
 
 def render_dashboard(
@@ -86,6 +123,8 @@ def render_dashboard(
             lines.append(f"\nPush/pull ratio: **{ratio:.2f}**")
     else:
         lines.append("\nNo training volume in the last 28 days.")
+
+    lines.extend(_session_quality_lines(records))
 
     prs = recent_prs(histories, limit=8)
     if prs:
