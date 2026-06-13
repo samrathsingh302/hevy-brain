@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from ..analytics import patterns, session_quality, stats
+from ..analytics import patterns, session_quality, stats, strength_ratio
 from ..analytics.prs import recent_prs
 from . import charts
 from .writer import VaultWriter, render_note
@@ -151,7 +151,46 @@ def render_dashboard(
     return render_note(frontmatter, "\n".join(lines))
 
 
-def render_body_log(measurements: list[dict[str, Any]], today: date) -> str:
+def _strength_to_bodyweight_lines(
+    measurements: list[dict[str, Any]], histories: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Render the strength-to-bodyweight block, or [] when it can't be computed.
+
+    Body data is private — this lives on the Body Log only, never anything
+    published.
+    """
+    bodyweight = strength_ratio.latest_bodyweight(measurements)
+    ratios = strength_ratio.top_ratios(histories, bodyweight)
+    if not ratios:
+        return []
+    lines = [
+        "\n## Strength-to-bodyweight (latest)",
+        f"\nAt **{bodyweight:g} kg** bodyweight:",
+        "\n| Lift | Est. 1RM | × bodyweight |",
+        "| ---- | -------- | ------------ |",
+    ]
+    for r in ratios:
+        lines.append(f"| {r['exercise']} | {r['e1rm_kg']:.1f} kg | {r['ratio']:.2f}× |")
+
+    top = histories.get(ratios[0]["exercise"])
+    trend = strength_ratio.ratio_trend(top, measurements) if top else []
+    if len(trend) >= 2:
+        lines.append(f"\n## Relative strength trend — {ratios[0]['exercise']}")
+        lines.append("\n| Date | Bodyweight | Est. 1RM | × bodyweight |")
+        lines.append("| ---- | ---------- | -------- | ------------ |")
+        for p in trend:
+            lines.append(
+                f"| {p['date'].isoformat()} | {p['bodyweight_kg']:g} kg "
+                f"| {p['e1rm_kg']:.1f} kg | {p['ratio']:.2f}× |"
+            )
+    return lines
+
+
+def render_body_log(
+    measurements: list[dict[str, Any]],
+    histories: dict[str, dict[str, Any]],
+    today: date,
+) -> str:
     """Render Measurements/Body Log.md (managed content)."""
     frontmatter = {
         "updated": today.isoformat(),
@@ -184,6 +223,8 @@ def render_body_log(measurements: list[dict[str, Any]], today: date) -> str:
                 f"| {cell(m, 'date')} | {cell(m, 'weight_kg')} "
                 f"| {cell(m, 'fat_percent')} | {cell(m, 'lean_mass_kg')} |"
             )
+
+    lines.extend(_strength_to_bodyweight_lines(measurements, histories))
     return render_note(frontmatter, "\n".join(lines))
 
 
