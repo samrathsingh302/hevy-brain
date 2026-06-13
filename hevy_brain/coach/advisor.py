@@ -208,7 +208,7 @@ def build_context(
     available = sorted(histories)
     if templates:
         available = sorted(
-            set(available) | {t.get("title", "") for t in templates.values()} - {""}
+            set(available) | {t.get("title") or "" for t in templates.values()} - {""}
         )
     lines.append("\n## Available exercises (for swap recommendations)")
     lines.append(", ".join(available))

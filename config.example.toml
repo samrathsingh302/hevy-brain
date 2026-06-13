@@ -33,8 +33,10 @@ topics = ["training"]  # topic pages to pull cited claims from for coaching
 lapse_days = 14       # minimum gap (days) before a lapse is declared
 load_fraction = 0.6   # Return Week 1 loads as a fraction of pre-lapse
                       # (a general-knowledge default, not a cited claim)
-draft_limit = 3       # how many Return Week 1 routine drafts to write
+draft_limit = 3       # how many routine drafts to write (return + redesign)
 baseline_weeks = 4    # pre-lapse window the baselines are computed over
+# `hevy-brain guide redesign` — programme-change briefing + editable drafts.
+redesign_weeks = 8    # window (ending at the last workout) the snapshot covers
 
 [analytics]
 plateau_weeks = 4
