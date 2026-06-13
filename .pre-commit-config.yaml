@@ -1,0 +1,17 @@
+# Local dev hooks mirroring CI (ruff lint+format, mypy type-check).
+# Install once:  pip install pre-commit && pre-commit install
+# Versions pinned to match pyproject dev deps so local == CI.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.16
+    hooks:
+      - id: ruff
+        args: ["check"]
+      - id: ruff-format
+        args: ["--check"]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        # Config (files, ignore_missing_imports) lives in pyproject [tool.mypy].
+        pass_filenames: false
