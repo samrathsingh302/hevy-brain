@@ -19,6 +19,9 @@ from typing import Any
 import yaml
 
 MANAGED_MARKER = "%% hevy-brain:end %%"
+# The marker only counts when it STARTS a line — briefing instructions
+# mention it inline (in backticks), and a mention must never split the note.
+_MARKER_LINE_RE = re.compile(rf"^{re.escape(MANAGED_MARKER)}", re.MULTILINE)
 
 _INVALID_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
@@ -67,8 +70,9 @@ class VaultWriter:
         existing: str | None = None
         if target.is_file():
             existing = target.read_text(encoding="utf-8")
-            if MANAGED_MARKER in existing:
-                user_tail = existing.split(MANAGED_MARKER, 1)[1]
+            match = _MARKER_LINE_RE.search(existing)
+            if match:
+                user_tail = existing[match.end() :]
                 if not user_tail.endswith("\n"):
                     user_tail += "\n"
             else:

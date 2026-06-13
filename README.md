@@ -114,6 +114,8 @@ hevy-brain coach    # FREE briefing note - analyse it with your Claude sub
 hevy-brain coach --api   # opt-in: metered Anthropic API (needs ANTHROPIC_API_KEY)
 hevy-brain guide return  # comeback protocol after a lapse: baselines, briefing,
                          # and Return Week 1 routine drafts at reduced loads
+hevy-brain ask "How do I get my bench moving again?"
+                    # one question, answered from your data + cited claims
 hevy-brain status   # cache overview
 hevy-brain push measurement --weight-kg 78.4 [--fat-percent 17] [--date 2026-06-10]
 hevy-brain push workout path\to\plan.md
