@@ -111,7 +111,9 @@ def volume_by_group(
                 exercise["title"], exercise["template_id"], templates, overrides
             )
             volumes[group] = volumes.get(group, 0.0) + exercise["volume_kg"]
-    return dict(sorted(volumes.items(), key=lambda kv: kv[1], reverse=True))
+    # Descending volume; group name breaks exact ties so the order never
+    # depends on input/iteration order (keeps generated notes deterministic).
+    return dict(sorted(volumes.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
 def push_pull_ratio(volumes: dict[str, float]) -> float | None:

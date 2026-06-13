@@ -48,6 +48,7 @@ def test_build_vault_generates_all_notes(tmp_path: Path, raw_workouts: dict) -> 
     assert (root / "Exercises" / "Bench Press (Barbell).md").is_file()
     assert (root / "Measurements" / "Body Log.md").is_file()
     assert list((root / "Reviews").glob("*Weekly Review.md"))
+    assert (root / "Reviews" / "2026 Year in Review.md").is_file()
 
     workout_text = (root / "Workouts" / "2026-06-08 Push Day.md").read_text(
         encoding="utf-8"

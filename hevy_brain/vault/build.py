@@ -9,7 +9,7 @@ from ..analytics.prs import exercise_histories
 from ..config import Config
 from ..models import build_records
 from ..store.cache import CacheStore
-from . import dashboards, exercises, routines, workouts
+from . import dashboards, exercises, routines, workouts, yearreview
 from .writer import VaultWriter
 
 
@@ -71,6 +71,14 @@ def build_vault(
         ),
         "routines": routines.generate_routine_notes(
             writer, store.routines, store.routine_folders
+        ),
+        "year_reviews": yearreview.generate_year_reviews(
+            writer,
+            records,
+            histories,
+            today,
+            templates=store.exercise_templates,
+            overrides=config.muscle_overrides,
         ),
     }
 
