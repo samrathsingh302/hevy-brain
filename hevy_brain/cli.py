@@ -9,6 +9,7 @@ import sys
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 
@@ -217,7 +218,7 @@ def _cmd_ask(config: Config, question: str) -> int:
 
 def _cmd_coach(config: Config, *, use_api: bool) -> int:
     from .analytics.prs import exercise_histories
-    from .coach import advisor, memory
+    from .coach import adherence, advisor, memory
     from .models import build_records
 
     store = CacheStore(config.data_dir)
@@ -257,6 +258,19 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
         )
     except Exception:  # noqa: BLE001 - recap is best-effort, must not break coach
         recap = None
+
+    # Guide-draft adherence: grade the most recently pushed Return/Redesign
+    # draft against workouts trained since. Best-effort like the recap above —
+    # appended below it so both retrospectives sit together up top.
+    try:
+        adherence_recap = adherence.grade_target(
+            adherence.latest_target(store.meta),
+            records,
+            templates=store.exercise_templates,
+        )
+    except Exception:  # noqa: BLE001 - adherence is best-effort, must not break coach
+        adherence_recap = None
+    recap = "\n".join(part for part in (recap, adherence_recap) if part) or None
 
     def _save_focus(path: str) -> None:
         memory.record_focus(
@@ -613,9 +627,34 @@ async def _cmd_push_routine(config: Config, file: Path, *, dry_run: bool) -> int
             "Routine updated in Hevy (full replacement). "
             "Run 'hevy-brain full' to refresh the vault."
         )
+        _track_draft_adherence(config, body)
         return 0
 
     return await _with_client(config, run)
+
+
+def _track_draft_adherence(config: Config, body: dict[str, Any]) -> None:
+    """Record an adherence target if the pushed routine was a guide draft.
+
+    Best-effort: a push has already succeeded, so a failure to persist the
+    target must never surface as a push error.
+    """
+    from .coach import adherence
+
+    target = adherence.build_target(body, datetime.now(tz=UTC).date())
+    if target is None:
+        return
+    try:
+        store = CacheStore(config.data_dir)
+        adherence.record_target(store.meta, target)
+        store.save()
+    except OSError as err:
+        LOGGER.warning("Could not record draft-adherence target: %s", err)
+        return
+    print(
+        f"Tracking adherence for '{target['routine_title']}' — "
+        "a later coach run will grade whether you train it to its loads."
+    )
 
 
 async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int:
