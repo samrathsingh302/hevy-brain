@@ -16,10 +16,32 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice11-session-quality.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice12-draft-adherence.md`
 
 ## Current state (13/06/2026)
 
+- **Slice 12 (C1 extension — guide-draft adherence) shipped (`3d5c1b8`):** the
+  coach now grades whether a pushed Return/Redesign draft was actually trained
+  to its prescribed loads. New `coach/adherence.py`: when a guide draft (title
+  starts with `Return Week 1` / `Redesign`) is **pushed for real**, `build_target`
+  captures an objective prescription from the PUT body — per-exercise top-set
+  load keyed by `exercise_template_id` + the push date — into
+  `meta["draft_adherence"]` (bounded). A later `coach` run's `grade_target`
+  compares, **purely from workouts trained after the push**, trained top set vs
+  prescribed (on/under/above target), counts trained/prescribed, averages load %;
+  bodyweight lifts are trained/not-trained only; honest "not trained yet" when no
+  post-push sessions. Wired into `_cmd_push_routine` (best-effort capture after a
+  successful non-dry-run push — never surfaces as a push error) and `_cmd_coach`
+  (folded into the recap alongside the C1 "since your last briefing" block). Same
+  honesty discipline as the rest of coach memory (grades objective data, never the
+  prose; tolerant of a hand-edited/old-schema target). 302 offline tests (was
+  285), ruff clean. **Live (read-only):** `grade_target` verified against the real
+  account — a real routine's loads graded over real sessions (6/6 trained,
+  per-exercise on/above-target ratios, bodyweight not load-graded). **Capture-on-
+  push NOT exercised live** (no draft pushed-and-trained since the feature exists,
+  and no unprompted push to Hevy) — covered by offline tests; first real use needs
+  a guide draft pushed then trained. `HevyBrain Coach` still pending first fire
+  (next Sun 14/06 19:00 — tomorrow).
 - **Slice 11 (A4 session-quality patterns) shipped (`eb7036f`):** a new
   "Session quality" block on the Dashboard — time-of-day distribution (part-of-
   day buckets from each workout's recorded start hour) + the modal training
@@ -255,13 +277,13 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~live write path~~ → ~~C2 `ask`~~ → ~~E2 `guide redesign`~~ →
    ~~F3 `push workout --update`~~ (write-back trio complete) →
    ~~A1 progress charts~~ → ~~C1 coach memory~~ → ~~A2 year-in-review~~ →
-   ~~F4 exercise-history integrity check~~ → ~~A4 session-quality patterns~~
-   (done).
-1. **Next slice** (carry-on prompt in the newest dated handoff): extend C1 to
-   guide-draft adherence (grade whether a pushed Return/Redesign draft was
-   trained to its loads — needs a draft pushed first), A5 bodyweight×strength
-   ratio trends (vault-local), or A6 Dataview/Bases starter pack
-   (`Hevy/Queries.md`). E4 (ingest programming episodes) stays an
+   ~~F4 exercise-history integrity check~~ → ~~A4 session-quality patterns~~ →
+   ~~C1 ext: guide-draft adherence~~ (done — capture path awaits a real
+   pushed+trained draft for full live proof).
+1. **Next slice** (carry-on prompt in the newest dated handoff): A5
+   bodyweight×strength ratio trends (vault-local), A6 Dataview/Bases starter
+   pack (`Hevy/Queries.md`), or A3 lapse-detection nudge (dashboard/review
+   callout after N quiet days). E4 (ingest programming episodes) stays an
    atlas-pipeline task; E2's briefings upgrade to corpus-grounded
    automatically once claims exist.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
@@ -295,4 +317,4 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (285 passed) + `python -m ruff check hevy_brain tests`.
+  (302 passed) + `python -m ruff check hevy_brain tests`.
