@@ -74,3 +74,16 @@ def test_absolute_knowledge_path_is_respected(tmp_path: Path) -> None:
     config = load_config(base_dir=tmp_path)
 
     assert config.knowledge_path == abs_path
+
+
+def test_vault_subfolder_dataclass_default_is_hevy(tmp_path: Path) -> None:
+    """The Config dataclass default is the OTHER site the slice-17 gotcha names
+    (the field itself, not just the load_config fallback) — constructing a
+    Config without a subfolder must still land notes in 'Hevy/'."""
+    from hevy_brain.config import Config
+
+    config = Config(
+        base_dir=tmp_path, vault_path=tmp_path / "v", data_dir=tmp_path / "data"
+    )
+    assert config.vault_subfolder == "Hevy"
+    assert config.vault_root == (tmp_path / "v") / "Hevy"
