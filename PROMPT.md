@@ -13,7 +13,7 @@ Work autonomously through all phases. For minor choices (naming, file layout det
 # Configuration (fill these in before running)
 
 - `VAULT_PATH`: `vault_staging/` inside this repo (gitignored). The real Obsidian vault is in active use, so generate into this staging folder for now; the path is configurable in `config.toml` so it can be pointed at the real vault later.
-- `VAULT_SUBFOLDER`: `Fitness/Hevy` (all generated notes live under this folder — never write outside it)
+- `VAULT_SUBFOLDER`: `Fitness/Hevy` (all generated notes live under this folder — never write outside it). **Build note:** this kickoff spec uses `Fitness/Hevy` throughout (including the tree below); the shipped tool simplified the default to `Hevy` — see `config.example.toml`, `README.md`, and `CLAUDE.md`.
 - `HEVY_API_KEY`: read from env var `HEVY_API_KEY` (get it at hevy.com/settings?developer). Never hardcode it.
 - `ANTHROPIC_API_KEY`: read from env var `ANTHROPIC_API_KEY` (used only by the AI coach module).
 - Platform: Windows 11, Python 3.12+. Scheduling via Windows Task Scheduler (generate the registration script) — no daemons that assume Linux.
