@@ -310,3 +310,82 @@ def test_cmd_coach_api_persists_focus_snapshot(
     focus = CacheStore(config.data_dir).meta.get("coach_focus", [])
     assert len(focus) == 1
     assert focus[0]["path"] == "api"
+
+
+def test_cmd_coach_api_records_billed_call_before_focus_snapshot(
+    tmp_path, raw_workouts: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Slice-17 money guarantee: the billed call is persisted BEFORE the focus
+    snapshot, so a failure while building/saving that snapshot can't drop the
+    count and let the daily budget guard over-bill on the next run."""
+    import contextlib
+
+    from hevy_brain import cli
+    from hevy_brain.coach import memory
+    from hevy_brain.config import Config
+    from hevy_brain.store.cache import CacheStore
+
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+    )
+    store = CacheStore(config.data_dir)
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    store.save()
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(advisor, "generate_report", lambda *_a, **_k: _report())
+
+    # Fail the focus-snapshot step AFTER the billed call is recorded + saved.
+    def _boom(*_a, **_k):
+        msg = "focus snapshot failed"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(memory, "build_focus_snapshot", _boom)
+
+    # The snapshot failure may surface (it is not a CoachError); the point is
+    # that the billed call was already durably counted before it ran.
+    with contextlib.suppress(RuntimeError):
+        cli._cmd_coach(config, use_api=True)
+
+    persisted = CacheStore(config.data_dir).meta.get("coach_calls", [])
+    assert len(persisted) == 1
+
+
+def test_cmd_coach_api_refuses_when_budget_exhausted(
+    tmp_path, raw_workouts: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The daily budget guard must refuse a metered run at the command level —
+    before any billable call — once today's cap is already reached."""
+    from datetime import UTC, datetime
+
+    from hevy_brain import cli
+    from hevy_brain.config import Config
+    from hevy_brain.store.cache import CacheStore
+
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+    )
+    store = CacheStore(config.data_dir)
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    today = datetime.now(tz=UTC).date()
+    store.meta["coach_calls"] = [
+        f"{today.isoformat()}T10:00:00+00:00"
+    ] * config.coach_max_calls_per_day
+    store.save()
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    # Track whether the billable call is reached; the guard must refuse first.
+    billed: list[int] = []
+    monkeypatch.setattr(
+        advisor, "generate_report", lambda *_a, **_k: billed.append(1)
+    )
+
+    assert cli._cmd_coach(config, use_api=True) == 1
+    assert not billed  # budget guard refused before any billable call
