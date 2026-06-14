@@ -67,7 +67,9 @@ class TestRpeCoverage:
             make_set(60, 8, rpe=9),
             make_set(60, 8),  # working, no RPE
         ]
-        records = build_records({"w1": _at("w1", 10, exercises=[make_exercise(sets=sets)])})
+        records = build_records(
+            {"w1": _at("w1", 10, exercises=[make_exercise(sets=sets)])}
+        )
         cov = sq.rpe_coverage(records)
         assert cov["working_sets"] == 3
         assert cov["rpe_sets"] == 2
@@ -75,7 +77,13 @@ class TestRpeCoverage:
 
     def test_no_working_sets_returns_none(self) -> None:
         records = build_records(
-            {"w1": _at("w1", 10, exercises=[make_exercise(sets=[make_set(40, 12, type="warmup")])])}
+            {
+                "w1": _at(
+                    "w1",
+                    10,
+                    exercises=[make_exercise(sets=[make_set(40, 12, type="warmup")])],
+                )
+            }
         )
         assert sq.rpe_coverage(records)["coverage"] is None
 

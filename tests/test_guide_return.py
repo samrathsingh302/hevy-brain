@@ -69,7 +69,11 @@ def test_scale_exercises_keeps_bodyweight_and_structure() -> None:
             "exercise_template_id": "T-BENCH",
             "sets": [
                 {"type": "normal", "weight_kg": 80.0, "reps": 5},
-                {"type": "normal", "weight_kg": 80.0, "rep_range": {"start": 5, "end": 8}},
+                {
+                    "type": "normal",
+                    "weight_kg": 80.0,
+                    "rep_range": {"start": 5, "end": 8},
+                },
             ],
         },
     ]
@@ -115,9 +119,7 @@ def test_select_return_routines_fills_with_recently_updated() -> None:
 def test_select_return_routines_skips_unpushable_routines() -> None:
     # A draft of these would fail parse_routine_note — never offer one.
     no_exercises = make_routine("r1", "Empty", exercises=[])
-    no_sets = make_routine(
-        "r2", "No Sets", exercises=[make_routine_exercise(sets=[])]
-    )
+    no_sets = make_routine("r2", "No Sets", exercises=[make_routine_exercise(sets=[])])
     no_template = make_routine(
         "r3", "No Template", exercises=[make_routine_exercise(template_id="")]
     )
@@ -139,7 +141,9 @@ def test_render_return_draft_round_trips_through_push_parser(
         "r9",
         "Push Day A",
         exercises=[
-            make_routine_exercise(sets=[make_routine_set(80, 5), make_routine_set(80, 5)])
+            make_routine_exercise(
+                sets=[make_routine_set(80, 5), make_routine_set(80, 5)]
+            )
         ],
     )
 
@@ -158,7 +162,9 @@ def test_render_return_draft_round_trips_through_push_parser(
 
 def test_render_return_draft_body_keeps_original_loads() -> None:
     routine = make_routine(
-        "r9", "Push Day A", exercises=[make_routine_exercise(sets=[make_routine_set(80, 5)])]
+        "r9",
+        "Push Day A",
+        exercises=[make_routine_exercise(sets=[make_routine_set(80, 5)])],
     )
 
     _, content = render_return_draft(routine, fraction=0.6)
@@ -292,9 +298,7 @@ def _write_cache(tmp_path: Path, raw_workouts: dict, *, routines: dict) -> Path:
 
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    (data_dir / "workouts.json").write_text(
-        json.dumps(raw_workouts), encoding="utf-8"
-    )
+    (data_dir / "workouts.json").write_text(json.dumps(raw_workouts), encoding="utf-8")
     (data_dir / "routines.json").write_text(json.dumps(routines), encoding="utf-8")
     return data_dir
 

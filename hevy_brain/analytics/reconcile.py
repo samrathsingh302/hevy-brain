@@ -147,9 +147,7 @@ def _row(
     }
 
 
-def compare(
-    history: dict[str, Any], server: dict[str, Any]
-) -> list[dict[str, Any]]:
+def compare(history: dict[str, Any], server: dict[str, Any]) -> list[dict[str, Any]]:
     """Compare a cache history against a server aggregate; one row per metric.
 
     A failing row means the cache is behind Hevy for this exercise (or, rarely,

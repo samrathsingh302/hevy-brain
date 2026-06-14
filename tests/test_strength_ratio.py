@@ -33,7 +33,12 @@ class TestBodyweightPoints:
         assert points == [(date(2026, 1, 1), 82.0), (date(2026, 3, 1), 80.0)]
 
     def test_latest_bodyweight(self) -> None:
-        assert sr.latest_bodyweight([_measure("2026-01-01", 82), _measure("2026-03-01", 80)]) == 80
+        assert (
+            sr.latest_bodyweight(
+                [_measure("2026-01-01", 82), _measure("2026-03-01", 80)]
+            )
+            == 80
+        )
         assert sr.latest_bodyweight([]) is None
         assert sr.latest_bodyweight([_measure("2026-01-01", None)]) is None
 
@@ -53,7 +58,9 @@ class TestTopRatios:
         assert ratios[1]["ratio"] == pytest.approx(1.25)
 
     def test_excludes_bodyweight_lifts(self) -> None:
-        assert all(r["exercise"] != "Pull Up" for r in sr.top_ratios(self._histories(), 80))
+        assert all(
+            r["exercise"] != "Pull Up" for r in sr.top_ratios(self._histories(), 80)
+        )
 
     def test_limit(self) -> None:
         assert len(sr.top_ratios(self._histories(), 80, limit=1)) == 1
@@ -63,13 +70,23 @@ class TestTopRatios:
         assert sr.top_ratios(self._histories(), 0) == []
 
     def test_tie_breaks_on_title(self) -> None:
-        histories = {"B lift": _history("B lift", 100.0), "A lift": _history("A lift", 100.0)}
-        assert [r["exercise"] for r in sr.top_ratios(histories, 80)] == ["A lift", "B lift"]
+        histories = {
+            "B lift": _history("B lift", 100.0),
+            "A lift": _history("A lift", 100.0),
+        }
+        assert [r["exercise"] for r in sr.top_ratios(histories, 80)] == [
+            "A lift",
+            "B lift",
+        ]
 
 
 class TestBestE1rmAsOf:
     def test_max_up_to_cutoff(self) -> None:
-        history = _history("Bench", 100, [_session(date(2026, 1, 1), 80), _session(date(2026, 3, 1), 100)])
+        history = _history(
+            "Bench",
+            100,
+            [_session(date(2026, 1, 1), 80), _session(date(2026, 3, 1), 100)],
+        )
         assert sr.best_e1rm_as_of(history, date(2026, 2, 15)) == 80
         assert sr.best_e1rm_as_of(history, date(2026, 3, 1)) == 100
 
@@ -81,7 +98,9 @@ class TestBestE1rmAsOf:
 class TestRatioTrend:
     def test_pairs_and_skips_pre_session_dates(self) -> None:
         history = _history(
-            "Bench", 100, [_session(date(2026, 1, 1), 80), _session(date(2026, 3, 1), 100)]
+            "Bench",
+            100,
+            [_session(date(2026, 1, 1), 80), _session(date(2026, 3, 1), 100)],
         )
         measurements = [
             _measure("2025-12-01", 82),  # before first session -> skipped

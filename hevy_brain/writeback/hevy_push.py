@@ -114,9 +114,7 @@ def _parse_workout_set(raw: Any, exercise_name: str) -> dict[str, Any]:
     return parsed
 
 
-def _parse_workout_exercises(
-    raw_exercises: Any, path: Path
-) -> list[dict[str, Any]]:
+def _parse_workout_exercises(raw_exercises: Any, path: Path) -> list[dict[str, Any]]:
     """Parse the 'exercises' list shared by create and update workout bodies."""
     if not isinstance(raw_exercises, list) or not raw_exercises:
         msg = f"{path.name}: 'exercises' must be a non-empty list."
@@ -393,9 +391,7 @@ def _exercise_diff(
         if index >= len(cur_exercises):
             added = new_exercises[index]
             label = added.get("name") or added["exercise_template_id"]
-            lines.append(
-                f"+ exercise {index + 1}: {label} ({len(added['sets'])} sets)"
-            )
+            lines.append(f"+ exercise {index + 1}: {label} ({len(added['sets'])} sets)")
             continue
         if index >= len(new_exercises):
             removed = cur_exercises[index]
@@ -422,8 +418,7 @@ def _exercise_diff(
         ):
             if a != b:
                 lines.append(
-                    f"~ {label}: set {set_index}: "
-                    f"{set_summary(a)} → {set_summary(b)}"
+                    f"~ {label}: set {set_index}: {set_summary(a)} → {set_summary(b)}"
                 )
         for key in exercise_keys:
             if cur.get(key) != new_ex.get(key):

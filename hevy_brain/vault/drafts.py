@@ -118,9 +118,7 @@ def _load_row(original: dict[str, Any], scaled: dict[str, Any], index: int) -> s
     return f"| {index} | {_format_set(original)} | {_format_set(scaled)} |"
 
 
-def render_return_draft(
-    routine: dict[str, Any], *, fraction: float
-) -> tuple[str, str]:
+def render_return_draft(routine: dict[str, Any], *, fraction: float) -> tuple[str, str]:
     """Render one return-week draft note. Returns (relative path, content)."""
     original_title = routine.get("title") or "Routine"
     draft_title = f"{RETURN_PREFIX} — {original_title}"

@@ -122,9 +122,7 @@ class CacheStore:
         _atomic_write_json(self._dir / _MEASUREMENTS_FILE, self.measurements)
         _atomic_write_json(self._dir / _TEMPLATES_FILE, self.exercise_templates)
         _atomic_write_json(self._dir / _ROUTINES_FILE, self.routines)
-        _atomic_write_json(
-            self._dir / _ARCHIVED_ROUTINES_FILE, self.archived_routines
-        )
+        _atomic_write_json(self._dir / _ARCHIVED_ROUTINES_FILE, self.archived_routines)
         _atomic_write_json(self._dir / _ROUTINE_FOLDERS_FILE, self.routine_folders)
         # Meta LAST — load-bearing. If a save dies on a data file above, the
         # on-disk events cursor stays old and the next sync replays the same

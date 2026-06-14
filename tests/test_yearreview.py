@@ -22,21 +22,27 @@ def _year_records() -> tuple[list, dict]:
             "Push",
             start="2026-01-10T17:00:00+00:00",
             end="2026-01-10T18:00:00+00:00",
-            exercises=[make_exercise("Bench Press (Barbell)", "T-B", [make_set(60, 8)])],
+            exercises=[
+                make_exercise("Bench Press (Barbell)", "T-B", [make_set(60, 8)])
+            ],
         ),
         "b": make_workout(
             "b",
             "Push",
             start="2026-03-15T17:00:00+00:00",
             end="2026-03-15T18:00:00+00:00",
-            exercises=[make_exercise("Bench Press (Barbell)", "T-B", [make_set(70, 5)])],
+            exercises=[
+                make_exercise("Bench Press (Barbell)", "T-B", [make_set(70, 5)])
+            ],
         ),
         "c": make_workout(
             "c",
             "Pull",
             start="2026-03-20T17:00:00+00:00",
             end="2026-03-20T18:00:00+00:00",
-            exercises=[make_exercise("Bent Over Row (Barbell)", "T-ROW", [make_set(50, 8)])],
+            exercises=[
+                make_exercise("Bent Over Row (Barbell)", "T-ROW", [make_set(50, 8)])
+            ],
         ),
     }
     records = build_records(raw)

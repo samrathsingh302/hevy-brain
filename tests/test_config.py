@@ -38,7 +38,8 @@ def test_vault_subfolder_defaults_to_hevy(tmp_path: Path) -> None:
     assert no_config.vault_subfolder == "Hevy"
 
     (tmp_path / "config.toml").write_text(
-        "[vault]\npath = 'v'\n", encoding="utf-8"  # [vault] present, no subfolder
+        "[vault]\npath = 'v'\n",
+        encoding="utf-8",  # [vault] present, no subfolder
     )
     no_subfolder = load_config(base_dir=tmp_path)
     assert no_subfolder.vault_subfolder == "Hevy"
@@ -46,9 +47,7 @@ def test_vault_subfolder_defaults_to_hevy(tmp_path: Path) -> None:
 
 
 def test_charts_config_defaults_and_overrides(tmp_path: Path) -> None:
-    (tmp_path / "config.toml").write_text(
-        "[vault]\npath = 'v'\n", encoding="utf-8"
-    )
+    (tmp_path / "config.toml").write_text("[vault]\npath = 'v'\n", encoding="utf-8")
     default = load_config(base_dir=tmp_path)
     assert default.charts_enabled is True
     assert default.charts_volume_weeks == 12

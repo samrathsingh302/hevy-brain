@@ -33,11 +33,7 @@ def _clean(text: str) -> str:
     machine-generated ISO tokens and the titles are constants.
     """
     cleaned = (
-        str(text)
-        .replace('"', "")
-        .replace("[", "")
-        .replace("]", "")
-        .replace(",", " ")
+        str(text).replace('"', "").replace("[", "").replace("]", "").replace(",", " ")
     )
     return " ".join(cleaned.split())
 
@@ -83,9 +79,7 @@ def mermaid_xychart(
     points = [
         (lbl, float(v))
         for lbl, v in zip(labels, values, strict=False)
-        if isinstance(v, (int, float))
-        and not isinstance(v, bool)
-        and math.isfinite(v)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
     ]
     if len(points) < _MIN_POINTS or not any(v != 0 for _, v in points):
         return None
@@ -164,8 +158,18 @@ def weekly_volume_chart(
 
 
 _MONTHS = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 

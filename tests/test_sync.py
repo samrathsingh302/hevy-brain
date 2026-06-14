@@ -303,7 +303,9 @@ async def test_routine_fetch_failure_is_non_fatal_and_archives_nothing(
             raise HevyApiClientError("boom")
 
     store = CacheStore(tmp_path)
-    await sync(FakeClient(workouts=[make_workout("w1")], routines=[make_routine()]), store)
+    await sync(
+        FakeClient(workouts=[make_workout("w1")], routines=[make_routine()]), store
+    )
     assert "r1" in store.routines
 
     result = await sync(NoRoutinesClient(), store)
