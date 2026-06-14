@@ -310,8 +310,16 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     if not use_api:
         # Default: free briefing analyzed via your Claude subscription.
         note_path = advisor.briefing_note_path(today)
-        writer.write(note_path, advisor.render_briefing(context, today, recap=recap))
-        _save_focus("free")
+        try:
+            writer.write(
+                note_path, advisor.render_briefing(context, today, recap=recap)
+            )
+            _save_focus("free")
+        except OSError as err:
+            # Same graceful-failure contract as the metered path (2026-06-14
+            # audit, A2): a disk/IO error on the unattended run logs cleanly.
+            print(f"Coach failed: {err}", file=sys.stderr)
+            return 1
         print(f"Free coaching briefing written: {config.vault_root / note_path}")
         print(f"Knowledge bridge: {claim_note}.")
         if recap:
@@ -327,6 +335,12 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
         print("ANTHROPIC_API_KEY is not set (required for --api).", file=sys.stderr)
         return 2
     try:
+        # NOTE: this daily budget guard is a best-effort SOFT cap, not a hard
+        # cap. Anthropic bills server-side the instant generate_report() returns
+        # — before record_call/save below — so a crash in that sub-second window
+        # (or a failure of the save itself) can re-permit up to max_per_day extra
+        # calls next run. Bounded + inherent to any client-side guard; accepted
+        # for this single-user CLI (2026-06-14 audit, A1).
         advisor.check_budget(store.meta, today, config.coach_max_calls_per_day)
         report = advisor.generate_report(context, model=config.coach_model)
         # Persist the billed call immediately — before the focus snapshot — so a
@@ -335,7 +349,12 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
         advisor.record_call(store.meta)
         store.save()
         _save_focus("api")
-    except advisor.CoachError as err:
+    except (advisor.CoachError, OSError) as err:
+        # OSError: a disk/IO failure during the durable save or focus snapshot
+        # surfaces as a graceful "Coach failed", not a raw traceback on the
+        # unattended Sunday run (2026-06-14 audit, A2). VaultPathError (the
+        # path-jail guard) is deliberately NOT caught — it is a safety stop, not
+        # IO, and is not an OSError subclass so it still propagates.
         print(f"Coach failed: {err}", file=sys.stderr)
         return 1
     note_path = advisor.coach_note_path(today)
