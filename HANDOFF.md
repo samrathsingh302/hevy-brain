@@ -20,6 +20,17 @@ integration); fully refactored into this CLI — the HA code is gone.
 
 ## Current state (13/06/2026)
 
+- **Overnight audit 14/06/2026 (autonomous, branch `overnight-audit-2026-06-14`,
+  NOT pushed/merged; pre-audit `f28a6d0`):** 0 P0; repo left **GREEN** (336
+  offline tests, ruff + mypy clean, runtime smoke healthy — sync 0.7h ago, vault
+  built). 4 fix commits: removed HA fork-leftover scripts (P1 rot), README+PROMPT
+  doc drift (P2), a pre-commit ruff-hook nit (P3), and 3 coach-budget/config
+  regression tests. Data-loss fences + secrets/160-commit history verified clean.
+  One **bounded** money nuance parked for your call (coach `--api` budget is a
+  best-effort *soft* cap, not a hard cap — inherent, ≤`max_per_day` over-bill in a
+  sub-second crash window). Full report + morning-decision list:
+  `docs/handoffs/2026-06-14-overnight-audit.md`.
+
 - **Slice 17 (Tier-1 pre-public hardening) shipped (`606791b` + `c2bb72c`):**
   audit-driven fixes + portfolio polish ahead of the public flip. **Correctness/
   doc-drift:** README "60 tests" → 333 (×2; was undersold 5×); `config`
