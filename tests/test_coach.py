@@ -389,3 +389,67 @@ def test_cmd_coach_api_refuses_when_budget_exhausted(
 
     assert cli._cmd_coach(config, use_api=True) == 1
     assert not billed  # budget guard refused before any billable call
+
+
+def test_cmd_coach_free_handles_save_oserror_gracefully(
+    tmp_path, raw_workouts: dict, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """A2 (2026-06-14 audit): a disk/IO failure while saving the free-path focus
+    snapshot must log a graceful 'Coach failed' and return 1, not escape as a
+    raw traceback on the unattended Sunday coach run."""
+    from hevy_brain import cli
+    from hevy_brain.config import Config
+    from hevy_brain.store.cache import CacheStore
+
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+    )
+    store = CacheStore(config.data_dir)
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    store.save()  # real save during setup, BEFORE the failure is injected
+
+    def _boom(self: CacheStore) -> None:
+        msg = "disk full"
+        raise OSError(msg)
+
+    monkeypatch.setattr(CacheStore, "save", _boom)
+
+    assert cli._cmd_coach(config, use_api=False) == 1
+    assert "Coach failed" in capsys.readouterr().err
+
+
+def test_cmd_coach_api_handles_save_oserror_gracefully(
+    tmp_path, raw_workouts: dict, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    """A2 (2026-06-14 audit): an OSError from the durable billed-call save is
+    caught by the widened `except (CoachError, OSError)` and reported as 'Coach
+    failed' (return 1), not a traceback. generate_report is mocked - no real
+    API hit, no real bill."""
+    from hevy_brain import cli
+    from hevy_brain.config import Config
+    from hevy_brain.store.cache import CacheStore
+
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+    )
+    store = CacheStore(config.data_dir)
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    store.save()
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(advisor, "generate_report", lambda *_a, **_k: _report())
+
+    def _boom(self: CacheStore) -> None:
+        msg = "disk full"
+        raise OSError(msg)
+
+    monkeypatch.setattr(CacheStore, "save", _boom)
+
+    assert cli._cmd_coach(config, use_api=True) == 1
+    assert "Coach failed" in capsys.readouterr().err
