@@ -2,14 +2,36 @@
 
 Newest first. Dates dd/mm/yyyy.
 
-## 14/06/2026 — overnight audit (branch `overnight-audit-2026-06-14`, not yet merged)
+## 14/06/2026 — morning: audit branch merged + coach-billing hardening (A1/A2)
+- **Overnight audit branch `overnight-audit-2026-06-14` reviewed and merged to
+  main.** Re-verified GREEN before merge: 338 offline tests, ruff + mypy clean,
+  free-coach runtime smoke exit 0. Both verify passes clean — Codex (primary)
+  "changes consistent"; fresh Opus verifier SHIP.
+- **A2 (coach graceful failure):** a disk/IO error during the coach save now
+  prints "Coach failed" and returns 1 instead of a raw traceback — on BOTH the
+  free path and the metered `--api` path (`except (CoachError, OSError)`).
+  `VaultPathError` (path-jail) stays uncaught — a safety stop, not IO. +2
+  regression tests pinning that the old code tracebacked.
+- **A1 (coach `--api` budget):** documented as a best-effort SOFT cap (Anthropic
+  bills server-side before the local count saves), not hardened — bounded +
+  inherent for this single-user CLI (your accepted call).
+- **Hygiene:** gitignore the untracked Claude Code local-settings file (Codex P3)
+  + `.mypy_cache`.
+- Pipeline alive: hourly sync ran 15:25 (exit 0), cache 0.1h fresh; `HevyBrain
+  Coach` first scheduled fire tonight 19:00 confirmed wired to the free path.
+- **Parked (your call):** repo-wide `ruff format` drift (28 files — pre-commit
+  ships ruff-format but the tree was never formatted; CI gates `ruff check`, so
+  green); audit D1 (`config.toml` in history — pre-flip); `_shared-context`
+  AUDIT_LOG reconcile (cross-repo).
+
+## 14/06/2026 — overnight audit (branch `overnight-audit-2026-06-14`, merged 14/06)
 - Autonomous correctness sweep of the slice-17 pre-public hardening + the
   money/safety surfaces it certifies. Repo left GREEN (336 offline tests, ruff +
-  mypy clean, runtime smoke healthy). Fixes (branch-only, not pushed): removed
-  Home-Assistant fork-leftover scripts; README + PROMPT.md doc drift; a
-  pre-commit ruff-hook nit; 3 coach-budget / config regression tests. Data-loss
-  fences + secrets/history verified clean; one bounded `coach --api` budget
-  soft-cap nuance parked for review. See
+  mypy clean, runtime smoke healthy). Fixes: removed Home-Assistant fork-leftover
+  scripts; README + PROMPT.md doc drift; a pre-commit ruff-hook nit; 3
+  coach-budget / config regression tests. Data-loss fences + secrets/history
+  verified clean; one bounded `coach --api` budget soft-cap nuance parked for
+  review (resolved the next morning — see entry above). See
   `docs/handoffs/2026-06-14-overnight-audit.md`.
 
 ## 13/06/2026 — slice 4: live write path verified + `ask` (C2)

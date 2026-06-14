@@ -18,17 +18,34 @@ integration); fully refactored into this CLI — the HA code is gone.
   optional follow-up; do it between sessions, not mid-session)
 - **Newest dated handoff:** `docs/handoffs/2026-06-13-slice17-hardening.md`
 
-## Current state (13/06/2026)
+## Current state (14/06/2026)
 
-- **Overnight audit 14/06/2026 (autonomous, branch `overnight-audit-2026-06-14`,
-  NOT pushed/merged; pre-audit `f28a6d0`):** 0 P0; repo left **GREEN** (336
-  offline tests, ruff + mypy clean, runtime smoke healthy — sync 0.7h ago, vault
-  built). 4 fix commits: removed HA fork-leftover scripts (P1 rot), README+PROMPT
-  doc drift (P2), a pre-commit ruff-hook nit (P3), and 3 coach-budget/config
-  regression tests. Data-loss fences + secrets/160-commit history verified clean.
-  One **bounded** money nuance parked for your call (coach `--api` budget is a
-  best-effort *soft* cap, not a hard cap — inherent, ≤`max_per_day` over-bill in a
-  sub-second crash window). Full report + morning-decision list:
+- **Morning 14/06/2026 — overnight audit branch reviewed, A1/A2 actioned, merged
+  to main + pushed to origin** (`overnight-audit-2026-06-14` → `main`; pre-audit
+  `f28a6d0`). Re-verified **GREEN** before merge (338 offline tests, ruff + mypy
+  clean, free-coach runtime smoke exit 0). The two parked money/robustness items
+  are resolved: **A1** (coach `--api` budget) **accepted + documented** as a
+  best-effort *soft* cap — Anthropic bills server-side before the local count
+  saves, so it's bounded + inherent (≤`max_per_day` in a sub-second crash window);
+  not hardened, by your call. **A2** (coach save failure) **fixed** — a disk/IO
+  error now prints "Coach failed" + returns 1 on BOTH coach paths
+  (`except (CoachError, OSError)`; `VaultPathError` path-jail deliberately stays
+  uncaught), +2 regression tests. Hygiene: gitignored the Claude local-settings
+  file (Codex P3) + `.mypy_cache`. Commits `586a42e` (A1/A2), `aba321a`
+  (gitignore). Both verify passes clean — Codex (primary) "changes consistent",
+  fresh Opus verifier **SHIP**.
+- **Pipeline alive:** hourly `HevyBrain Sync` ran 15:25 (exit 0x0), cache 0.1h
+  fresh (285 workouts), vault built. **`HevyBrain Coach` first-ever scheduled
+  fire is tonight Sun 14/06 19:00** — confirmed wired to the **free** path (`cli
+  coach`, no Anthropic key needed); the free path was runtime-smoked clean this
+  morning (briefing written, 83 claims, recap, exit 0), so tonight is de-risked.
+- **Still parked (your call):** (a) repo-wide **`ruff format` drift** — 28 files
+  would reformat; pre-commit ships ruff-format but the tree was never formatted.
+  CI gates `ruff check` (GREEN), so non-breaking; a single `ruff format` commit
+  clears it. (b) Audit **D1** — `config.toml` in git history (username + old
+  path, **no key**); pre-flip history-rewrite, part of the pre-public checklist.
+  (c) **`_shared-context/AUDIT_LOG.md` reconcile** — cross-repo, out of "this
+  project only" scope. Full audit report + decision list:
   `docs/handoffs/2026-06-14-overnight-audit.md`.
 
 - **Slice 17 (Tier-1 pre-public hardening) shipped (`606791b` + `c2bb72c`):**
