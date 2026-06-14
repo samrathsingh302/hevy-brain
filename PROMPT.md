@@ -1,6 +1,6 @@
 # Hevy → Obsidian Second Brain — Refactoring Prompt
 
-> **How to use this:** Open Claude Code in this repo and paste everything below the divider as your first message (or run `claude "$(cat PROMPT.md)"`). Fill in the `<<PLACEHOLDERS>>` in the Configuration section first. This prompt is written for a single, fully-specified kickoff turn — Fable 5 performs best on long autonomous work when the entire goal, constraints, and definition of done are given up front.
+> **How to use this:** Open Claude Code in this repo and paste everything below the divider as your first message (or run `claude "$(cat PROMPT.md)"`). Fill in the `<<PLACEHOLDERS>>` in the Configuration section first. This prompt is written for a single, fully-specified kickoff turn — Opus 4.8 performs best on long autonomous work when the entire goal, constraints, and definition of done are given up front.
 
 ---
 
