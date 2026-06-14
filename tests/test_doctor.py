@@ -27,13 +27,17 @@ def _store(tmp_path: Path, *, synced_hours_ago: float | None = 2) -> CacheStore:
     store = CacheStore(tmp_path / "data")
     store.workouts = {"w1": {"id": "w1"}}
     if synced_hours_ago is not None:
-        store.meta = {"last_sync": (NOW - timedelta(hours=synced_hours_ago)).isoformat()}
+        store.meta = {
+            "last_sync": (NOW - timedelta(hours=synced_hours_ago)).isoformat()
+        }
     return store
 
 
 def _build_dashboard(config: Config) -> None:
     config.vault_root.mkdir(parents=True, exist_ok=True)
-    (config.vault_root / "Dashboard.md").write_text("# Hevy Dashboard\n", encoding="utf-8")
+    (config.vault_root / "Dashboard.md").write_text(
+        "# Hevy Dashboard\n", encoding="utf-8"
+    )
 
 
 def _status(checks: list, name: str) -> str:
@@ -53,7 +57,9 @@ def test_all_healthy(tmp_path: Path, keys: None) -> None:
     assert doctor.worst_status(checks) == doctor.OK
 
 
-def test_missing_hevy_key_is_fail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_hevy_key_is_fail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.delenv("HEVY_API_KEY", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "a")
     config = _config(tmp_path)
@@ -107,7 +113,10 @@ def test_missing_vault_path_is_fail(tmp_path: Path, keys: None) -> None:
         vault_path=tmp_path / "nope",  # never created
         data_dir=tmp_path / "data",
     )
-    assert _status(doctor.run_checks(config, _store(tmp_path), NOW), "Vault path") == doctor.FAIL
+    assert (
+        _status(doctor.run_checks(config, _store(tmp_path), NOW), "Vault path")
+        == doctor.FAIL
+    )
 
 
 def test_unbuilt_vault_warns(tmp_path: Path, keys: None) -> None:
@@ -119,5 +128,11 @@ def test_unbuilt_vault_warns(tmp_path: Path, keys: None) -> None:
 def test_worst_status_precedence() -> None:
     mk = doctor.Check
     assert doctor.worst_status([mk("a", doctor.OK, "")]) == doctor.OK
-    assert doctor.worst_status([mk("a", doctor.OK, ""), mk("b", doctor.WARN, "")]) == doctor.WARN
-    assert doctor.worst_status([mk("a", doctor.WARN, ""), mk("b", doctor.FAIL, "")]) == doctor.FAIL
+    assert (
+        doctor.worst_status([mk("a", doctor.OK, ""), mk("b", doctor.WARN, "")])
+        == doctor.WARN
+    )
+    assert (
+        doctor.worst_status([mk("a", doctor.WARN, ""), mk("b", doctor.FAIL, "")])
+        == doctor.FAIL
+    )

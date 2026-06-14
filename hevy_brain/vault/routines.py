@@ -165,9 +165,7 @@ def _is_managed_routine_note(text: str) -> bool:
     return isinstance(data, dict) and data.get("type") == ROUTINE_NOTE_TYPE
 
 
-def archive_stale_routine_notes(
-    writer: VaultWriter, active_paths: set[str]
-) -> int:
+def archive_stale_routine_notes(writer: VaultWriter, active_paths: set[str]) -> int:
     """Archive managed routine notes no active routine owns.
 
     A routine renamed in Hevy (e.g. by a draft push) gets a note at its new

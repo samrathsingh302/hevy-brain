@@ -214,9 +214,7 @@ class KnowledgeBase:
             claim_type=claim_type,
         )
 
-    def claims_for_topic(
-        self, name: str, *, authoritative: bool = True
-    ) -> list[Claim]:
+    def claims_for_topic(self, name: str, *, authoritative: bool = True) -> list[Claim]:
         """All claims a topic page links, optionally resolved to note text."""
         page = self.read_topic(name)
         if page is None:

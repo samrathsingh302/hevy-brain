@@ -20,13 +20,17 @@ def _bench_records() -> tuple[list, dict]:
             "a",
             start="2026-05-01T17:00:00+00:00",
             end="2026-05-01T18:00:00+00:00",
-            exercises=[make_exercise("Bench Press (Barbell)", "T-B", [make_set(60, 8)])],
+            exercises=[
+                make_exercise("Bench Press (Barbell)", "T-B", [make_set(60, 8)])
+            ],
         ),
         "b": make_workout(
             "b",
             start="2026-06-08T17:00:00+00:00",
             end="2026-06-08T18:00:00+00:00",
-            exercises=[make_exercise("Bench Press (Barbell)", "T-B", [make_set(70, 5)])],
+            exercises=[
+                make_exercise("Bench Press (Barbell)", "T-B", [make_set(70, 5)])
+            ],
         ),
     }
     records = build_records(raw)
@@ -65,13 +69,9 @@ def test_record_and_latest_focus_bounded() -> None:
 
 def test_grade_focus_none_without_prior() -> None:
     records, histories = _bench_records()
+    assert memory.grade_focus(None, records, histories, TODAY, plateau_weeks=4) is None
     assert (
-        memory.grade_focus(None, records, histories, TODAY, plateau_weeks=4) is None
-    )
-    assert (
-        memory.grade_focus(
-            {"plateaus": []}, records, histories, TODAY, plateau_weeks=4
-        )
+        memory.grade_focus({"plateaus": []}, records, histories, TODAY, plateau_weeks=4)
         is None
     )  # no taken_on
 
@@ -129,13 +129,19 @@ def test_grade_focus_consistency_trend_words() -> None:
     records, histories = _bench_records()  # week_count at TODAY = 1 (the 06-08 session)
     up = memory.grade_focus(
         {"taken_on": "2026-05-15", "sessions_last_7d": 0, "plateaus": []},
-        records, histories, TODAY, plateau_weeks=4,
+        records,
+        histories,
+        TODAY,
+        plateau_weeks=4,
     )
     assert "Consistency: 0 → 1 sessions in the last 7 days — **up**" in up
 
     flat = memory.grade_focus(
         {"taken_on": "2026-05-15", "sessions_last_7d": 1, "plateaus": []},
-        records, histories, TODAY, plateau_weeks=4,
+        records,
+        histories,
+        TODAY,
+        plateau_weeks=4,
     )
     assert "— **flat**" in flat
 

@@ -168,9 +168,7 @@ def test_training_snapshot_detects_window_anchored_plateaus() -> None:
     histories = exercise_histories(records)
     snapshot = training_snapshot(records, histories, weeks=8, plateau_weeks=4)
 
-    assert [p["exercise"] for p in snapshot["plateaus"]] == [
-        "Bench Press (Barbell)"
-    ]
+    assert [p["exercise"] for p in snapshot["plateaus"]] == ["Bench Press (Barbell)"]
 
 
 def test_training_snapshot_empty_records() -> None:
@@ -231,9 +229,7 @@ def test_render_redesign_draft_unedited_push_is_a_no_op(tmp_path: Path) -> None:
     # supersets, rest, and a set with no type key.
     typeless_set = make_routine_set(60, None, rep_range={"start": 8, "end": 12})
     del typeless_set["type"]
-    half_open_set = make_routine_set(
-        17.5, None, rep_range={"start": 8, "end": None}
-    )
+    half_open_set = make_routine_set(17.5, None, rep_range={"start": 8, "end": None})
     routine = make_routine(
         "r9",
         "Push Day A",
@@ -296,9 +292,7 @@ def test_generate_redesign_drafts_is_write_once(tmp_path: Path) -> None:
     assert not skipped
 
     draft = tmp_path / written[0]
-    draft.write_text(
-        draft.read_text(encoding="utf-8") + "edited\n", encoding="utf-8"
-    )
+    draft.write_text(draft.read_text(encoding="utf-8") + "edited\n", encoding="utf-8")
 
     written2, skipped2 = generate_redesign_drafts(writer, routines, ["Push Day"])
     assert not written2
@@ -393,9 +387,7 @@ def test_render_redesign_briefing_is_self_contained(raw_workouts: dict) -> None:
     # Provenance rules ride along (E5 contract).
     assert "[cited: [[id#^claim-xx]]]" in note
     assert "never invent a citation link" in note
-    assert redesign.redesign_briefing_path(TODAY).endswith(
-        "Redesign Briefing.md"
-    )
+    assert redesign.redesign_briefing_path(TODAY).endswith("Redesign Briefing.md")
 
 
 # -- CLI -------------------------------------------------------------------
@@ -406,9 +398,7 @@ def _write_cache(tmp_path: Path, raw_workouts: dict, *, routines: dict) -> Path:
 
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    (data_dir / "workouts.json").write_text(
-        json.dumps(raw_workouts), encoding="utf-8"
-    )
+    (data_dir / "workouts.json").write_text(json.dumps(raw_workouts), encoding="utf-8")
     (data_dir / "routines.json").write_text(json.dumps(routines), encoding="utf-8")
     return data_dir
 

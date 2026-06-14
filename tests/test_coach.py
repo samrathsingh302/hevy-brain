@@ -383,9 +383,7 @@ def test_cmd_coach_api_refuses_when_budget_exhausted(
 
     # Track whether the billable call is reached; the guard must refuse first.
     billed: list[int] = []
-    monkeypatch.setattr(
-        advisor, "generate_report", lambda *_a, **_k: billed.append(1)
-    )
+    monkeypatch.setattr(advisor, "generate_report", lambda *_a, **_k: billed.append(1))
 
     assert cli._cmd_coach(config, use_api=True) == 1
     assert not billed  # budget guard refused before any billable call

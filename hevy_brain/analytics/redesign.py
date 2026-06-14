@@ -73,9 +73,7 @@ def weekly_sets_by_group(
     sets: dict[str, float] = {}
     for record in window:
         for exercise in record["exercises"]:
-            working = sum(
-                1 for s in exercise["sets"] if s.get("type") != "warmup"
-            )
+            working = sum(1 for s in exercise["sets"] if s.get("type") != "warmup")
             if not working:
                 continue
             group = patterns.muscle_group(
@@ -87,9 +85,7 @@ def weekly_sets_by_group(
     return dict(sorted(sets.items(), key=lambda kv: kv[1], reverse=True))
 
 
-def classify_push_pull(
-    ratio: float | None, low: float, high: float
-) -> str | None:
+def classify_push_pull(ratio: float | None, low: float, high: float) -> str | None:
     """Label a push/pull volume ratio against the configured balance band."""
     if ratio is None:
         return None

@@ -146,8 +146,7 @@ def _load_knowledge_for_question(config: Config, question: str) -> tuple[list, s
         matched = [
             topic
             for topic in kb.available_topics()
-            if topic.lower() in question_lower
-            and _add(kb.retrieve(topic=topic).claims)
+            if topic.lower() in question_lower and _add(kb.retrieve(topic=topic).claims)
         ]
         if matched:
             parts.append("topics: " + ", ".join(matched))
@@ -483,15 +482,12 @@ def _cmd_guide_redesign(config: Config) -> int:
         limit=config.guide_draft_limit,
     )
 
-    knowledge, retrieval = _load_knowledge_for_question(
-        config, redesign.REDESIGN_QUERY
-    )
+    knowledge, retrieval = _load_knowledge_for_question(config, redesign.REDESIGN_QUERY)
     available = sorted(histories)
     if store.exercise_templates:
         available = sorted(
             set(available)
-            | {t.get("title") or "" for t in store.exercise_templates.values()}
-            - {""}
+            | {t.get("title") or "" for t in store.exercise_templates.values()} - {""}
         )
     context = redesign.build_redesign_context(
         snapshot,
@@ -533,9 +529,7 @@ async def _cmd_push_workout(
     if update:
         return await _cmd_push_workout_update(config, file, dry_run=dry_run)
     if dry_run:
-        print(
-            "--dry-run only applies to 'push workout --update'.", file=sys.stderr
-        )
+        print("--dry-run only applies to 'push workout --update'.", file=sys.stderr)
         return 1
 
     from .writeback.hevy_push import (
@@ -565,9 +559,7 @@ async def _cmd_push_workout(
     return await _with_client(config, run)
 
 
-async def _cmd_push_workout_update(
-    config: Config, file: Path, *, dry_run: bool
-) -> int:
+async def _cmd_push_workout_update(config: Config, file: Path, *, dry_run: bool) -> int:
     from .api.client import HevyApiClientError
     from .writeback.hevy_push import (
         WorkoutNoteError,
@@ -726,8 +718,7 @@ def _cmd_status(config: Config) -> int:
     print(f"  measurements: {len(store.measurements)}")
     print(f"  exercise templates: {len(store.exercise_templates)}")
     print(
-        f"  routines: {len(store.routines)} "
-        f"(archived: {len(store.archived_routines)})"
+        f"  routines: {len(store.routines)} (archived: {len(store.archived_routines)})"
     )
     print(f"  last sync: {meta.get('last_sync', 'never')}")
     print(f"  events cursor: {meta.get('events_cursor', 'none')}")

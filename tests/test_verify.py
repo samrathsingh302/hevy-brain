@@ -77,7 +77,9 @@ class TestExtractServerSets:
     def test_event_wraps_sets_shape_is_flattened(self) -> None:
         """Alternate shape: an event carrying a nested sets list — flattened,
         with the event's workout_id propagated onto each set."""
-        payload = {"events": [{"workout_id": "w9", "sets": [make_set(80, 5), make_set(80, 4)]}]}
+        payload = {
+            "events": [{"workout_id": "w9", "sets": [make_set(80, 5), make_set(80, 4)]}]
+        }
         sets = reconcile.extract_server_sets(payload)
         assert len(sets) == 2
         assert all(s["workout_id"] == "w9" for s in sets)
@@ -135,7 +137,9 @@ class TestAggregateAndCompare:
     def test_extra_server_session_flags_drift(self) -> None:
         """Hevy has a workout the cache hasn't synced yet -> sessions + volume
         drift (the stale-cache signal)."""
-        raw = {"w1": make_workout("w1", exercises=[make_exercise(sets=[make_set(60, 8)])])}
+        raw = {
+            "w1": make_workout("w1", exercises=[make_exercise(sets=[make_set(60, 8)])])
+        }
         history = exercise_histories(build_records(raw))["Bench Press (Barbell)"]
         server_sets = [
             _server_set("w1", 60, 8),

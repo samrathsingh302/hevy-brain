@@ -100,8 +100,6 @@ def build_vault(
             archived_count += 1
     # A routine renamed in Hevy leaves its old-title note behind (the store
     # only remembers deletions) — sweep managed notes no routine owns.
-    archived_count += routines.archive_stale_routine_notes(
-        writer, active_routine_paths
-    )
+    archived_count += routines.archive_stale_routine_notes(writer, active_routine_paths)
     changed["archived"] = archived_count
     return changed

@@ -72,9 +72,7 @@ def redesign_briefing_path(today: date) -> str:
 
 def _programme_lines(snapshot: dict[str, Any], today: date) -> list[str]:
     """Window, split and per-group set/volume sections of the context."""
-    window = (
-        f"{snapshot['weeks']} weeks ending {snapshot['window_end'].isoformat()}"
-    )
+    window = f"{snapshot['weeks']} weeks ending {snapshot['window_end'].isoformat()}"
     staleness = (today - snapshot["window_end"]).days
     lines = [
         f"\n## Training window ({window})\n"
@@ -99,9 +97,7 @@ def _programme_lines(snapshot: dict[str, Any], today: date) -> list[str]:
     if snapshot["split"]:
         for entry in snapshot["split"]:
             groups = ", ".join(entry["groups"]) or "—"
-            lines.append(
-                f"- {entry['title']}: {entry['sessions']} sessions ({groups})"
-            )
+            lines.append(f"- {entry['title']}: {entry['sessions']} sessions ({groups})")
     else:
         lines.append("- No sessions in the window.")
 
@@ -180,9 +176,7 @@ def build_redesign_context(
     return "\n".join(lines)
 
 
-def render_redesign_briefing(
-    context: str, today: date, *, retrieval: str
-) -> str:
+def render_redesign_briefing(context: str, today: date, *, retrieval: str) -> str:
     """Render the self-contained redesign briefing (no API call, no cost).
 
     ``retrieval`` is a one-line provenance summary of how the knowledge pack

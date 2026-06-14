@@ -110,7 +110,9 @@ def test_volume_by_group_breaks_exact_ties_by_name() -> None:
                 "a",
                 exercises=[
                     make_exercise("Bench Press (Barbell)", "T-B", [make_set(50, 8)]),
-                    make_exercise("Bent Over Row (Barbell)", "T-ROW", [make_set(50, 8)], 1),
+                    make_exercise(
+                        "Bent Over Row (Barbell)", "T-ROW", [make_set(50, 8)], 1
+                    ),
                 ],
             )
         }

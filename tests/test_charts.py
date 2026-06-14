@@ -25,9 +25,7 @@ def test_returns_none_for_fewer_than_two_points() -> None:
 
 def test_returns_none_for_all_zero_series() -> None:
     assert (
-        charts.mermaid_xychart(
-            "t", ["a", "b"], [0, 0], y_label="y", zero_baseline=True
-        )
+        charts.mermaid_xychart("t", ["a", "b"], [0, 0], y_label="y", zero_baseline=True)
         is None
     )
 
@@ -44,8 +42,7 @@ def test_drops_non_finite_points_and_guards_the_remainder() -> None:
     assert 'x-axis ["a", "c"]' in out
     # Only one finite point left -> not worth a chart.
     assert (
-        charts.mermaid_xychart("t", ["a", "b"], [float("inf"), 5], y_label="y")
-        is None
+        charts.mermaid_xychart("t", ["a", "b"], [float("inf"), 5], y_label="y") is None
     )
 
 
@@ -210,8 +207,18 @@ def test_monthly_volume_points_buckets_by_month_and_year() -> None:
     labels, values = charts.monthly_volume_points(records, 2026)
 
     assert labels == [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
     ]
     assert len(values) == 12
     assert values[2] == 1500  # March = 1000 + 500
@@ -220,9 +227,7 @@ def test_monthly_volume_points_buckets_by_month_and_year() -> None:
 
 
 def test_monthly_volume_chart_renders() -> None:
-    records = build_records(
-        {"a": _vol_workout("a", "2026-03-10T17:00:00+00:00", 100)}
-    )
+    records = build_records({"a": _vol_workout("a", "2026-03-10T17:00:00+00:00", 100)})
     chart = charts.monthly_volume_chart(records, 2026)
     assert "Monthly volume 2026 (kg)" in chart
     assert 'x-axis ["Jan", "Feb"' in chart

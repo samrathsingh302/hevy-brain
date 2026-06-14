@@ -38,7 +38,14 @@ def test_query_fields_exist_in_real_workout_frontmatter(raw_workouts: dict) -> N
     guards against the queries drifting away from the note schema."""
     records = build_records(raw_workouts)
     keys = _frontmatter(render_workout_note(records[0], [])).keys()
-    for field in ("date", "title", "volume_kg", "duration_min", "total_reps", "exercise_count"):
+    for field in (
+        "date",
+        "title",
+        "volume_kg",
+        "duration_min",
+        "total_reps",
+        "exercise_count",
+    ):
         assert field in keys
 
 
@@ -47,5 +54,11 @@ def test_query_fields_exist_in_real_exercise_frontmatter(raw_workouts: dict) -> 
     histories = exercise_histories(records)
     note = render_exercise_note(next(iter(histories.values())), {})
     keys = _frontmatter(note).keys()
-    for field in ("best_e1rm_kg", "best_weight_kg", "times_performed", "last_performed", "total_volume_kg"):
+    for field in (
+        "best_e1rm_kg",
+        "best_weight_kg",
+        "times_performed",
+        "last_performed",
+        "total_volume_kg",
+    ):
         assert field in keys

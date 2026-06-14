@@ -60,12 +60,19 @@ class TestBuildTarget:
         ]
 
     def test_non_draft_returns_none(self) -> None:
-        assert adherence.build_target(_body("upper", [_ex("T-BENCH", 60)]), PUSHED) is None
+        assert (
+            adherence.build_target(_body("upper", [_ex("T-BENCH", 60)]), PUSHED) is None
+        )
 
     def test_bodyweight_exercise_has_no_target_weight(self) -> None:
         body = _body(
             "Redesign — pull",
-            [{"exercise_template_id": "T-PULLUP", "sets": [{"weight_kg": None, "reps": 10}]}],
+            [
+                {
+                    "exercise_template_id": "T-PULLUP",
+                    "sets": [{"weight_kg": None, "reps": 10}],
+                }
+            ],
         )
         target = adherence.build_target(body, PUSHED)
         assert target["prescribed"][0]["top_weight_kg"] is None
@@ -153,7 +160,9 @@ class TestGradeTarget:
         target = {
             "pushed_on": "2026-06-13",
             "routine_title": "Redesign — pull",
-            "prescribed": [{"template_id": "T-PULLUP", "top_weight_kg": None, "sets": 3}],
+            "prescribed": [
+                {"template_id": "T-PULLUP", "top_weight_kg": None, "sets": 3}
+            ],
         }
         records = build_records({"w1": _trained("T-PULLUP", "Pull Up", 0, day=14)})
         out = adherence.grade_target(target, records)
@@ -163,7 +172,11 @@ class TestGradeTarget:
         target = {
             "pushed_on": "2026-06-13",
             "routine_title": "Return Week 1 — x",
-            "prescribed": ["junk", {"top_weight_kg": 50}, {"template_id": "T-BENCH", "top_weight_kg": 47.5}],
+            "prescribed": [
+                "junk",
+                {"top_weight_kg": 50},
+                {"template_id": "T-BENCH", "top_weight_kg": 47.5},
+            ],
         }
         records = build_records({"w1": _trained("T-BENCH", "Bench", 47.5, day=14)})
         out = adherence.grade_target(target, records)

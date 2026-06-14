@@ -16,8 +16,18 @@ from . import charts
 from .writer import VaultWriter, render_note
 
 _MONTH_NAMES = (
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 )
 _PUSH_PULL_LOW = 0.85
 _PUSH_PULL_HIGH = 1.15

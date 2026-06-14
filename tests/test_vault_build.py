@@ -151,9 +151,7 @@ def test_dashboard_lapse_callout(raw_workouts: dict) -> None:
     assert "guide return" in lapsed
 
 
-def test_generated_workout_note_round_trips(
-    tmp_path: Path, raw_workouts: dict
-) -> None:
+def test_generated_workout_note_round_trips(tmp_path: Path, raw_workouts: dict) -> None:
     """A managed workout note from the real build path must parse back into a
     no-op PUT body — the fix-up round-trip guarantee, end to end."""
     from hevy_brain.writeback.hevy_push import parse_workout_note, workout_diff
