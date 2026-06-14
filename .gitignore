@@ -10,6 +10,8 @@ __pycache__
 .vscode
 coverage.xml
 .ruff_cache
+.mypy_cache
+.claude/settings.local.json
 
 # hevy-brain local state (personal data + machine-specific config stay local)
 config.toml
