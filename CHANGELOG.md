@@ -2,6 +2,17 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 14/06/2026 — afternoon: ruff format the tree (cosmetic close-out)
+- **`ruff format hevy_brain tests`** — 28 files reformatted, committed standalone
+  (`1090c3c`). Pure cosmetic drift (pre-commit ships ruff-format but the tree was
+  never formatted; CI gates `ruff check` only, so main was GREEN either way).
+  Verified inert: 338 offline tests pass, ruff + mypy clean, a fresh Opus verifier
+  proved the AST byte-for-byte identical to HEAD across all 28 files; `cli --help`
+  smoke exit 0. Codex primary pass unavailable (usage limit) — debt logged
+  (`codex review --commit 1090c3c`).
+- `HevyBrain Coach` debut (Sun 19:00) had not fired at session time (17:51) — task
+  correctly armed; first-fire verification deferred to the next session.
+
 ## 14/06/2026 — morning: audit branch merged + coach-billing hardening (A1/A2)
 - **Overnight audit branch `overnight-audit-2026-06-14` reviewed and merged to
   main.** Re-verified GREEN before merge: 338 offline tests, ruff + mypy clean,

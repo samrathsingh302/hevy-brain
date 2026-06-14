@@ -16,10 +16,22 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-14-morning-merge-a1a2.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-14-afternoon-ruff-format.md`
 
 ## Current state (14/06/2026)
 
+- **Afternoon 14/06/2026 — pending close-out flushed: `ruff format` committed,
+  re-verified GREEN, pushed.** Applied `ruff format hevy_brain tests` (28 files,
+  pure cosmetic) as a standalone commit (`1090c3c`); verified semantically inert
+  — 338 offline tests pass, ruff + mypy clean, a fresh Opus verifier proved the
+  **AST byte-for-byte identical to HEAD across all 28 files**, `cli --help` smoke
+  exit 0. **Codex primary pass UNAVAILABLE** (OpenAI usage limit) — debt:
+  `codex review --commit 1090c3c`. **`HevyBrain Coach` debut had NOT fired at
+  17:51** (correctly armed: `State=Ready`, `NextRun=14/06 19:00`, never-run
+  sentinel) — **first-fire verification deferred to next session** (your call).
+  The cross-repo close-out brief `docs/VERIFY-AND-CLOSEOUT-2026-06-14.md` (present
+  in all 6 Atlas repos) landed untracked — left as-is (vault-level call). See
+  `docs/handoffs/2026-06-14-afternoon-ruff-format.md`.
 - **Morning 14/06/2026 — overnight audit branch reviewed, A1/A2 actioned, merged
   to main + pushed to origin** (`overnight-audit-2026-06-14` → `main`; pre-audit
   `f28a6d0`). Re-verified **GREEN** before merge (338 offline tests, ruff + mypy
@@ -39,14 +51,12 @@ integration); fully refactored into this CLI — the HA code is gone.
   fire is tonight Sun 14/06 19:00** — confirmed wired to the **free** path (`cli
   coach`, no Anthropic key needed); the free path was runtime-smoked clean this
   morning (briefing written, 83 claims, recap, exit 0), so tonight is de-risked.
-- **Still parked (your call):** (a) repo-wide **`ruff format` drift** — 28 files
-  would reformat; pre-commit ships ruff-format but the tree was never formatted.
-  CI gates `ruff check` (GREEN), so non-breaking; a single `ruff format` commit
-  clears it. (b) Audit **D1** — `config.toml` in git history (username + old
-  path, **no key**); pre-flip history-rewrite, part of the pre-public checklist.
-  (c) **`_shared-context/AUDIT_LOG.md` reconcile** — cross-repo, out of "this
-  project only" scope. Full audit report + decision list:
-  `docs/handoffs/2026-06-14-overnight-audit.md`.
+- **Still parked (your call):** (a) Audit **D1** — `config.toml` in git history
+  (username + old path, **no key**); pre-flip history-rewrite, part of the
+  pre-public checklist. (b) **`_shared-context/AUDIT_LOG.md` reconcile** —
+  cross-repo, out of "this project only" scope. *(The `ruff format` drift is now
+  **resolved** — committed `1090c3c`, 14/06 afternoon.)* Full audit report +
+  decision list: `docs/handoffs/2026-06-14-overnight-audit.md`.
 
 - **Slice 17 (Tier-1 pre-public hardening) shipped (`606791b` + `c2bb72c`):**
   audit-driven fixes + portfolio polish ahead of the public flip. **Correctness/
