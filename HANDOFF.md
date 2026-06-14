@@ -16,7 +16,7 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-13-slice17-hardening.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-14-morning-merge-a1a2.md`
 
 ## Current state (14/06/2026)
 
