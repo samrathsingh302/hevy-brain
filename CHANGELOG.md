@@ -2,6 +2,16 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 14/06/2026 — overnight audit (branch `overnight-audit-2026-06-14`, not yet merged)
+- Autonomous correctness sweep of the slice-17 pre-public hardening + the
+  money/safety surfaces it certifies. Repo left GREEN (336 offline tests, ruff +
+  mypy clean, runtime smoke healthy). Fixes (branch-only, not pushed): removed
+  Home-Assistant fork-leftover scripts; README + PROMPT.md doc drift; a
+  pre-commit ruff-hook nit; 3 coach-budget / config regression tests. Data-loss
+  fences + secrets/history verified clean; one bounded `coach --api` budget
+  soft-cap nuance parked for review. See
+  `docs/handoffs/2026-06-14-overnight-audit.md`.
+
 ## 13/06/2026 — slice 4: live write path verified + `ask` (C2)
 - **First real PUT to Hevy.** `push routine` live-verified end to end:
   dry-run diff → PUT (routine `upper` → `Return Week 1 — upper` at 60%
