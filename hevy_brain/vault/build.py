@@ -69,6 +69,9 @@ def build_vault(
                     guide_lapse_days=config.guide_lapse_days,
                     heatmap_enabled=heatmap_enabled,
                     heatmap_weeks=config.charts_heatmap_weeks,
+                    deload_weeks=config.deload_weeks,
+                    deload_rpe=config.deload_rpe,
+                    deload_plateau_weeks=config.plateau_weeks,
                 ),
             )
         ),

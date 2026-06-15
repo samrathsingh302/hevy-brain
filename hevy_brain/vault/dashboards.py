@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from ..analytics import comeback, patterns, session_quality, stats, strength_ratio
+from ..analytics import (
+    comeback,
+    deload,
+    patterns,
+    session_quality,
+    stats,
+    strength_ratio,
+)
 from ..analytics.prs import recent_prs
 from . import charts, heatmap
 from .writer import VaultWriter, render_note
@@ -41,6 +48,46 @@ def _lapse_callout(
     return [
         f"\n> [!warning] **{nudge['days_since']} days** since your last session "
         f"({last}, _{title}_). {tail}"
+    ]
+
+
+def _deload_callout(
+    records: list[dict[str, Any]],
+    histories: dict[str, dict[str, Any]],
+    today: date,
+    *,
+    deload_weeks: int,
+    deload_rpe: float,
+    plateau_weeks: int,
+) -> list[str]:
+    """Render the deload-readiness callout, or [] when the heuristic is silent.
+
+    A general training-science heuristic (NOT a cited claim, NOT personalised or
+    medical advice) — the label line below is mandatory whenever it fires. Fires
+    only on the objective triggers in ``deload.deload_status`` and so is silent
+    during a lapse.
+    """
+    status = deload.deload_status(
+        records,
+        histories,
+        today,
+        deload_weeks=deload_weeks,
+        deload_rpe=deload_rpe,
+        plateau_weeks=plateau_weeks,
+    )
+    if not status:
+        return []
+    evidence: list[str] = [f"{status['weeks']} consecutive training weeks"]
+    if status["plateaus"]:
+        stalled = ", ".join(status["plateaus"][:3])
+        evidence.append(f"est-1RM flat on {stalled}")
+    if status["mean_rpe"] is not None and status["mean_rpe"] >= status["deload_rpe"]:
+        evidence.append(f"mean working-set RPE {status['mean_rpe']:.1f}")
+    return [
+        f"\n> [!note] Deload readiness\n"
+        f"> {'; '.join(evidence)} — a lighter week may be worth considering.\n"
+        "> This is a general training-science heuristic, not personalised or "
+        "medical advice."
     ]
 
 
@@ -119,6 +166,9 @@ def render_dashboard(
     guide_lapse_days: int = 14,
     heatmap_enabled: bool = False,  # noqa: FBT001, FBT002 (append-only fence: must trail)
     heatmap_weeks: int = 26,
+    deload_weeks: int = 0,
+    deload_rpe: float = 8.5,
+    deload_plateau_weeks: int = 4,
 ) -> str:
     """Render the main Dashboard.md (managed content)."""
     agg = stats.compute_aggregates(records, today)
@@ -140,6 +190,16 @@ def render_dashboard(
     if user.get("username"):
         lines.append(f"\nAthlete: **{user['username']}**")
     lines.extend(_lapse_callout(records, today, lapse_nudge_days, guide_lapse_days))
+    lines.extend(
+        _deload_callout(
+            records,
+            histories,
+            today,
+            deload_weeks=deload_weeks,
+            deload_rpe=deload_rpe,
+            plateau_weeks=deload_plateau_weeks,
+        )
+    )
     lines.append(
         f"\n## Totals\n"
         f"- **{agg['total_workouts']}** workouts tracked · "
