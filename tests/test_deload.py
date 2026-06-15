@@ -195,6 +195,15 @@ def test_silent_one_day_past_recent_days() -> None:
     assert _status(raw) is None
 
 
+def test_silent_when_last_workout_is_future_dated() -> None:
+    # Otherwise firing (9 weeks, high RPE), but the run ends AFTER today (e.g. a
+    # backdated historical rebuild). (today - last_date).days is negative, so the
+    # gate must still reject it -> you can't be "ready" from training not yet done.
+    last = TODAY + timedelta(weeks=1)  # next ISO week's Monday, after today
+    raw = _weekly(weeks=9, last_monday=last, weight=100, reps=5, rpe=9.0)
+    assert _status(raw) is None
+
+
 # --- dashboard integration + idempotency -------------------------------------
 
 
