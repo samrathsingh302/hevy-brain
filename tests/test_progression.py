@@ -128,6 +128,54 @@ def test_basis_is_top_e1rm_set_in_recent_session() -> None:
     assert target["target_reps"] == 6
 
 
+def test_latest_same_day_session_wins() -> None:
+    # Two workouts on the SAME calendar day: a morning session (50 kg x 8) and
+    # a later evening session (70 kg x 5). Sessions store only `date`, so both
+    # share the equal-max date; the genuinely-latest (last in list) must be the
+    # basis -> target tracks the evening 70 x 5, not the morning 50 x 8.
+    same_day = "2026-06-15"
+    morning = make_workout(
+        "w-am",
+        "Push Day",
+        start=f"{same_day}T08:00:00+00:00",
+        end=f"{same_day}T09:00:00+00:00",
+        exercises=[
+            make_exercise("Bench Press (Barbell)", "T-BENCH", [make_set(50, 8)])
+        ],
+    )
+    evening = make_workout(
+        "w-pm",
+        "Push Day",
+        start=f"{same_day}T18:00:00+00:00",
+        end=f"{same_day}T19:00:00+00:00",
+        exercises=[
+            make_exercise("Bench Press (Barbell)", "T-BENCH", [make_set(70, 5)])
+        ],
+    )
+    # Two earlier days satisfy progression_min_sessions (3) before the same-day pair.
+    earlier = {
+        f"w{i}": make_workout(
+            f"w{i}",
+            "Push Day",
+            start=f"{_DATES[i]}T17:00:00+00:00",
+            end=f"{_DATES[i]}T18:00:00+00:00",
+            exercises=[
+                make_exercise("Bench Press (Barbell)", "T-BENCH", [make_set(60, 8)])
+            ],
+        )
+        for i in range(2)
+    }
+    raw = {**earlier, "w-am": morning, "w-pm": evening}
+    history = exercise_histories(build_records(raw))["Bench Press (Barbell)"]
+
+    target = next_target(history, _cfg())
+    assert target is not None
+    assert target["current_weight_kg"] == 70.0
+    assert target["current_reps"] == 5
+    assert target["target_reps"] == 6
+    assert "70 kg × 5" in target["note"]
+
+
 def test_min_sessions_override() -> None:
     # With min_sessions=1, a single session is enough.
     history = _history([[(60, 8)]])
