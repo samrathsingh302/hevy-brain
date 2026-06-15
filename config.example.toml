@@ -44,6 +44,20 @@ redesign_weeks = 8    # window (ending at the last workout) the snapshot covers
 enabled = true
 volume_weeks = 12  # weeks of weekly-volume trend on the Dashboard
 e1rm_points = 10   # most-recent loaded sessions in each exercise's e1RM trend
+# GitHub-style training heatmap on the Dashboard (working-set count per day;
+# untrained days read as blank, so a lapse shows honestly).
+heatmap_enabled = true
+heatmap_weeks = 26  # weeks of history the heatmap covers
+
+[progression]
+# `Next session target` tip on each exercise note — double progression off the
+# most recent session's best set (general-knowledge default, not a cited claim).
+# Bodyweight-only lifts are skipped (no load to progress).
+enabled = true
+rep_low = 8          # bottom of the working rep range
+rep_high = 12        # top of the rep range; clear it on all sets -> add load
+increment_kg = 2.5   # load added once the top of the range is cleared
+min_sessions = 3     # loaded sessions required before a target is suggested
 
 [analytics]
 plateau_weeks = 4
@@ -53,7 +67,23 @@ review_weeks = 4
 review_months = 2
 lapse_nudge_days = 7  # quiet days before the Dashboard shows a nudge (0 = off);
                       # escalates to a `guide return` prompt at guide.lapse_days
+# Deload-readiness callout on the Dashboard — fires only on deterministic
+# thresholds (consecutive trained weeks + recent training + plateau/high RPE);
+# a general training-science heuristic, not personalised or medical advice.
+deload_weeks = 6      # consecutive trained weeks before deload is considered
+deload_rpe = 8.5      # recent mean working-set RPE that counts as "high"
 
 # Optional manual muscle-group overrides (substring -> group), e.g.:
 # [analytics.muscle_overrides]
 # "farmer" = "core"
+
+[landmarks]
+# Volume-landmark / MEV check — a Dashboard table comparing recent weekly
+# working-sets-per-muscle-group against your MEV/MAV/MRV bands (sets/muscle/
+# week). General published ranges, not cited or authoritative — yours to edit.
+weeks = 4  # window (ending at the last workout) the weekly rate is computed over
+# Per-group bands; any group you omit keeps the published default below.
+# [landmarks.bands.chest]
+# mev = 8.0
+# mav = 14.0
+# mrv = 22.0

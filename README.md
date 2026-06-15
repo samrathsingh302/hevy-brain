@@ -29,10 +29,20 @@ training history**, generated and kept in sync as the notes below.
   has totals, best month, top lifts, PRs, and a monthly-volume chart). All with
   frontmatter for Dataview/Bases and wikilinks between everything.
 - **Progress charts** — a weekly-volume trend on the dashboard and an est. 1RM
-  trend per exercise, rendered as native Mermaid charts (zero dependencies).
+  trend per exercise, rendered as native Mermaid charts (zero dependencies),
+  plus a GitHub-style 26-week consistency heatmap on the dashboard.
   Toggle/tune via the `[charts]` config block.
+- **Next-session targets** — each exercise note carries an evergreen
+  "next session target" (double progression off your most recent best set);
+  bodyweight-only lifts are skipped. Tune via `[progression]`.
 - **Analytics** — volume per muscle group, push/pull balance, streaks,
   plateau detection (stalled est. 1RM), and week-over-week overload tracking.
+  The dashboard also surfaces a deterministic **deload-readiness** flag and a
+  **volume-landmark (MEV/MAV/MRV)** table against your configurable bands — both
+  labelled general training-science guidance, not personalised or medical advice.
+- **Export & compare** — `hevy-brain export --csv` dumps the cache (workouts or
+  sets) to CSV for external analysis, and `hevy-brain diff` gives an objective
+  last-vs-prior session comparison, overall or for a single exercise.
 - **AI coach (free by default)** — `hevy-brain coach` writes a self-contained
   *briefing* note (your computed stats + the coaching instructions). Open it
   in Claude Code or claude.ai under your existing subscription — **no API key,
@@ -78,7 +88,7 @@ lives in `writeback/` and is only reachable from explicit CLI commands.
 - **Crash-safe sync cursor** — the events cursor and sync metadata roll back
   if a sync fails before the cache is persisted, so a retry replays the same
   events instead of silently skipping them (regression-tested).
-- **Offline test suite** — 333 pytest tests (88% coverage), no network, the
+- **Offline test suite** — 444 pytest tests (90% coverage), no network, the
   real account is never touched by tests; ruff lint + format + mypy enforced in CI.
 - **Secrets stay out of files** — API keys come from environment variables
   only; personal workout data and config never leave the machine (gitignored).
@@ -126,6 +136,8 @@ hevy-brain guide redesign  # programme-change briefing + draft routines (8-week 
 hevy-brain ask "How do I get my bench moving again?"
                     # one question, answered from your data + cited claims
 hevy-brain status   # cache overview
+hevy-brain diff [exercise]   # objective last-vs-prior session comparison
+hevy-brain export --csv [--out PATH] [--kind workouts|sets]  # cache -> CSV
 hevy-brain doctor   # read-only health check (keys, vault, cache, sync freshness)
 hevy-brain verify exercise "Bench Press (Barbell)"
                     # cross-check cached stats against Hevy's authoritative history
@@ -186,7 +198,7 @@ Registers two Task Scheduler jobs: `hevy-brain full` hourly and
 
 ```powershell
 pip install -e ".[dev]"
-python -m pytest tests -q     # 333 tests, no network, no real API calls
+python -m pytest tests -q     # 444 tests, no network, no real API calls
 python -m ruff check hevy_brain tests
 python -m ruff format hevy_brain tests
 ```
