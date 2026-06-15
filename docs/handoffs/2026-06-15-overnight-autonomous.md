@@ -2,7 +2,7 @@
 status: done
 agent: overnight-orchestrator-2026-06-15
 goal: "Autonomous overnight build: execute the 6 solo-buildable slices in docs/OVERNIGHT-PLAN-2026-06-15.md (S1 progression targets · S2 consistency heatmap · S3 export --csv · S4 diff · S5 deload flag · S6 volume landmarks), one fresh Opus 4.8 builder per slice, serial, two-pass verified (Codex + Opus verifier) per slice, orchestrator pushes per accepted slice. Samrath asleep, full authority, no questions; all §4 gates held untouched."
-outcome: "ALL 6 SLICES SHIPPED + ACCEPTED + PUSHED. 338→444 tests, ruff+mypy clean, 90% coverage (was 88%), 47 source files. Each slice two-pass verified: Opus verifier SHIP on all 6; Codex primary on S1+S2 (caught a real S1 P2) then hit its OpenAI usage limit — S3–S6 carry Codex verification debt (re-run on/after 17/06). 5 verifier/Codex findings (1 P2 + 4 MINOR) forward-fixed before accept. No SAMRATH.md §4 gate touched. Pre-flight: coach 19:00 debut confirmed fired clean; codex format-debt (1090c3c) cleared."
+outcome: "ALL 6 SLICES SHIPPED + ACCEPTED + PUSHED. 338→444 tests, ruff+mypy clean, 90% coverage (was 88%), 47 source files. Each slice two-pass verified: Opus verifier SHIP on all 6; Codex primary on S1+S2 (caught a real S1 P2) then hit its OpenAI usage limit — S3–S6 carry Codex verification debt (re-run on/after 17/06). 4 findings forward-fixed (1 Codex P2 + 3 verifier MINOR) + 2 further MINOR deferred as out-of-scope, before accept. No SAMRATH.md §4 gate touched. Pre-flight: coach 19:00 debut confirmed fired clean; codex format-debt (1090c3c) cleared."
 branch: main
 pre_session_commit: 1b6aa17
 last_feature_commit: 622f08f
