@@ -746,6 +746,23 @@ def _cmd_doctor(config: Config) -> int:
     return 0
 
 
+def _cmd_export(config: Config, args: argparse.Namespace) -> int:
+    from . import export
+    from .models import build_records
+
+    store = CacheStore(config.data_dir)
+    records = build_records(store.workouts)
+    out_path = args.out or export.default_out_path(config.base_dir, args.kind)
+    written, count = export.export_csv(records, args.kind, out_path)
+    if not records:
+        # Exporting an empty cache is not a failure (unlike doctor's FAIL): a
+        # header-only file is still a valid, usable export.
+        print(f"No workouts to export - wrote header only: {written}")
+        return 0
+    print(f"Exported {count} {args.kind} rows to {written}")
+    return 0
+
+
 async def _cmd_verify_exercise(config: Config, name: str) -> int:
     from .analytics import reconcile
     from .analytics.prs import exercise_histories
@@ -839,6 +856,28 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="Show cache and config status")
     sub.add_parser(
         "doctor", help="Run read-only health checks (key, vault, cache freshness)"
+    )
+
+    export = sub.add_parser(
+        "export",
+        help="Export the cache to CSV for external analysis (Excel/Sheets/pandas)",
+    )
+    export.add_argument(
+        "--csv",
+        action="store_true",
+        help="Write CSV (the only supported format; accepted for clarity)",
+    )
+    export.add_argument(
+        "--kind",
+        choices=("workouts", "sets"),
+        default="workouts",
+        help="One row per workout (default) or one row per set",
+    )
+    export.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Output file path (default <base_dir>/exports/hevy-<kind>.csv)",
     )
 
     verify = sub.add_parser(
@@ -982,6 +1021,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_status(config)
     if args.command == "doctor":
         return _cmd_doctor(config)
+    if args.command == "export":
+        return _cmd_export(config, args)
     if args.command == "verify":
         return _dispatch_verify(config, args)
     if args.command == "guide":
