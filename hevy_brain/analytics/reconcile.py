@@ -111,8 +111,9 @@ def aggregate_server(sets: list[dict[str, Any]]) -> dict[str, Any]:
 
     ``sessions`` counts distinct ``workout_id`` values (the list itself is one
     entry per set, not per session). The rest mirror ``prs.exercise_histories``
-    exactly (same Epley formula, same None→0 handling) so a clean cache produces
-    identical numbers.
+    (same Epley formula, same None→0 handling) so a clean cache produces
+    identical numbers — including the warm-up rule: warm-up sets are excluded
+    from the 1RM estimate but still count toward best weight and volume.
     """
     workout_ids: set[str] = set()
     best_weight = 0.0
@@ -122,7 +123,13 @@ def aggregate_server(sets: list[dict[str, Any]]) -> dict[str, Any]:
         weight = float(s.get("weight_kg") or 0)
         reps = int(s.get("reps") or 0)
         best_weight = max(best_weight, weight)
-        best_e1rm = max(best_e1rm, epley_1rm(weight, reps))
+        # Mirror prs._session_entry: warm-up sets do not count toward the 1RM
+        # estimate, but DO count toward best_weight and volume (matching the
+        # cache's max_weight_kg / volume_kg, which include every set). The live
+        # payload keys the set type ``set_type``; the nested-event shape may use
+        # ``type`` — honour whichever is present.
+        if (s.get("set_type") or s.get("type")) != "warmup":
+            best_e1rm = max(best_e1rm, epley_1rm(weight, reps))
         total_volume += weight * reps
         workout_id = s.get("workout_id")
         if workout_id:
