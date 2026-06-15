@@ -1,11 +1,11 @@
 """Objective last-vs-prior session comparison (the ``diff`` command).
 
-Pure, offline arithmetic on the user's own logged sets — no advice, no
+Pure, offline arithmetic on the user's own logged sets: no advice, no
 training-science claims, no network, no vault write. Two shapes:
 
 * **Overall** (no exercise): the two most recent *workouts*. Reports the deltas
-  of volume, duration and exercise count, and — for each exercise present in
-  both sessions — how its heaviest working set moved. The session entries do not
+  of volume, duration and exercise count, and (for each exercise present in
+  both sessions) how its heaviest working set moved. The session entries do not
   pre-store a (weight x reps) top set for a whole workout, so the heaviest
   non-warm-up set is found here by scanning ``record["exercises"][i]["sets"]``.
 * **Per-exercise**: that exercise's two most recent *sessions* (from
@@ -22,7 +22,7 @@ from typing import Any
 
 from .prs import epley_1rm
 
-# ASCII direction indicators — never raw arrows (cp1252-safe on every path).
+# ASCII direction indicators: never raw arrows (cp1252-safe on every path).
 _UP = "+"
 _DOWN = "-"
 _SAME = "="
@@ -69,9 +69,9 @@ def _heaviest_working_set(exercise: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _set_label(workout_set: dict[str, Any] | None) -> str:
-    """Render a set as ``W kg x R`` (ASCII), or ``—`` when absent."""
+    """Render a set as ``W kg x R`` (ASCII), or ``(none)`` when absent."""
     if not workout_set:
-        return "—"
+        return "(none)"
     weight = workout_set.get("weight_kg")
     reps = workout_set.get("reps") or 0
     if not weight:
