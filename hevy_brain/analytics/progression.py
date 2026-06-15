@@ -22,13 +22,16 @@ from .prs import epley_1rm
 def _most_recent_session(history: dict[str, Any]) -> dict[str, Any] | None:
     """Return the chronologically latest session entry, or None if empty.
 
-    Sessions are built in chronological order upstream, but we sort by date
-    defensively rather than trust list order (spec requirement).
+    Sessions are appended in chronological (start-time) order upstream, but
+    entries store only ``date`` (a date, not a datetime). We sort by date
+    defensively, tie-breaking equal dates toward the later list position so a
+    later same-day workout wins over an earlier one — ``max(..., key=date)``
+    alone would return the earliest entry achieving the max date.
     """
     sessions = history.get("sessions") or []
     if not sessions:
         return None
-    return max(sessions, key=lambda s: s["date"])
+    return max(enumerate(sessions), key=lambda p: (p[1]["date"], p[0]))[1]
 
 
 def next_target(history: dict[str, Any], cfg: Config) -> dict[str, Any] | None:
