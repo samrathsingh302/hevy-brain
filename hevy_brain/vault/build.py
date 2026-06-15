@@ -72,6 +72,8 @@ def build_vault(
                     deload_weeks=config.deload_weeks,
                     deload_rpe=config.deload_rpe,
                     deload_plateau_weeks=config.plateau_weeks,
+                    landmark_weeks=config.landmark_weeks,
+                    landmark_bands=config.landmark_bands,
                 ),
             )
         ),

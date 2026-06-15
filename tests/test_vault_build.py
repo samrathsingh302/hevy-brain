@@ -304,6 +304,51 @@ def test_deload_build_is_idempotent(tmp_path: Path) -> None:
     assert sum(second.values()) == 0  # ...and a same-today rebuild is a no-op
 
 
+def test_volume_landmarks_render_in_dashboard(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    # raw_workouts' last session (2026-06-08) is 2 days before TODAY -> recent,
+    # so the default-config landmark bands produce a table through the build.
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "## Volume landmarks" in dashboard
+    assert "General guideline, not personalised advice" in dashboard
+    assert "| Muscle group | Sets/wk | Status |" in dashboard
+
+
+def test_volume_landmarks_degrade_when_lapsed(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    # Same fixture assessed 60 days later -> lapsed -> honest line, no table.
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=date(2026, 8, 9))
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "## Volume landmarks" in dashboard
+    assert "No recent training to assess against volume landmarks." in dashboard
+    assert "Sets/wk" not in dashboard  # no table when lapsed
+
+
+def test_volume_landmarks_build_is_idempotent(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "## Volume landmarks" in dashboard  # table present...
+
+    second = build_vault(config, store, today=TODAY)
+    assert sum(second.values()) == 0  # ...and a same-today rebuild is a no-op
+
+
 def test_dashboard_lapse_callout(raw_workouts: dict) -> None:
     records = build_records(raw_workouts)  # last session 2026-06-08
     histories = exercise_histories(records)
