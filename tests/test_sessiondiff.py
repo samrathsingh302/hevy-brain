@@ -114,12 +114,52 @@ def test_render_overall_is_ascii_direction_only() -> None:
         sessiondiff.overall_diff(records[-2], records[-1])
     )
     text = "\n".join(lines)
-    # Cannot raise on a cp1252 console.
+    # Cannot raise on a cp1252 console, and is genuinely ASCII-only.
+    text.encode("ascii")
     text.encode("cp1252")
     for arrow in ("↑", "↓"):  # raw up/down arrows
         assert arrow not in text
     assert "-80 kg" in text  # signed volume delta (warm-up-inclusive)
     assert "-10 min" in text  # signed duration delta
+
+
+def test_render_overall_absent_top_set_is_ascii() -> None:
+    """A shared exercise that is all warm-up on the later side has no working
+    set, so its top-set label renders the ASCII '(none)' placeholder. The whole
+    rendered diff must stay ASCII-only (the absent-set path is the one that used
+    to emit a raw em-dash)."""
+    w1 = make_workout(
+        "w1",
+        "Push Day",
+        start="2026-05-25T17:00:00+00:00",
+        end="2026-05-25T18:00:00+00:00",
+        exercises=[
+            make_exercise("Bench Press (Barbell)", "T-BENCH", [make_set(60, 8)]),
+        ],
+    )
+    w2 = make_workout(
+        "w2",
+        "Push Day",
+        start="2026-06-01T17:00:00+00:00",
+        end="2026-06-01T18:00:00+00:00",
+        exercises=[
+            # Only a warm-up this session -> no working set -> absent top set.
+            make_exercise(
+                "Bench Press (Barbell)",
+                "T-BENCH",
+                [make_set(40, 10, type="warmup")],
+            ),
+        ],
+    )
+    records = build_records({"w1": w1, "w2": w2})
+    diff = sessiondiff.overall_diff(records[-2], records[-1])
+    bench = {e["exercise"]: e for e in diff["exercises"]}["Bench Press (Barbell)"]
+    assert bench["latest_set"] is None  # all-warm-up side has no working set
+
+    text = "\n".join(sessiondiff.render_overall(diff))
+    assert "(none)" in text  # the absent top set renders the ASCII placeholder
+    text.encode("ascii")  # ASCII-only contract on the absent-set path
+    assert "—" not in text  # never a raw em-dash
 
 
 def test_heaviest_working_set_ignores_warmups_and_handles_bodyweight() -> None:
@@ -178,8 +218,8 @@ def test_render_exercise_is_ascii_direction_only() -> None:
 
 def test_exercise_diff_bodyweight_session_degrades_honestly() -> None:
     """A bodyweight session stores best_set=None and best_e1rm_kg=0: the per-
-    exercise diff shows no weighted top set ('—') and 0 est-1RM, but the reps
-    delta still carries the signal — no crash, cp1252-safe."""
+    exercise diff shows no weighted top set ('(none)') and 0 est-1RM, but the
+    reps delta still carries the signal: no crash, ASCII-only output."""
     pull = "Pull Up"
     w1 = make_workout(
         "w1",
@@ -199,7 +239,10 @@ def test_exercise_diff_bodyweight_session_degrades_honestly() -> None:
     assert diff["prior_e1rm_kg"] == 0.0  # bodyweight has no est-1RM
     assert diff["reps_delta"] == 2
     text = "\n".join(sessiondiff.render_exercise(diff))
-    text.encode("cp1252")  # the '—' fallback is cp1252-safe, must not raise
+    # Absent top set on both sides renders the ASCII '(none)' placeholder.
+    assert "(none)" in text
+    text.encode("ascii")  # ASCII-only contract: must not raise (stricter)
+    text.encode("cp1252")  # and trivially cp1252-safe
     assert "10 -> 12" in text  # reps still report
     # The heaviest-working-set helper still labels a raw bodyweight set dict
     # (the overall path scans sets directly, where weight_kg=None is present).
