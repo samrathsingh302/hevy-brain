@@ -16,9 +16,29 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-15-overnight-autonomous.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-16-warmup-e1rm-fix.md`
 
-## Current state (15/06/2026)
+## Current state (16/06/2026)
+
+- **16/06/2026 — warm-up-set bug (long-parked) fixed + pushed (`f581b81`).**
+  `prs._session_entry` now skips `type=="warmup"` sets when computing a session's
+  `best_e1rm_kg`/`best_set`, so an all-warm-up history reads as 0 e1RM /
+  `best_set=None` and `detect_plateaus` can no longer fire on warm-up-only
+  history (it also stops a progression target keying off a warm-up).
+  `reconcile.aggregate_server` mirrors the rule (warm-ups out of the **server
+  1RM only**; still counted toward best-weight + volume, matching the cache's
+  `max_weight_kg`/`volume_kg`) so `verify exercise` shows **no false drift** —
+  live payload keys `set_type`, nested-event shape `type`, both honoured.
+  `top_weight_kg`/`max_weight_kg` deliberately untouched (warm-up *weight* PRs
+  remain a separate, bigger-blast-radius issue). **444→449 tests** (+5;
+  red-before-green proven), ruff+mypy clean. Two-pass: fresh Opus verifier
+  **SHIP**; **Codex primary deferred** (usage limit → 17/06 19:17; debt:
+  `codex review --commit f581b81`). Live smoke: `verify exercise` reconciled
+  **exactly** on the real account (131 sessions / 96.27 e1RM / 0 drift). Detail:
+  `docs/handoffs/2026-06-16-warmup-e1rm-fix.md`.
+- **(a) Codex S3–S6 debt NOT cleared — still rate-limited** (confirmed
+  empirically 16/06: "try again 17/06 19:17"). Re-run the S3–S6 commands +
+  `f581b81` together on/after 17/06.
 
 - **Overnight 15/06/2026 — 6 feature slices shipped to main + pushed.** Baseline
   338 tests @ `1b6aa17`; end state **444 tests pass, ruff + mypy clean** (47
@@ -72,9 +92,10 @@ integration); fully refactored into this CLI — the HA code is gone.
   pre-public checklist. (b) **`_shared-context/AUDIT_LOG.md` reconcile** —
   cross-repo, out of "this project only" scope. (c) **Codex-verification debt
   on S3–S6** (overnight 15/06) — re-run `codex review` on/after 17/06. (d)
-  **Warm-up-set bug in `patterns.py`/`prs.py`** — `best_e1rm_kg` counts warm-up
-  sets, so `detect_plateaus` can fire on an all-warm-up history; app-wide, **fix
-  supervised** (not a quick local patch). *(The `ruff format` drift is now
+  **Warm-up-set bug in `patterns.py`/`prs.py`** — ✅ **RESOLVED 16/06
+  (`f581b81`)**: `best_e1rm_kg`/`best_set` now exclude warm-ups (prs +
+  reconcile mirror), so `detect_plateaus` no longer fires on an all-warm-up
+  history. *(The `ruff format` drift is now
   **resolved** — committed `1090c3c`, 14/06 afternoon.)* Full audit report +
   decision list: `docs/handoffs/2026-06-14-overnight-audit.md`.
 
@@ -427,8 +448,8 @@ integration); fully refactored into this CLI — the HA code is gone.
    ~~`export --csv`~~, ~~`diff`~~. Remaining **solo-buildable**: the `doctor`
    vault-drift check (the last unbuilt Tier-3 item). **User-gated** (need
    Samrath): (a) live-prove slice 12's adherence capture (push a guide draft,
-   train it, run coach); (b) supervised fix for the `patterns.py`/`prs.py`
-   warm-up-set bug (see "Still parked" above); (c) pre-public checklist (key
+   train it, run coach); (b) ~~supervised fix for the `patterns.py`/`prs.py`
+   warm-up-set bug~~ — **done 16/06 (`f581b81`)**; (c) pre-public checklist (key
    rotation → flip visibility). E4 (ingest programming episodes) stays an
    atlas-pipeline task.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
@@ -467,5 +488,5 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (444 passed, 90% cov) + `python -m ruff check hevy_brain tests` + `python -m
+  (449 passed, 90% cov) + `python -m ruff check hevy_brain tests` + `python -m
   mypy` (clean). Optional: `pre-commit install` (hooks mirror CI).
