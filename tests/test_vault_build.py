@@ -133,6 +133,60 @@ def test_enabled_charts_omit_heading_when_series_too_short() -> None:
     assert "Volume trend" not in dashboard
 
 
+def _progression_workouts() -> dict:
+    """Bench across three weeks at 60 kg x 8 -> a 'next session target'."""
+    raw = {}
+    for i, day in enumerate(("2026-05-25", "2026-06-01", "2026-06-08")):
+        raw[f"p{i}"] = make_workout(
+            f"p{i}",
+            "Push Day",
+            start=f"{day}T17:00:00+00:00",
+            end=f"{day}T18:00:00+00:00",
+            exercises=[make_exercise(sets=[make_set(60, 8)])],
+        )
+    return raw
+
+
+def test_progression_target_renders_in_exercise_note(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, _progression_workouts())
+
+    build_vault(config, store, today=TODAY)
+
+    bench = (config.vault_root / "Exercises" / "Bench Press (Barbell).md").read_text(
+        encoding="utf-8"
+    )
+    assert "Next session target" in bench
+    assert "60 kg × 9" in bench
+
+
+def test_progression_disabled_omits_section(tmp_path: Path) -> None:
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+        progression_enabled=False,
+    )
+    store = _store(tmp_path, _progression_workouts())
+
+    build_vault(config, store, today=TODAY)
+
+    bench = (config.vault_root / "Exercises" / "Bench Press (Barbell).md").read_text(
+        encoding="utf-8"
+    )
+    assert "Next session target" not in bench
+
+
+def test_progression_build_is_idempotent(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, _progression_workouts())
+
+    build_vault(config, store, today=TODAY)
+    second = build_vault(config, store, today=TODAY)
+
+    assert sum(second.values()) == 0
+
+
 def test_dashboard_lapse_callout(raw_workouts: dict) -> None:
     records = build_records(raw_workouts)  # last session 2026-06-08
     histories = exercise_histories(records)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..analytics import progression
+from ..config import Config
 from . import charts
 from .writer import VaultWriter, render_note, sanitize_filename
 
@@ -16,10 +18,27 @@ def exercise_note_path(title: str) -> str:
     return f"Exercises/{sanitize_filename(title)}.md"
 
 
+def _progression_section(
+    history: dict[str, Any], progression_cfg: Config | None
+) -> list[str]:
+    """Render a 'next session target' callout, or [] if nothing to suggest.
+
+    Returns no orphan heading when progression is disabled or the lift has no
+    usable load to progress (bodyweight-only / thin history).
+    """
+    if progression_cfg is None:
+        return []
+    target = progression.next_target(history, progression_cfg)
+    if target is None:
+        return []
+    return ["\n> [!tip] Next session target", f"> {target['note']}"]
+
+
 def render_exercise_note(
     history: dict[str, Any],
     workout_paths: dict[str, str],
     e1rm_max_points: int = 0,
+    progression_cfg: Config | None = None,
 ) -> str:
     """Render an exercise note from its history (managed content)."""
     frontmatter = {
@@ -40,6 +59,8 @@ def render_exercise_note(
         f"**{history['best_weight_kg']:g} kg** · best est. 1RM "
         f"**{history['best_e1rm_kg']:.1f} kg**"
     )
+
+    lines.extend(_progression_section(history, progression_cfg))
 
     if e1rm_max_points:
         lines.extend(
@@ -87,11 +108,14 @@ def generate_exercise_notes(
     histories: dict[str, dict[str, Any]],
     workout_paths: dict[str, str],
     e1rm_max_points: int = 0,
+    progression_cfg: Config | None = None,
 ) -> int:
     """Write all exercise notes. Returns number of files changed."""
     changed = 0
     for history in histories.values():
-        note = render_exercise_note(history, workout_paths, e1rm_max_points)
+        note = render_exercise_note(
+            history, workout_paths, e1rm_max_points, progression_cfg
+        )
         if writer.write(exercise_note_path(history["title"]), note):
             changed += 1
     return changed

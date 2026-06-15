@@ -35,7 +35,11 @@ def build_vault(
     changed = {
         "workouts": workouts.generate_workout_notes(writer, records, histories),
         "exercises": exercises.generate_exercise_notes(
-            writer, histories, workout_paths, e1rm_max_points=e1rm_points
+            writer,
+            histories,
+            workout_paths,
+            e1rm_max_points=e1rm_points,
+            progression_cfg=config,
         ),
         "reviews": dashboards.generate_reviews(
             writer,
