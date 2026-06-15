@@ -33,6 +33,8 @@ class Config:
     review_weeks: int = 4
     review_months: int = 2
     lapse_nudge_days: int = 7
+    deload_weeks: int = 6
+    deload_rpe: float = 8.5
     muscle_overrides: dict[str, str] = field(default_factory=dict)
     guide_lapse_days: int = 14
     guide_load_fraction: float = 0.6
@@ -123,6 +125,8 @@ def load_config(
         review_weeks=int(analytics.get("review_weeks", 4)),
         review_months=int(analytics.get("review_months", 2)),
         lapse_nudge_days=int(analytics.get("lapse_nudge_days", 7)),
+        deload_weeks=int(analytics.get("deload_weeks", 6)),
+        deload_rpe=float(analytics.get("deload_rpe", 8.5)),
         muscle_overrides=dict(analytics.get("muscle_overrides", {})),
         guide_lapse_days=int(guide.get("lapse_days", 14)),
         guide_load_fraction=float(guide.get("load_fraction", 0.6)),

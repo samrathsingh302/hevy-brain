@@ -233,6 +233,77 @@ def test_progression_build_is_idempotent(tmp_path: Path) -> None:
     assert sum(second.values()) == 0
 
 
+def _deload_workouts() -> dict:
+    """Eight unbroken weekly weeks of flat bench ending at TODAY's ISO week ->
+    a long consecutive run + a plateau (flat est-1RM)."""
+    from datetime import timedelta
+
+    last_monday = date(2026, 6, 8)  # Mon of TODAY's (2026-06-10) ISO week
+    raw = {}
+    for i in range(8):
+        day = (last_monday - timedelta(weeks=i)).isoformat()
+        raw[day] = make_workout(
+            f"d-{day}",
+            "Push Day",
+            start=f"{day}T17:00:00+00:00",
+            end=f"{day}T18:00:00+00:00",
+            exercises=[make_exercise(sets=[make_set(100, 5)])],
+        )
+    return raw
+
+
+def test_deload_callout_fires_through_build(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, _deload_workouts())
+
+    build_vault(config, store, today=TODAY)
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "> [!note] Deload readiness" in dashboard
+    assert "consecutive training weeks" in dashboard
+    assert (
+        "general training-science heuristic, not personalised or medical advice"
+        in dashboard
+    )
+
+
+def test_deload_callout_silent_on_short_history(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    # The real-shaped fixture has only 3 workouts across 3 weeks (run < 6) ->
+    # the deload section must never appear through the full build path.
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "Deload readiness" not in dashboard
+
+
+def test_deload_callout_silent_when_lapsed(tmp_path: Path) -> None:
+    # Same 8-week run, but assessed 60 days later -> a lapse -> silent.
+    config = _config(tmp_path)
+    store = _store(tmp_path, _deload_workouts())
+
+    build_vault(config, store, today=date(2026, 8, 9))
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "Deload readiness" not in dashboard
+
+
+def test_deload_build_is_idempotent(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, _deload_workouts())
+
+    build_vault(config, store, today=TODAY)
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "Deload readiness" in dashboard  # callout present...
+
+    second = build_vault(config, store, today=TODAY)
+    assert sum(second.values()) == 0  # ...and a same-today rebuild is a no-op
+
+
 def test_dashboard_lapse_callout(raw_workouts: dict) -> None:
     records = build_records(raw_workouts)  # last session 2026-06-08
     histories = exercise_histories(records)
