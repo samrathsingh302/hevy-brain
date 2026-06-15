@@ -16,10 +16,26 @@ integration); fully refactored into this CLI — the HA code is gone.
   from `HA-hevy` 12/06/2026 — old URL redirects)
 - **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
-- **Newest dated handoff:** `docs/handoffs/2026-06-14-afternoon-ruff-format.md`
+- **Newest dated handoff:** `docs/handoffs/2026-06-15-overnight-autonomous.md`
 
-## Current state (14/06/2026)
+## Current state (15/06/2026)
 
+- **Overnight 15/06/2026 — 6 feature slices shipped to main + pushed.** Baseline
+  338 tests @ `1b6aa17`; end state **444 tests pass, ruff + mypy clean** (47
+  source files). Each two-pass verified (Opus verifier SHIP). **S1** per-lift
+  progression targets (`analytics/progression.py`; evergreen "Next session
+  target" tip on exercise notes; `[progression]` block). **S2** consistency
+  heatmap (`vault/heatmap.py`; 26-week GitHub-style heatmap on the Dashboard;
+  `[charts]` heatmap fields). **S3** `export --csv` (`export.py`; cache → CSV).
+  **S4** `diff` (`analytics/sessiondiff.py`; objective last-vs-prior session
+  comparison). **S5** deload-readiness flag (`analytics/deload.py`; deterministic
+  Dashboard callout; `[analytics]` deload fields). **S6** volume-landmark / MEV
+  check (`analytics/landmarks.py`; Dashboard MEV/MAV/MRV table; `[landmarks]`
+  block). S5/S6 are explicitly labelled general training-science guidance (not
+  personalised/medical) and degrade honestly on a lapse. **Codex-verification
+  debt:** Codex primary ran for S1/S2 only (hit its usage limit mid-run) —
+  re-run `codex review` over S3–S6 on/after 17/06. Full detail (per-slice
+  commits, fixes, live checks): `docs/handoffs/2026-06-15-overnight-autonomous.md`.
 - **Afternoon 14/06/2026 — pending close-out flushed: `ruff format` committed,
   re-verified GREEN, pushed.** Applied `ruff format hevy_brain tests` (28 files,
   pure cosmetic) as a standalone commit (`1090c3c`); verified semantically inert
@@ -54,7 +70,11 @@ integration); fully refactored into this CLI — the HA code is gone.
 - **Still parked (your call):** (a) Audit **D1** — `config.toml` in git history
   (username + old path, **no key**); pre-flip history-rewrite, part of the
   pre-public checklist. (b) **`_shared-context/AUDIT_LOG.md` reconcile** —
-  cross-repo, out of "this project only" scope. *(The `ruff format` drift is now
+  cross-repo, out of "this project only" scope. (c) **Codex-verification debt
+  on S3–S6** (overnight 15/06) — re-run `codex review` on/after 17/06. (d)
+  **Warm-up-set bug in `patterns.py`/`prs.py`** — `best_e1rm_kg` counts warm-up
+  sets, so `detect_plateaus` can fire on an all-warm-up history; app-wide, **fix
+  supervised** (not a quick local patch). *(The `ruff format` drift is now
   **resolved** — committed `1090c3c`, 14/06 afternoon.)* Full audit report +
   decision list: `docs/handoffs/2026-06-14-overnight-audit.md`.
 
@@ -401,15 +421,16 @@ integration); fully refactored into this CLI — the HA code is gone.
    (done). A "what else" plan (3-lens research: values/audit/opportunities) was
    run 13/06 — see the slice-17 dated handoff for the full tiered backlog.
 1. **Next slice** (carry-on prompt in the newest dated handoff): roadmap
-   sections A, C, D are built; Tier-1 hardening is done. Remaining
-   **solo-buildable** options from the "what else" plan: **B1 per-lift
-   progression targets** (the one genuinely-missing feature — "next time try
-   X kg × Y" on exercise notes, from e1RM + weekly_overload; ~M), or Tier-3
-   in-spirit features (deload-readiness flag, volume-landmark check, consistency
-   heatmap, `doctor` vault-drift check, `export --csv`, `diff`). **User-gated**
-   (need Samrath): (a) live-prove slice 12's adherence capture (push a guide
-   draft, train it, run coach); (b) pre-public checklist (key rotation → flip
-   visibility). E4 (ingest programming episodes) stays an atlas-pipeline task.
+   sections A, C, D are built; Tier-1 hardening is done. The overnight 15/06
+   batch shipped **B1 per-lift progression targets** plus the Tier-3 features
+   ~~deload-readiness flag~~, ~~volume-landmark check~~, ~~consistency heatmap~~,
+   ~~`export --csv`~~, ~~`diff`~~. Remaining **solo-buildable**: the `doctor`
+   vault-drift check (the last unbuilt Tier-3 item). **User-gated** (need
+   Samrath): (a) live-prove slice 12's adherence capture (push a guide draft,
+   train it, run coach); (b) supervised fix for the `patterns.py`/`prs.py`
+   warm-up-set bug (see "Still parked" above); (c) pre-public checklist (key
+   rotation → flip visibility). E4 (ingest programming episodes) stays an
+   atlas-pipeline task.
 2. Consider pushing `Return Week 1 — push 1` / `pull 1` when training
    resumes; restore `upper` via `Drafts/RESTORE upper (original).md`
    after week 1.
@@ -420,7 +441,8 @@ integration); fully refactored into this CLI — the HA code is gone.
 ## Key facts
 
 - Commands: `hevy-brain full | sync | vault | coach [--api] | guide
-  return|redesign | ask "…" | status | doctor | verify exercise "…" | push
+  return|redesign | ask "…" | status | diff [exercise] | export --csv
+  [--out PATH] [--kind workouts|sets] | doctor | verify exercise "…" | push
   workout [--update]|routine|measurement …`
   — reads automatic, **writes to Hevy only via explicit `push`**. Routine
   edits: duplicate the note into `Routines/Drafts/`, edit the frontmatter,
@@ -432,8 +454,12 @@ integration); fully refactored into this CLI — the HA code is gone.
   Secrets only in env vars `HEVY_API_KEY` / `ANTHROPIC_API_KEY`. `[knowledge]`
   block tunes the read-only bridge (`path` defaults to vault root; `topics`
   defaults to `["training"]`) — coach grounds advice in those cited claims.
-  `[charts]` block (`enabled`/`volume_weeks`/`e1rm_points`) toggles/tunes the
-  Mermaid progress charts auto-generated into the Dashboard + exercise notes.
+  `[charts]` block (`enabled`/`volume_weeks`/`e1rm_points` + `heatmap_enabled`/
+  `heatmap_weeks`) toggles/tunes the Mermaid progress charts + the consistency
+  heatmap on the Dashboard. New since 15/06: `[progression]` (per-lift target
+  tips), `[analytics]` `deload_weeks`/`deload_rpe` (deload-readiness flag), and
+  `[landmarks]` (`weeks` + per-group MEV/MAV/MRV `bands`). All documented in
+  `config.example.toml`.
 - Cache: `data/` JSON (gitignored) is the source of truth; vault rebuildable
   offline from it. First sync = full backfill; then `/workouts/events` cursor.
 - Safety: path-jailed atomic vault writes · user edits below
@@ -441,5 +467,5 @@ integration); fully refactored into this CLI — the HA code is gone.
   destroyed · tests never touch the real account · knowledge bridge is
   read-only and refuses `sources/` (never writes pipeline folders).
 - Verify: `pip install -e ".[dev]"` then `python -m pytest tests -q`
-  (333 passed, 88% cov) + `python -m ruff check hevy_brain tests` + `python -m
+  (444 passed, 90% cov) + `python -m ruff check hevy_brain tests` + `python -m
   mypy` (clean). Optional: `pre-commit install` (hooks mirror CI).

@@ -2,6 +2,37 @@
 
 Newest first. Dates dd/mm/yyyy.
 
+## 15/06/2026 — overnight autonomous build: 6 feature slices
+Six slices shipped to main overnight (baseline 338 tests @ `1b6aa17`; end state
+**444 tests pass**, ruff + mypy clean, 47 source files). Each two-pass verified
+(Opus verifier SHIP). Codex primary ran for S1/S2 only — it hit its usage limit
+mid-run, so S3–S6 carry Codex-verification debt to re-run on/after 17/06. Full
+detail: `docs/handoffs/2026-06-15-overnight-autonomous.md`.
+- **S1 — per-lift progression targets** (`971f2f6` + `69cf43c`): new
+  `analytics/progression.py`; each exercise note gains an evergreen
+  `> [!tip] Next session target` (double-progression off the most recent
+  session's best set, bodyweight-only lifts skipped). New `[progression]` config
+  block.
+- **S2 — consistency heatmap** (`9c1ddc6`): new `vault/heatmap.py`; a GitHub-
+  style 26-week training heatmap on the Dashboard (working-set-count metric,
+  lapses read as blank). New `[charts]` heatmap fields.
+- **S3 — `export --csv`** (`47bc97c`): new `export.py` +
+  `hevy-brain export --csv [--out PATH] [--kind workouts|sets]` exports the cache
+  to CSV for external analysis. `exports/` added to `.gitignore`.
+- **S4 — `diff`** (`109029e` + `a555e2d`): new `analytics/sessiondiff.py` +
+  `hevy-brain diff [exercise]` — objective last-vs-prior session comparison
+  (overall or per-exercise), cp1252-safe CLI output.
+- **S5 — deload-readiness flag** (`49506b0` + `37ac636`): new
+  `analytics/deload.py`; a Dashboard `> [!note] Deload readiness` callout that
+  fires only on deterministic thresholds (consecutive trained weeks + 14-day
+  recency + plateau/high-RPE), explicitly labelled a general training-science
+  heuristic, silent on a lapse. New `[analytics]` deload fields.
+- **S6 — volume-landmark / MEV check** (`6bd38ac` + `622f08f`): new
+  `analytics/landmarks.py`; a Dashboard table comparing recent weekly working-
+  sets-per-muscle-group vs user-configurable MEV/MAV/MRV bands, general-knowledge
+  labelled, honest "no recent training" degrade on a lapse. New `[landmarks]`
+  config block.
+
 ## 14/06/2026 — afternoon: ruff format the tree (cosmetic close-out)
 - **`ruff format hevy_brain tests`** — 28 files reformatted, committed standalone
   (`1090c3c`). Pure cosmetic drift (pre-commit ships ruff-format but the tree was
