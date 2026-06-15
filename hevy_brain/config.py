@@ -42,6 +42,8 @@ class Config:
     charts_enabled: bool = True
     charts_volume_weeks: int = 12
     charts_e1rm_points: int = 10
+    charts_heatmap_enabled: bool = True
+    charts_heatmap_weeks: int = 26
     progression_enabled: bool = True
     progression_rep_low: int = 8
     progression_rep_high: int = 12
@@ -130,6 +132,8 @@ def load_config(
         charts_enabled=bool(charts.get("enabled", True)),
         charts_volume_weeks=int(charts.get("volume_weeks", 12)),
         charts_e1rm_points=int(charts.get("e1rm_points", 10)),
+        charts_heatmap_enabled=bool(charts.get("heatmap_enabled", True)),
+        charts_heatmap_weeks=int(charts.get("heatmap_weeks", 26)),
         progression_enabled=bool(progression.get("enabled", True)),
         progression_rep_low=int(progression.get("rep_low", 8)),
         progression_rep_high=int(progression.get("rep_high", 12)),
