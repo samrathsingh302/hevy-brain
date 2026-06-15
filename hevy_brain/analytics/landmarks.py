@@ -64,8 +64,9 @@ def landmark_status(
     that has a configured band (``other`` is always excluded, and any present
     group with no band is skipped — never crashed, never invented). The window
     is anchored at the last workout and the weekly rate is divided by the number
-    of distinct trained ISO weeks actually covered (``>= 1``), so short or sparse
-    history is not diluted.
+    of distinct trained ISO weeks actually covered, clamped to
+    ``[1, landmark_weeks]``, so short or sparse history is not diluted and a
+    mid-week window straddling an extra ISO week does not deflate the rate.
 
     Degrades honestly to ``{"lapsed": True, ...}`` (no rows worth trusting) when:
     the history is empty, the bands are unconfigured, the last workout is more
@@ -91,9 +92,12 @@ def landmark_status(
 
     # weekly_sets_by_group divides by the weeks passed, so dividing by the
     # configured constant would dilute a short window — divide by the distinct
-    # trained ISO weeks actually covered instead (>= 1).
+    # trained ISO weeks actually covered instead (>= 1). Cap at landmark_weeks:
+    # a 4-week window anchored mid-week spans 28 days and can straddle 5 distinct
+    # ISO weeks, which would otherwise over-count the divisor and deflate the
+    # rate by ~20% (mirrors redesign.py's ``min(weeks, ...)`` cap).
     trained_weeks = {stats.week_start(r["start_time"].date()) for r in window}
-    effective_weeks = max(len(trained_weeks), 1)
+    effective_weeks = max(1, min(landmark_weeks, len(trained_weeks)))
     weekly = redesign.weekly_sets_by_group(
         window, effective_weeks, templates, overrides
     )
