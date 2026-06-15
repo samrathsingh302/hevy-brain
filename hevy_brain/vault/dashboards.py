@@ -8,6 +8,7 @@ from typing import Any
 from ..analytics import (
     comeback,
     deload,
+    landmarks,
     patterns,
     session_quality,
     stats,
@@ -91,6 +92,52 @@ def _deload_callout(
     ]
 
 
+def _landmarks_lines(
+    records: list[dict[str, Any]],
+    today: date,
+    bands: dict[str, dict[str, float]],
+    *,
+    landmark_weeks: int,
+    templates: dict[str, dict[str, Any]] | None,
+    overrides: dict[str, str] | None,
+) -> list[str]:
+    """Render the volume-landmark table, or [] when the check is disabled.
+
+    A general guideline (NOT a cited claim, NOT personalised or medical advice) —
+    the bands belong to the user and live in ``config.toml``; the label line below
+    says so. Degrades honestly to a single "no recent training" line when the
+    account is lapsed (rather than classifying stale numbers), and skips any group
+    with no configured band (``other`` is always excluded).
+    """
+    if not bands:
+        return []  # unconfigured caller -> no section at all (no orphan heading)
+    status = landmarks.landmark_status(
+        records,
+        today,
+        bands,
+        landmark_weeks=landmark_weeks,
+        templates=templates,
+        overrides=overrides,
+    )
+    if status is None:
+        return []
+    lines = [
+        "\n## Volume landmarks",
+        "\n_General guideline, not personalised advice — edit the bands in "
+        "`config.toml`._",
+    ]
+    if status["lapsed"] or not status["rows"]:
+        lines.append("\nNo recent training to assess against volume landmarks.")
+        return lines
+    lines.append("\n| Muscle group | Sets/wk | Status |")
+    lines.append("| --- | --- | --- |")
+    for row in status["rows"]:
+        lines.append(
+            f"| {row['group']} | {row['sets_per_week']:.1f} | {row['status']} |"
+        )
+    return lines
+
+
 def _muscle_table(volumes: dict[str, float]) -> list[str]:
     total = sum(volumes.values()) or 1.0
     lines = ["\n| Muscle group | Volume (kg) | Share |", "| --- | --- | --- |"]
@@ -169,6 +216,8 @@ def render_dashboard(
     deload_weeks: int = 0,
     deload_rpe: float = 8.5,
     deload_plateau_weeks: int = 4,
+    landmark_weeks: int = 0,
+    landmark_bands: dict[str, dict[str, float]] | None = None,
 ) -> str:
     """Render the main Dashboard.md (managed content)."""
     agg = stats.compute_aggregates(records, today)
@@ -236,6 +285,17 @@ def render_dashboard(
             lines.append(f"\nPush/pull ratio: **{ratio:.2f}**")
     else:
         lines.append("\nNo training volume in the last 28 days.")
+
+    lines.extend(
+        _landmarks_lines(
+            records,
+            today,
+            landmark_bands or {},
+            landmark_weeks=landmark_weeks,
+            templates=templates,
+            overrides=overrides,
+        )
+    )
 
     lines.extend(_session_quality_lines(records))
 

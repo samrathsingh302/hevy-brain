@@ -11,6 +11,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .analytics import landmarks
+
 DEFAULT_CONFIG_FILE = "config.toml"
 
 
@@ -51,6 +53,10 @@ class Config:
     progression_rep_high: int = 12
     progression_increment_kg: float = 2.5
     progression_min_sessions: int = 3
+    landmark_weeks: int = 4
+    landmark_bands: dict[str, dict[str, float]] = field(
+        default_factory=landmarks.default_bands
+    )
 
     @property
     def vault_root(self) -> Path:
@@ -95,6 +101,17 @@ def load_config(
     guide = raw.get("guide", {})
     charts = raw.get("charts", {})
     progression = raw.get("progression", {})
+    landmarks_cfg = raw.get("landmarks", {})
+
+    # User per-group band overrides merge onto the published defaults, so a user
+    # can move a single band without re-specifying every group.
+    landmark_bands = landmarks.default_bands()
+    for group, band in (landmarks_cfg.get("bands", {}) or {}).items():
+        landmark_bands[group] = {
+            "mev": float(band["mev"]),
+            "mav": float(band["mav"]),
+            "mrv": float(band["mrv"]),
+        }
 
     vault_path = Path(vault.get("path", "vault_staging"))
     if not vault_path.is_absolute():
@@ -143,4 +160,6 @@ def load_config(
         progression_rep_high=int(progression.get("rep_high", 12)),
         progression_increment_kg=float(progression.get("increment_kg", 2.5)),
         progression_min_sessions=int(progression.get("min_sessions", 3)),
+        landmark_weeks=int(landmarks_cfg.get("weeks", 4)),
+        landmark_bands=landmark_bands,
     )
