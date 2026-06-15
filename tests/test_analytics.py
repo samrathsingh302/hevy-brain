@@ -182,3 +182,60 @@ def test_weekly_overload(raw_workouts: dict) -> None:
     bench = next(d for d in deltas if d["exercise"] == "Bench Press (Barbell)")
     assert bench["last_week_kg"] == 65 * 8 + 70 * 5
     assert bench["prior_week_kg"] == 0
+
+
+def test_warmup_sets_excluded_from_best_e1rm() -> None:
+    # A (mislabelled) heavier warm-up must NOT set the session's e1RM or best
+    # set — the working set does. best_weight_kg still counts every set, mirroring
+    # max_weight_kg / volume_kg.
+    records = build_records(
+        {
+            "w1": make_workout(
+                "w1",
+                exercises=[
+                    make_exercise(
+                        sets=[make_set(200, 5, type="warmup"), make_set(100, 5)]
+                    )
+                ],
+            )
+        }
+    )
+    bench = exercise_histories(records)["Bench Press (Barbell)"]
+    session = bench["sessions"][0]
+    assert session["best_set"]["weight_kg"] == 100  # the working set, not 200
+    assert round(session["best_e1rm_kg"], 2) == round(epley_1rm(100, 5), 2)
+    assert bench["best_weight_kg"] == 200  # warm-up still counts toward weight
+
+
+def test_all_warmup_history_yields_no_e1rm_and_no_plateau() -> None:
+    # Seven warm-up-only sessions (enough to fill the plateau windows) must read
+    # as 0 e1RM with no best set, so detect_plateaus does NOT fire — the
+    # warm-up-set bug regression (without the fix, every session's e1RM would be
+    # the warm-up's and a flat run would falsely plateau).
+    days = (
+        "2026-04-20",
+        "2026-04-27",
+        "2026-05-04",
+        "2026-05-18",
+        "2026-05-25",
+        "2026-06-01",
+        "2026-06-08",
+    )
+    workouts = {
+        f"d{i}": make_workout(
+            f"d{i}",
+            "Push",
+            start=f"{day}T17:00:00+00:00",
+            end=f"{day}T18:00:00+00:00",
+            exercises=[make_exercise(sets=[make_set(50, 5, type="warmup")])],
+        )
+        for i, day in enumerate(days)
+    }
+    histories = exercise_histories(build_records(workouts))
+    bench = histories["Bench Press (Barbell)"]
+    assert all(s["best_e1rm_kg"] == 0.0 for s in bench["sessions"])
+    assert all(s["best_set"] is None for s in bench["sessions"])
+    assert bench["best_e1rm_kg"] == 0.0
+    assert (
+        patterns.detect_plateaus(histories, date(2026, 6, 10), plateau_weeks=4) == []
+    )
