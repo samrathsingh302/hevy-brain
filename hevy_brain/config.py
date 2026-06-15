@@ -42,6 +42,11 @@ class Config:
     charts_enabled: bool = True
     charts_volume_weeks: int = 12
     charts_e1rm_points: int = 10
+    progression_enabled: bool = True
+    progression_rep_low: int = 8
+    progression_rep_high: int = 12
+    progression_increment_kg: float = 2.5
+    progression_min_sessions: int = 3
 
     @property
     def vault_root(self) -> Path:
@@ -85,6 +90,7 @@ def load_config(
     knowledge = raw.get("knowledge", {})
     guide = raw.get("guide", {})
     charts = raw.get("charts", {})
+    progression = raw.get("progression", {})
 
     vault_path = Path(vault.get("path", "vault_staging"))
     if not vault_path.is_absolute():
@@ -124,4 +130,9 @@ def load_config(
         charts_enabled=bool(charts.get("enabled", True)),
         charts_volume_weeks=int(charts.get("volume_weeks", 12)),
         charts_e1rm_points=int(charts.get("e1rm_points", 10)),
+        progression_enabled=bool(progression.get("enabled", True)),
+        progression_rep_low=int(progression.get("rep_low", 8)),
+        progression_rep_high=int(progression.get("rep_high", 12)),
+        progression_increment_kg=float(progression.get("increment_kg", 2.5)),
+        progression_min_sessions=int(progression.get("min_sessions", 3)),
     )
