@@ -93,8 +93,9 @@ def deload_status(
          "deload_rpe": deload_rpe}
 
     Disabled (``deload_weeks <= 0``), an empty history, a run shorter than
-    ``deload_weeks``, a lapse (last workout > ``RECENT_DAYS`` before ``today``),
-    or no fatigue signal each return None (no section rendered).
+    ``deload_weeks``, a last workout outside ``[0, RECENT_DAYS]`` days before
+    ``today`` (a lapse, or a future date when ``today`` is backdated), or no
+    fatigue signal each return None (no section rendered).
     """
     if deload_weeks <= 0 or not records:
         return None
@@ -104,8 +105,8 @@ def deload_status(
         return None
 
     last_date = records[-1]["start_time"].date()
-    if (today - last_date).days > RECENT_DAYS:
-        return None  # lapsed -> not ready to deload
+    if not (0 <= (today - last_date).days <= RECENT_DAYS):
+        return None  # lapsed, or future-dated -> not ready to deload
 
     plateaus = [p["exercise"] for p in patterns.detect_plateaus(
         histories, today, plateau_weeks
