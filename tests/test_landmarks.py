@@ -206,6 +206,43 @@ def test_short_window_divides_by_weeks_covered() -> None:
     assert _row(status, "chest")["sets_per_week"] == 12.0
 
 
+def test_effective_weeks_capped_at_window_when_iso_weeks_straddle() -> None:
+    # A 4-week window is 28 days; anchored mid-week (last workout on a Thursday)
+    # it spans FIVE distinct ISO weeks. Dividing the working sets by 5 instead of
+    # 4 would deflate the rate by ~20% (and could mis-read a group as below MEV).
+    # effective_weeks must cap at landmark_weeks (4), not len(trained_weeks) (5).
+    #   window 2026-05-15 (Fri) -> 2026-06-11 (Thu); sessions sit in 5 ISO weeks.
+    days = [
+        date(2026, 5, 15),  # ISO week of Mon 05-11
+        date(2026, 5, 18),  # ISO week of Mon 05-18
+        date(2026, 5, 25),  # ISO week of Mon 05-25
+        date(2026, 6, 1),   # ISO week of Mon 06-01
+        date(2026, 6, 11),  # ISO week of Mon 06-08 (the anchor / last workout)
+    ]
+    raw: dict = {}
+    for day in days:
+        raw[day.isoformat()] = make_workout(
+            workout_id=f"w-{day.isoformat()}",
+            start=f"{day.isoformat()}T17:00:00+00:00",
+            end=f"{day.isoformat()}T18:00:00+00:00",
+            exercises=[
+                make_exercise(
+                    "Bench Press (Barbell)",
+                    "T-BENCH",
+                    sets=[make_set(60, 8) for _ in range(10)],
+                )
+            ],
+        )
+    # today one day after the last workout -> within the recency gate.
+    status = _status(raw, today=date(2026, 6, 12), weeks=4)
+    assert status is not None
+    assert status["lapsed"] is False
+    # 5 distinct trained ISO weeks, but capped at the 4-week window.
+    assert status["effective_weeks"] == 4  # NOT 5
+    # 5 sessions x 10 sets = 50; capped 50/4 = 12.5, not the deflated 50/5 = 10.0.
+    assert _row(status, "chest")["sets_per_week"] == 12.5
+
+
 def test_warmups_are_not_counted() -> None:
     # 4 weeks, each: 10 working + 5 warm-up chest sets. Warm-ups must not inflate
     # the weekly figure -> still 10 set/wk, not 15.
