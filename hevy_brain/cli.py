@@ -763,6 +763,56 @@ def _cmd_export(config: Config, args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_diff(config: Config, args: argparse.Namespace) -> int:
+    """Compare the two most recent sessions (overall, or for one exercise).
+
+    Read-only, offline, stdout only — no vault write, no network. ASCII output
+    (cp1252-safe). Honest degrade: <2 sessions -> message + exit 0; an ambiguous
+    name -> candidates + exit 1; an unknown name -> exit 1.
+    """
+    from .analytics import reconcile, sessiondiff
+    from .analytics.prs import exercise_histories
+    from .models import build_records
+
+    store = CacheStore(config.data_dir)
+    if not store.workouts:
+        print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
+        return 1
+    records = build_records(store.workouts)
+
+    if args.exercise:
+        histories = exercise_histories(records)
+        title, candidates = reconcile.resolve_exercise(histories, args.exercise)
+        if title is None:
+            if candidates:
+                print(
+                    f"'{args.exercise}' is ambiguous - did you mean:",
+                    file=sys.stderr,
+                )
+                for candidate in candidates:
+                    print(f"  {candidate}", file=sys.stderr)
+            else:
+                print(f"No exercise matching '{args.exercise}'.", file=sys.stderr)
+            return 1
+        if len(histories[title]["sessions"]) < 2:
+            print(f"'{title}': need at least two sessions to diff.")
+            return 0
+        for line in sessiondiff.render_exercise(
+            sessiondiff.exercise_diff(histories[title])
+        ):
+            print(line)
+        return 0
+
+    if len(records) < 2:
+        print("Need at least two sessions to diff.")
+        return 0
+    for line in sessiondiff.render_overall(
+        sessiondiff.overall_diff(records[-2], records[-1])
+    ):
+        print(line)
+    return 0
+
+
 async def _cmd_verify_exercise(config: Config, name: str) -> int:
     from .analytics import reconcile
     from .analytics.prs import exercise_histories
@@ -878,6 +928,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=None,
         help="Output file path (default <base_dir>/exports/hevy-<kind>.csv)",
+    )
+
+    diff = sub.add_parser(
+        "diff",
+        help="Compare your two most recent sessions (overall, or one exercise)",
+    )
+    diff.add_argument(
+        "exercise",
+        nargs="?",
+        default=None,
+        help='Optional exercise name, case-insensitive (e.g. "Bench Press")',
     )
 
     verify = sub.add_parser(
@@ -1023,6 +1084,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_doctor(config)
     if args.command == "export":
         return _cmd_export(config, args)
+    if args.command == "diff":
+        return _cmd_diff(config, args)
     if args.command == "verify":
         return _dispatch_verify(config, args)
     if args.command == "guide":
