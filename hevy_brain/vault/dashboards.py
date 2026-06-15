@@ -7,7 +7,7 @@ from typing import Any
 
 from ..analytics import comeback, patterns, session_quality, stats, strength_ratio
 from ..analytics.prs import recent_prs
-from . import charts
+from . import charts, heatmap
 from .writer import VaultWriter, render_note
 
 _RECENT_WORKOUTS = 10
@@ -89,6 +89,23 @@ def _session_quality_lines(records: list[dict[str, Any]]) -> list[str]:
     return ["\n## Session quality", *rows]
 
 
+def _consistency_heatmap_lines(
+    records: list[dict[str, Any]],
+    today: date,
+    *,
+    enabled: bool,
+    weeks: int,
+) -> list[str]:
+    """Render the consistency heatmap section, or [] when it is omitted.
+
+    Omitted (no orphan heading) when disabled, or when ``heatmap_block`` finds
+    nothing worth drawing (no working sets in the window, or <2 trained weeks).
+    """
+    if not enabled:
+        return []
+    return heatmap.heatmap_block(records, weeks, today) or []
+
+
 def render_dashboard(
     records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
@@ -100,6 +117,8 @@ def render_dashboard(
     volume_weeks: int = 0,
     lapse_nudge_days: int = 0,
     guide_lapse_days: int = 14,
+    heatmap_enabled: bool = False,  # noqa: FBT001, FBT002 (append-only fence: must trail)
+    heatmap_weeks: int = 26,
 ) -> str:
     """Render the main Dashboard.md (managed content)."""
     agg = stats.compute_aggregates(records, today)
@@ -143,6 +162,12 @@ def render_dashboard(
                 charts.weekly_volume_chart(records, volume_weeks, today),
             )
         )
+
+    lines.extend(
+        _consistency_heatmap_lines(
+            records, today, enabled=heatmap_enabled, weeks=heatmap_weeks
+        )
+    )
 
     lines.append("\n## Muscle balance (last 28 days)")
     if volumes_28d:

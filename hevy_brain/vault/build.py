@@ -31,6 +31,7 @@ def build_vault(
 
     volume_weeks = config.charts_volume_weeks if config.charts_enabled else 0
     e1rm_points = config.charts_e1rm_points if config.charts_enabled else 0
+    heatmap_enabled = config.charts_enabled and config.charts_heatmap_enabled
 
     changed = {
         "workouts": workouts.generate_workout_notes(writer, records, histories),
@@ -66,6 +67,8 @@ def build_vault(
                     volume_weeks=volume_weeks,
                     lapse_nudge_days=config.lapse_nudge_days,
                     guide_lapse_days=config.guide_lapse_days,
+                    heatmap_enabled=heatmap_enabled,
+                    heatmap_weeks=config.charts_heatmap_weeks,
                 ),
             )
         ),

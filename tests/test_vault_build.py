@@ -106,6 +106,52 @@ def test_charts_omitted_when_disabled(tmp_path: Path, raw_workouts: dict) -> Non
     assert "est. 1RM trend" not in bench  # no orphan heading either
 
 
+def test_consistency_heatmap_renders_in_dashboard(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    # raw_workouts spans 3 ISO weeks (25/05, 01/06, 08/06) -> >=2 trained weeks.
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "## Consistency (last 26 weeks)" in dashboard
+    assert "```text" in dashboard
+    assert "Legend:" in dashboard
+
+
+def test_consistency_heatmap_omitted_when_disabled(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        data_dir=tmp_path / "data",
+        charts_heatmap_enabled=False,
+    )
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "## Consistency" not in dashboard  # no orphan heading
+
+
+def test_consistency_heatmap_build_is_idempotent(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    config = _config(tmp_path)
+    store = _store(tmp_path, raw_workouts)
+
+    build_vault(config, store, today=TODAY)
+    dashboard = (config.vault_root / "Dashboard.md").read_text(encoding="utf-8")
+    assert "## Consistency (last 26 weeks)" in dashboard  # heatmap present...
+
+    second = build_vault(config, store, today=TODAY)
+    assert sum(second.values()) == 0  # ...and a same-today rebuild is a no-op
+
+
 def test_enabled_charts_omit_heading_when_series_too_short() -> None:
     """F7 at the render boundary: charts ON, but a None chart (too few points)
     must leave NO orphan heading — the case the disabled test can't reach
