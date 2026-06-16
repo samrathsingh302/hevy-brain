@@ -5,7 +5,7 @@ from __future__ import annotations
 from conftest import make_exercise, make_set, make_workout
 
 from hevy_brain.analytics import reconcile
-from hevy_brain.analytics.prs import exercise_histories
+from hevy_brain.analytics.prs import epley_1rm, exercise_histories
 from hevy_brain.models import build_records
 
 
@@ -185,3 +185,45 @@ class TestAggregateAndCompare:
         }
         rows = {r["metric"]: r for r in reconcile.compare(history, server)}
         assert rows["total_volume_kg"]["ok"] is True
+
+
+def _server_warmup_set(workout_id: str, weight_kg: float, reps: int) -> dict:
+    """A warm-up entry of the live exercise_history list (``set_type=warmup``)."""
+    return {
+        "workout_id": workout_id,
+        "weight_kg": weight_kg,
+        "reps": reps,
+        "set_type": "warmup",
+    }
+
+
+class TestWarmupReconciliation:
+    """Warm-ups must not inflate the server est-1RM, and a warm-up present in
+    BOTH the cache and the server history must still reconcile clean — the
+    load-bearing property of the prs + reconcile same-commit fix."""
+
+    def test_aggregate_excludes_warmup_from_e1rm_only(self) -> None:
+        # warm-up 100x3 (Epley 110) out-Epleys the working 60x8 (Epley 76):
+        # best_e1rm tracks the working set; weight + volume stay inclusive.
+        sets = [_server_warmup_set("w1", 100, 3), _server_set("w1", 60, 8)]
+        agg = reconcile.aggregate_server(sets)
+        assert agg["sessions"] == 1
+        assert agg["best_weight_kg"] == 100
+        assert agg["total_volume_kg"] == 100 * 3 + 60 * 8
+        assert agg["best_e1rm_kg"] == epley_1rm(60, 8)
+
+    def test_warmup_in_both_cache_and_server_reconciles_clean(self) -> None:
+        raw = {
+            "w1": make_workout(
+                "w1",
+                exercises=[
+                    make_exercise(
+                        sets=[make_set(100, 3, type="warmup"), make_set(60, 8)]
+                    )
+                ],
+            )
+        }
+        history = exercise_histories(build_records(raw))["Bench Press (Barbell)"]
+        server_sets = [_server_warmup_set("w1", 100, 3), _server_set("w1", 60, 8)]
+        rows = reconcile.compare(history, reconcile.aggregate_server(server_sets))
+        assert all(row["ok"] for row in rows)

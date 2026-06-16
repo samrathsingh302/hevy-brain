@@ -13,6 +13,7 @@ import math
 from datetime import timedelta
 from typing import Any
 
+from ..models import is_warmup
 from . import patterns, stats
 from .comeback import pre_lapse_baselines
 
@@ -73,7 +74,7 @@ def weekly_sets_by_group(
     sets: dict[str, float] = {}
     for record in window:
         for exercise in record["exercises"]:
-            working = sum(1 for s in exercise["sets"] if s.get("type") != "warmup")
+            working = sum(1 for s in exercise["sets"] if not is_warmup(s))
             if not working:
                 continue
             group = patterns.muscle_group(
