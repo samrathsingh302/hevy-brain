@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..models import is_warmup
 from .prs import epley_1rm
 
 # Hevy stores weights to 2dp; anything under half a kilo is rounding, not drift.
@@ -122,7 +123,10 @@ def aggregate_server(sets: list[dict[str, Any]]) -> dict[str, Any]:
         weight = float(s.get("weight_kg") or 0)
         reps = int(s.get("reps") or 0)
         best_weight = max(best_weight, weight)
-        best_e1rm = max(best_e1rm, epley_1rm(weight, reps))
+        # est-1RM excludes warm-ups (mirrors prs._session_entry); weight, volume
+        # and the session count stay warm-up-inclusive so `verify` reconciles.
+        if not is_warmup(s):
+            best_e1rm = max(best_e1rm, epley_1rm(weight, reps))
         total_volume += weight * reps
         workout_id = s.get("workout_id")
         if workout_id:

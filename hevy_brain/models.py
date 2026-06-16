@@ -13,6 +13,22 @@ def set_volume_kg(workout_set: dict[str, Any]) -> float:
     return float(weight) * float(reps)
 
 
+def is_warmup(workout_set: dict[str, Any]) -> bool:
+    """Return True if a set is a warm-up, in either shape the app ingests.
+
+    Cached workout sets carry the set type under ``type`` (Hevy's workout
+    payload, passed through verbatim); the ``exercise_history`` endpoint used by
+    the reconcile check tags the same concept under ``set_type``. The two keys
+    are disjoint per shape, so testing both lets a single predicate guard every
+    working-set filter — the two spellings can no longer drift out of step,
+    which is the bug that let warm-ups inflate estimated 1RM (``best_e1rm_kg``).
+    """
+    return (
+        workout_set.get("type") == "warmup"
+        or workout_set.get("set_type") == "warmup"
+    )
+
+
 def parse_iso(value: str | None) -> datetime | None:
     """Parse an ISO 8601 timestamp ('Z' suffix included), or None."""
     if not value:
