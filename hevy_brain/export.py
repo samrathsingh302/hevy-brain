@@ -34,6 +34,22 @@ SET_FIELDS = [
     "rpe",
 ]
 
+# Leading characters a spreadsheet may interpret as a formula. A cell starting
+# with one is prefixed with an apostrophe so Excel/Sheets render it as text.
+_FORMULA_LEAD = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: Any) -> Any:
+    """Neutralise spreadsheet formula injection in one CSV cell.
+
+    A user can name a Hevy workout/exercise ``=HYPERLINK(...)`` / ``+cmd`` etc.;
+    written raw it becomes a live formula in the opener. Prefix such a string
+    with an apostrophe so it renders as literal text. Non-strings pass through.
+    """
+    if isinstance(value, str) and value[:1] in _FORMULA_LEAD:
+        return "'" + value
+    return value
+
 
 def workout_rows(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """One row per workout, chronological (records are already sorted)."""
@@ -99,7 +115,9 @@ def write_csv(
         writer = csv.DictWriter(handle, fieldnames=fieldnames, restval="")
         writer.writeheader()
         for row in rows:
-            writer.writerow({k: ("" if v is None else v) for k, v in row.items()})
+            writer.writerow(
+                {k: ("" if v is None else _csv_safe(v)) for k, v in row.items()}
+            )
 
 
 def export_csv(
