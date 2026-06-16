@@ -114,4 +114,7 @@ def build_vault(
     # only remembers deletions) — sweep managed notes no routine owns.
     archived_count += routines.archive_stale_routine_notes(writer, active_routine_paths)
     changed["archived"] = archived_count
+    # Notes skipped because they were held open (locked) in Obsidian; surfaced
+    # so a partial rebuild is visible rather than silent. Zero in the common case.
+    changed["skipped"] = len(writer.failed)
     return changed

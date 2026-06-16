@@ -99,6 +99,25 @@ def test_archive_moves_note(tmp_path: Path) -> None:
     assert writer.archive("Workouts/old.md") is False
 
 
+def test_locked_target_is_skipped_not_fatal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A note held open in Obsidian locks the atomic replace (Windows share-
+    # violation); it must be skipped + recorded, never abort the whole rebuild.
+    import hevy_brain.vault.writer as writer_mod
+
+    monkeypatch.setattr(writer_mod.time, "sleep", lambda _s: None)  # no real waits
+    writer = writer_mod.VaultWriter(tmp_path)
+    assert writer.write("note.md", "# first") is True  # initial write succeeds
+
+    def _locked(self: Path, target: Path) -> None:
+        raise PermissionError(32, "sharing violation")
+
+    monkeypatch.setattr(writer_mod.Path, "replace", _locked)
+    assert writer.write("note.md", "# changed") is False  # skipped, not raised
+    assert "note.md" in writer.failed
+
+
 def test_sanitize_filename() -> None:
     assert sanitize_filename("Push: Day <1>?") == "Push Day 1"
     assert sanitize_filename("a/b\\c") == "abc"
