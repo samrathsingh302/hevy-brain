@@ -141,6 +141,24 @@ def test_empty_cache_writes_header_only(tmp_path: Path) -> None:
     assert data == []
 
 
+def test_csv_formula_injection_is_neutralised(tmp_path: Path) -> None:
+    # A user can name a Hevy workout/exercise like a spreadsheet formula; the
+    # export must prefix a leading = + - @ with an apostrophe so Excel/Sheets
+    # render it as text, not a live formula.
+    raw = {
+        "w1": make_workout(
+            "w1",
+            title="=cmd|'/c calc'!A0",
+            exercises=[make_exercise("@SUM(1)", "T-X", [make_set(60, 8)])],
+        )
+    }
+    out = tmp_path / "sets.csv"
+    export.export_csv(build_records(raw), "sets", out)
+    header, data = _read_csv(out)
+    assert data[0][header.index("workout_title")] == "'=cmd|'/c calc'!A0"
+    assert data[0][header.index("exercise")] == "'@SUM(1)"
+
+
 # --- CLI wiring ---------------------------------------------------------------
 
 
