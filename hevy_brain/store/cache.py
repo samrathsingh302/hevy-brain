@@ -8,9 +8,17 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 _WORKOUTS_FILE = "workouts.json"
 _ARCHIVED_FILE = "archived_workouts.json"
@@ -129,3 +137,58 @@ class CacheStore:
         # events (upserts are idempotent). Meta-first would advance the cursor
         # past data that was never written, silently losing those events.
         _atomic_write_json(self._dir / _META_FILE, self.meta)
+
+
+class CacheLockBusyError(RuntimeError):
+    """Raised when another hevy-brain process already holds the cache lock."""
+
+
+def _lock_fd(fd: int, *, acquire: bool) -> None:
+    """Acquire (non-blocking) or release an OS advisory lock on a file fd.
+
+    msvcrt on Windows, fcntl elsewhere; both are dropped by the OS if the
+    holding process dies, so a crash never strands the lock. A failed acquire
+    (another holder already has it) raises CacheLockBusyError.
+    """
+    if sys.platform == "win32":
+        os.lseek(fd, 0, os.SEEK_SET)
+        mode = msvcrt.LK_NBLCK if acquire else msvcrt.LK_UNLCK
+        try:
+            msvcrt.locking(fd, mode, 1)
+        except OSError as exc:
+            if acquire:
+                raise CacheLockBusyError from exc
+    else:
+        flag = (fcntl.LOCK_EX | fcntl.LOCK_NB) if acquire else fcntl.LOCK_UN
+        try:
+            fcntl.flock(fd, flag)
+        except OSError as exc:
+            if acquire:
+                raise CacheLockBusyError from exc
+
+
+@contextmanager
+def cache_lock(data_dir: Path) -> Iterator[None]:
+    """Hold a process-wide exclusive lock over the cache read-modify-write cycle.
+
+    Every command builds its own CacheStore and ``save()`` rewrites all eight
+    JSON files from an in-memory snapshot. Two overlapping writers (the hourly
+    sync overlapping the Sunday coach is the shipped example) would otherwise
+    each load, modify and save independently — last-writer-wins, silently
+    dropping the other's just-saved workouts/cursor. Held from before the load
+    until after the save, this lock serialises them.
+
+    Non-blocking: if another run already holds it, raises CacheLockBusyError (the
+    CLI turns that into a clean "another run in progress" skip, exit 0). The OS
+    releases the lock if the holder dies, so a crash leaves no stale lock.
+    """
+    data_dir.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(data_dir / ".lock"), os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        _lock_fd(fd, acquire=True)
+        try:
+            yield
+        finally:
+            _lock_fd(fd, acquire=False)
+    finally:
+        os.close(fd)
