@@ -86,9 +86,7 @@ def _top_set_weight(workout_set: dict[str, Any] | None) -> float:
     return float(workout_set.get("weight_kg") or 0)
 
 
-def overall_diff(
-    prior: dict[str, Any], latest: dict[str, Any]
-) -> dict[str, Any]:
+def overall_diff(prior: dict[str, Any], latest: dict[str, Any]) -> dict[str, Any]:
     """Compare two whole workouts (``prior`` then ``latest``, chronological).
 
     Returns the headline deltas plus, for every exercise trained in both, the

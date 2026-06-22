@@ -27,7 +27,9 @@ def _workout(day: str, working: int = 1, *, warmups: int = 0) -> dict:
 
 
 def _block(workouts: list[dict], *, weeks: int = 26, today: date = TODAY):
-    return heatmap.heatmap_block(build_records({w["id"]: w for w in workouts}), weeks, today)
+    return heatmap.heatmap_block(
+        build_records({w["id"]: w for w in workouts}), weeks, today
+    )
 
 
 # --- the pure renderer -------------------------------------------------------
@@ -66,7 +68,9 @@ def test_warmups_excluded_from_the_count() -> None:
     # The all-warmup day contributes nothing, but two real weeks remain.
     assert block is not None
     # 4 working sets is the window max -> its day is the busiest glyph '▓'.
-    grid = [line for line in block if line[:2] in {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"}]
+    grid = [
+        line for line in block if line[:2] in {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"}
+    ]
     assert any("▓" in line for line in grid)
 
 
@@ -134,9 +138,10 @@ def test_quartile_glyph_mapping_at_band_edges() -> None:
 
 
 def test_render_is_byte_identical_when_repeated() -> None:
-    workouts = [_workout(d, working=i + 1) for i, d in enumerate(
-        ["2026-05-04", "2026-05-11", "2026-05-18", "2026-06-01"]
-    )]
+    workouts = [
+        _workout(d, working=i + 1)
+        for i, d in enumerate(["2026-05-04", "2026-05-11", "2026-05-18", "2026-06-01"])
+    ]
     first = _block(workouts)
     second = _block(workouts)
     assert first is not None

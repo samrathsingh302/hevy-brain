@@ -246,7 +246,9 @@ def test_exercise_diff_bodyweight_session_degrades_honestly() -> None:
     assert "10 -> 12" in text  # reps still report
     # The heaviest-working-set helper still labels a raw bodyweight set dict
     # (the overall path scans sets directly, where weight_kg=None is present).
-    assert sessiondiff._set_label(make_set(weight_kg=None, reps=12)) == "bodyweight x 12"
+    assert (
+        sessiondiff._set_label(make_set(weight_kg=None, reps=12)) == "bodyweight x 12"
+    )
 
 
 # --- CLI-level exit codes ----------------------------------------------------

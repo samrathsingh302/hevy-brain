@@ -72,7 +72,9 @@ def _row(status: dict, group: str) -> dict | None:
 
 def test_classifies_below_mev() -> None:
     # chest MEV is 8; 4 weeks x 1 set = 1.0 set/wk -> below MEV.
-    status = _status(_weekly_sets(weeks=4, sets_per_session=1, last_monday=date(2026, 6, 8)))
+    status = _status(
+        _weekly_sets(weeks=4, sets_per_session=1, last_monday=date(2026, 6, 8))
+    )
     assert status is not None
     assert status["lapsed"] is False
     chest = _row(status, "chest")
@@ -83,7 +85,9 @@ def test_classifies_below_mev() -> None:
 
 def test_classifies_mev_to_mav() -> None:
     # 10 set/wk sits in chest's [8, 14) band.
-    status = _status(_weekly_sets(weeks=4, sets_per_session=10, last_monday=date(2026, 6, 8)))
+    status = _status(
+        _weekly_sets(weeks=4, sets_per_session=10, last_monday=date(2026, 6, 8))
+    )
     chest = _row(status, "chest")
     assert chest is not None
     assert chest["sets_per_week"] == 10.0
@@ -92,7 +96,9 @@ def test_classifies_mev_to_mav() -> None:
 
 def test_classifies_mav_to_mrv() -> None:
     # 18 set/wk sits in chest's [14, 22) band.
-    status = _status(_weekly_sets(weeks=4, sets_per_session=18, last_monday=date(2026, 6, 8)))
+    status = _status(
+        _weekly_sets(weeks=4, sets_per_session=18, last_monday=date(2026, 6, 8))
+    )
     chest = _row(status, "chest")
     assert chest is not None
     assert chest["sets_per_week"] == 18.0
@@ -101,7 +107,9 @@ def test_classifies_mav_to_mrv() -> None:
 
 def test_classifies_above_mrv() -> None:
     # 24 set/wk is at/above chest's MRV of 22 -> high.
-    status = _status(_weekly_sets(weeks=4, sets_per_session=24, last_monday=date(2026, 6, 8)))
+    status = _status(
+        _weekly_sets(weeks=4, sets_per_session=24, last_monday=date(2026, 6, 8))
+    )
     chest = _row(status, "chest")
     assert chest is not None
     assert chest["sets_per_week"] == 24.0
@@ -110,7 +118,9 @@ def test_classifies_above_mrv() -> None:
 
 def test_lower_edge_is_inclusive() -> None:
     # Exactly on MEV (8) reads as maintenance/growth, not below MEV.
-    status = _status(_weekly_sets(weeks=4, sets_per_session=8, last_monday=date(2026, 6, 8)))
+    status = _status(
+        _weekly_sets(weeks=4, sets_per_session=8, last_monday=date(2026, 6, 8))
+    )
     assert _row(status, "chest")["status"] == "MEV-MAV (maintenance->growth)"
 
 
@@ -148,8 +158,11 @@ def test_present_group_without_band_is_skipped() -> None:
 def test_other_group_excluded() -> None:
     # "Sled Push" matches no keyword and has no template -> muscle_group "other".
     raw = _weekly_sets(
-        weeks=4, sets_per_session=10, last_monday=date(2026, 6, 8),
-        title="Sled Push", template_id="T-SLED",
+        weeks=4,
+        sets_per_session=10,
+        last_monday=date(2026, 6, 8),
+        title="Sled Push",
+        template_id="T-SLED",
     )
     # Give "other" a band so the ONLY reason to exclude it is the hard rule.
     bands = {**_BANDS, "other": {"mev": 1.0, "mav": 2.0, "mrv": 3.0}}
@@ -185,7 +198,9 @@ def test_no_bands_degrades_honestly() -> None:
 
 def test_future_dated_last_workout_degrades() -> None:
     # Last workout after today (a backdated rebuild) -> not assessable.
-    raw = _weekly_sets(weeks=4, sets_per_session=10, last_monday=TODAY + timedelta(weeks=1))
+    raw = _weekly_sets(
+        weeks=4, sets_per_session=10, last_monday=TODAY + timedelta(weeks=1)
+    )
     assert _status(raw)["lapsed"] is True
 
 
@@ -216,7 +231,7 @@ def test_effective_weeks_capped_at_window_when_iso_weeks_straddle() -> None:
         date(2026, 5, 15),  # ISO week of Mon 05-11
         date(2026, 5, 18),  # ISO week of Mon 05-18
         date(2026, 5, 25),  # ISO week of Mon 05-25
-        date(2026, 6, 1),   # ISO week of Mon 06-01
+        date(2026, 6, 1),  # ISO week of Mon 06-01
         date(2026, 6, 11),  # ISO week of Mon 06-08 (the anchor / last workout)
     ]
     raw: dict = {}
@@ -267,8 +282,12 @@ def test_warmups_are_not_counted() -> None:
 def test_render_includes_general_knowledge_label() -> None:
     raw = _weekly_sets(weeks=4, sets_per_session=10, last_monday=date(2026, 6, 8))
     lines = _landmarks_lines(
-        build_records(raw), TODAY, _BANDS,
-        landmark_weeks=4, templates=None, overrides=None,
+        build_records(raw),
+        TODAY,
+        _BANDS,
+        landmark_weeks=4,
+        templates=None,
+        overrides=None,
     )
     text = "\n".join(lines)
     assert "## Volume landmarks" in text
@@ -281,8 +300,12 @@ def test_render_lapse_line_not_a_table() -> None:
     raw = _weekly_sets(weeks=4, sets_per_session=10, last_monday=date(2026, 4, 6))
     text = "\n".join(
         _landmarks_lines(
-            build_records(raw), TODAY, _BANDS,
-            landmark_weeks=4, templates=None, overrides=None,
+            build_records(raw),
+            TODAY,
+            _BANDS,
+            landmark_weeks=4,
+            templates=None,
+            overrides=None,
         )
     )
     assert "No recent training to assess against volume landmarks." in text
@@ -293,18 +316,28 @@ def test_render_lapse_line_not_a_table() -> None:
 def test_render_omitted_when_no_bands() -> None:
     # An unconfigured caller (no bands) gets NO section at all (no orphan heading).
     raw = _weekly_sets(weeks=4, sets_per_session=10, last_monday=date(2026, 6, 8))
-    assert _landmarks_lines(
-        build_records(raw), TODAY, {},
-        landmark_weeks=4, templates=None, overrides=None,
-    ) == []
+    assert (
+        _landmarks_lines(
+            build_records(raw),
+            TODAY,
+            {},
+            landmark_weeks=4,
+            templates=None,
+            overrides=None,
+        )
+        == []
+    )
 
 
 def test_rows_sorted_descending_then_name() -> None:
     # chest (10/wk) + back via a row exercise (4/wk): chest sorts first.
     chest = _weekly_sets(weeks=4, sets_per_session=10, last_monday=date(2026, 6, 8))
     back = _weekly_sets(
-        weeks=4, sets_per_session=4, last_monday=date(2026, 6, 8),
-        title="Barbell Row", template_id="T-ROW",
+        weeks=4,
+        sets_per_session=4,
+        last_monday=date(2026, 6, 8),
+        title="Barbell Row",
+        template_id="T-ROW",
     )
     status = _status({**chest, **back})
     groups = [r["group"] for r in status["rows"]]

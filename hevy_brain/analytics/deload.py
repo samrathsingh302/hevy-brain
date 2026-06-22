@@ -41,9 +41,7 @@ def _consecutive_trained_weeks(records: list[dict[str, Any]]) -> int:
     """
     if not records:
         return 0
-    trained_weeks = {
-        stats.week_start(r["start_time"].date()) for r in records
-    }
+    trained_weeks = {stats.week_start(r["start_time"].date()) for r in records}
     cursor = stats.week_start(records[-1]["start_time"].date())
     run = 0
     while cursor in trained_weeks:
@@ -109,9 +107,9 @@ def deload_status(
     if not (0 <= (today - last_date).days <= RECENT_DAYS):
         return None  # lapsed, or future-dated -> not ready to deload
 
-    plateaus = [p["exercise"] for p in patterns.detect_plateaus(
-        histories, today, plateau_weeks
-    )]
+    plateaus = [
+        p["exercise"] for p in patterns.detect_plateaus(histories, today, plateau_weeks)
+    ]
     recent_start = today - timedelta(weeks=plateau_weeks)
     mean_rpe = _mean_working_rpe(records, recent_start)
     high_rpe = mean_rpe is not None and mean_rpe >= deload_rpe
