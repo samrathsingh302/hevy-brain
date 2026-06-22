@@ -15,7 +15,7 @@ import aiohttp
 
 from .api.client import HevyApiClient
 from .config import Config, load_config
-from .store.cache import CacheStore
+from .store.cache import CacheLockBusyError, CacheStore, cache_lock
 from .sync import sync
 from .vault.build import build_vault
 from .vault.writer import VaultWriter
@@ -1058,16 +1058,14 @@ def _dispatch_verify(config: Config, args: argparse.Namespace) -> int:
     return 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    """CLI entry point."""
-    _configure_output()
-    args = build_parser().parse_args(argv)
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-    config = load_config(config_file=args.config)
+# Cache-mutating commands (each reaches a store.save()); they run under
+# cache_lock so two overlapping runs can't clobber each other's save. Keep in
+# lockstep with the save() sites (cli.py + sync.py) — add any new saver here.
+_WRITE_COMMANDS = frozenset({"sync", "full", "coach", "push"})
 
+
+def _run(config: Config, args: argparse.Namespace) -> int:
+    """Dispatch a parsed command to its handler."""
     if args.command == "sync":
         return asyncio.run(_cmd_sync(config))
     if args.command == "vault":
@@ -1093,6 +1091,34 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "push":
         return _dispatch_push(config, args)
     return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point.
+
+    Cache-mutating commands run under a process-wide lock so two overlapping
+    runs (e.g. the hourly sync overlapping the Sunday coach) can't clobber each
+    other's save; a second concurrent run skips cleanly (exit 0).
+    """
+    _configure_output()
+    args = build_parser().parse_args(argv)
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.WARNING,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    config = load_config(config_file=args.config)
+
+    if args.command in _WRITE_COMMANDS:
+        try:
+            with cache_lock(config.data_dir):
+                return _run(config, args)
+        except CacheLockBusyError:
+            print(
+                "Another hevy-brain run is in progress - skipping this run.",
+                file=sys.stderr,
+            )
+            return 0
+    return _run(config, args)
 
 
 if __name__ == "__main__":

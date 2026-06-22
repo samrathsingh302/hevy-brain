@@ -186,48 +186,44 @@ class TestAggregateAndCompare:
         rows = {r["metric"]: r for r in reconcile.compare(history, server)}
         assert rows["total_volume_kg"]["ok"] is True
 
-    def test_warmup_excluded_from_server_best_e1rm(self) -> None:
-        """A warm-up set does not count toward the server 1RM estimate, but
-        still counts toward best weight and volume (mirrors prs._session_entry).
-        The live payload keys the type ``set_type``."""
-        sets = [
-            {"workout_id": "w1", "weight_kg": 200, "reps": 5, "set_type": "warmup"},
-            _server_set("w1", 100, 5),
-        ]
-        agg = reconcile.aggregate_server(sets)
-        assert round(agg["best_e1rm_kg"], 2) == round(epley_1rm(100, 5), 2)
-        assert agg["best_weight_kg"] == 200  # warm-up still counts toward weight
-        assert agg["total_volume_kg"] == 200 * 5 + 100 * 5
 
-    def test_all_warmup_cache_and_server_reconcile_clean(self) -> None:
-        """Both sides apply the warm-up rule, so an all-warm-up exercise reads as
-        0 e1RM on each and reconciles with no false drift on the e1RM row."""
+def _server_warmup_set(workout_id: str, weight_kg: float, reps: int) -> dict:
+    """A warm-up entry of the live exercise_history list (``set_type=warmup``)."""
+    return {
+        "workout_id": workout_id,
+        "weight_kg": weight_kg,
+        "reps": reps,
+        "set_type": "warmup",
+    }
+
+
+class TestWarmupReconciliation:
+    """Warm-ups must not inflate the server est-1RM, and a warm-up present in
+    BOTH the cache and the server history must still reconcile clean — the
+    load-bearing property of the prs + reconcile same-commit fix."""
+
+    def test_aggregate_excludes_warmup_from_e1rm_only(self) -> None:
+        # warm-up 100x3 (Epley 110) out-Epleys the working 60x8 (Epley 76):
+        # best_e1rm tracks the working set; weight + volume stay inclusive.
+        sets = [_server_warmup_set("w1", 100, 3), _server_set("w1", 60, 8)]
+        agg = reconcile.aggregate_server(sets)
+        assert agg["sessions"] == 1
+        assert agg["best_weight_kg"] == 100
+        assert agg["total_volume_kg"] == 100 * 3 + 60 * 8
+        assert agg["best_e1rm_kg"] == epley_1rm(60, 8)
+
+    def test_warmup_in_both_cache_and_server_reconciles_clean(self) -> None:
         raw = {
             "w1": make_workout(
                 "w1",
-                exercises=[make_exercise(sets=[make_set(50, 5, type="warmup")])],
+                exercises=[
+                    make_exercise(
+                        sets=[make_set(100, 3, type="warmup"), make_set(60, 8)]
+                    )
+                ],
             )
         }
         history = exercise_histories(build_records(raw))["Bench Press (Barbell)"]
-        assert history["best_e1rm_kg"] == 0.0
-        agg = reconcile.aggregate_server(
-            [{"workout_id": "w1", "weight_kg": 50, "reps": 5, "set_type": "warmup"}]
-        )
-        assert agg["best_e1rm_kg"] == 0.0
-        assert all(row["ok"] for row in reconcile.compare(history, agg))
-
-    def test_nested_event_warmup_keyed_type_excluded_from_e1rm(self) -> None:
-        """The nested-event shape carries the set type as ``type`` (not
-        ``set_type``); aggregate_server must still exclude it from the 1RM via
-        the key fallback, while weight still counts it."""
-        payload = {
-            "events": [
-                {
-                    "workout_id": "w9",
-                    "sets": [make_set(200, 5, type="warmup"), make_set(100, 5)],
-                }
-            ]
-        }
-        agg = reconcile.aggregate_server(reconcile.extract_server_sets(payload))
-        assert round(agg["best_e1rm_kg"], 2) == round(epley_1rm(100, 5), 2)
-        assert agg["best_weight_kg"] == 200
+        server_sets = [_server_warmup_set("w1", 100, 3), _server_set("w1", 60, 8)]
+        rows = reconcile.compare(history, reconcile.aggregate_server(server_sets))
+        assert all(row["ok"] for row in rows)

@@ -24,6 +24,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+from ..models import is_warmup
 from . import patterns, stats
 
 # How close to ``today`` the run must end for the signal to be "live" rather
@@ -66,7 +67,7 @@ def _mean_working_rpe(
             continue
         for exercise in record["exercises"]:
             for s in exercise["sets"]:
-                if s.get("type") == "warmup":
+                if is_warmup(s):
                     continue
                 rpe = s.get("rpe")
                 if rpe is not None:

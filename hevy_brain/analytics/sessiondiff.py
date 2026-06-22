@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..models import is_warmup
 from .prs import epley_1rm
 
 # ASCII direction indicators: never raw arrows (cp1252-safe on every path).
@@ -59,7 +60,7 @@ def _heaviest_working_set(exercise: dict[str, Any]) -> dict[str, Any] | None:
     best: dict[str, Any] | None = None
     best_weight = -1.0
     for s in exercise.get("sets", []):
-        if s.get("type") == "warmup":
+        if is_warmup(s):
             continue
         weight = float(s.get("weight_kg") or 0)
         if weight > best_weight:

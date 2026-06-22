@@ -14,7 +14,7 @@ integration); fully refactored into this CLI — the HA code is gone.
 
 - **Repo:** https://github.com/samrathsingh302/hevy-brain (private; renamed
   from `HA-hevy` 12/06/2026 — old URL redirects)
-- **Local path:** `C:\Users\samra\Atlas\repos\HA-hevy` (folder rename =
+- **Local path:** `C:\Users\samra\repos\HA-hevy` (folder rename =
   optional follow-up; do it between sessions, not mid-session)
 - **Newest dated handoff:** `docs/handoffs/2026-06-16-warmup-e1rm-fix.md`
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,7 @@ class VaultWriter:
         """Create the writer rooted at the hevy-brain vault folder."""
         self.root = root.resolve()
         self.written: list[str] = []
+        self.failed: list[str] = []
 
     def _target(self, rel_path: str) -> Path:
         target = (self.root / rel_path).resolve()
@@ -89,13 +91,38 @@ class VaultWriter:
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
                 handle.write(new_text)
-            tmp_path.replace(target)
+            published = self._publish(tmp_path, target)
         except BaseException:
-            if tmp_path.exists():
-                tmp_path.unlink()
+            tmp_path.unlink(missing_ok=True)
             raise
+        # A note held open in Obsidian locks the atomic replace (a Windows
+        # share-violation). After the retry budget, skip + record this one note
+        # rather than aborting the whole rebuild — the cache is the source of
+        # truth, so the next build re-writes it.
+        if not published:
+            tmp_path.unlink(missing_ok=True)
+            self.failed.append(rel_path)
+            return False
         self.written.append(rel_path)
         return True
+
+    def _publish(self, tmp_path: Path, target: Path) -> bool:
+        """Atomically move ``tmp_path`` onto ``target``, retrying a transient lock.
+
+        Returns True on success; False if the target stayed locked (held open in
+        Obsidian) for the whole retry budget. A non-lock OSError propagates.
+        """
+        attempts = 5
+        for attempt in range(attempts):
+            try:
+                tmp_path.replace(target)
+            except PermissionError:
+                if attempt == attempts - 1:
+                    return False
+                time.sleep(0.1)
+            else:
+                return True
+        return False
 
     def archive(self, rel_path: str, archive_dir: str = "Archive") -> bool:
         """Move a note into the archive folder. Returns True if moved."""

@@ -9,6 +9,8 @@ from __future__ import annotations
 from statistics import median
 from typing import Any
 
+from ..models import is_warmup
+
 # Hour-of-day buckets. Times come from the workout's recorded ``start_time``
 # (tz-aware as Hevy stored it — effectively UTC; a UK user training in summer
 # logs ~1h earlier in UTC than the local civil clock). Good enough for the
@@ -58,7 +60,7 @@ def rpe_coverage(records: list[dict[str, Any]]) -> dict[str, Any]:
     for record in records:
         for exercise in record["exercises"]:
             for s in exercise["sets"]:
-                if s.get("type") == "warmup":
+                if is_warmup(s):
                     continue
                 working += 1
                 if s.get("rpe") is not None:
