@@ -214,8 +214,14 @@ def test_all_warmup_history_zero_e1rm_and_no_phantom_plateau() -> None:
     # phantom plateau -> a false "aim for X" target.
     workouts = {}
     for i, day in enumerate(
-        ("2026-05-04", "2026-05-11", "2026-05-18", "2026-05-25", "2026-06-01",
-         "2026-06-08")
+        (
+            "2026-05-04",
+            "2026-05-11",
+            "2026-05-18",
+            "2026-05-25",
+            "2026-06-01",
+            "2026-06-08",
+        )
     ):
         workouts[f"r{i}"] = make_workout(
             f"r{i}",

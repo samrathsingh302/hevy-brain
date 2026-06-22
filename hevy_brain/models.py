@@ -24,8 +24,7 @@ def is_warmup(workout_set: dict[str, Any]) -> bool:
     which is the bug that let warm-ups inflate estimated 1RM (``best_e1rm_kg``).
     """
     return (
-        workout_set.get("type") == "warmup"
-        or workout_set.get("set_type") == "warmup"
+        workout_set.get("type") == "warmup" or workout_set.get("set_type") == "warmup"
     )
 
 

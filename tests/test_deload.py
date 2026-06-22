@@ -20,8 +20,7 @@ from hevy_brain.vault.dashboards import _deload_callout, render_dashboard
 TODAY = date(2026, 6, 10)
 
 _LABEL = (
-    "This is a general training-science heuristic, not personalised or "
-    "medical advice."
+    "This is a general training-science heuristic, not personalised or medical advice."
 )
 
 

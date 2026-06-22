@@ -94,9 +94,7 @@ def heatmap_block(
     for weekday in range(7):  # 0=Mon .. 6=Sun
         cells = [
             _glyph(
-                in_window.get(
-                    first_week_start + timedelta(weeks=col, days=weekday), 0
-                ),
+                in_window.get(first_week_start + timedelta(weeks=col, days=weekday), 0),
                 max_count,
             )
             for col in range(weeks)
