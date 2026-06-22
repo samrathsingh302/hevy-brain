@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..models import is_warmup
+
 
 def epley_1rm(weight_kg: float, reps: int) -> float:
     """Estimated one-rep max via the Epley formula."""
@@ -18,12 +20,7 @@ def _session_entry(record: dict[str, Any], exercise: dict[str, Any]) -> dict[str
     best_e1rm = 0.0
     best_e1rm_set: dict[str, Any] | None = None
     for s in exercise["sets"]:
-        # Warm-up sets never establish a 1RM estimate or a "best set": an
-        # all-warm-up session must read as 0 e1RM, else detect_plateaus (and the
-        # progression target, which keys off best_set) can fire on warm-up-only
-        # history. ``type`` is the set-type key on cached sets — matching
-        # session_quality / deload / heatmap / sessiondiff.
-        if s.get("type") == "warmup":
+        if is_warmup(s):
             continue
         e1rm = epley_1rm(s.get("weight_kg") or 0, s.get("reps") or 0)
         if e1rm > best_e1rm:

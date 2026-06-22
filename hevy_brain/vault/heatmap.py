@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from ..analytics import stats
+from ..models import is_warmup
 
 # Band 0 (no working sets) is a space so rest days / lapses read as blank; the
 # four positive bands are equal-width quartiles of (0, max_count], busiest last.
@@ -36,7 +37,7 @@ def _working_sets_by_day(records: list[dict[str, Any]]) -> dict[date, int]:
             1
             for exercise in record["exercises"]
             for s in exercise["sets"]
-            if s.get("type") != "warmup"
+            if not is_warmup(s)
         )
         if working:
             counts[day] = counts.get(day, 0) + working

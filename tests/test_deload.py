@@ -82,6 +82,29 @@ def test_consecutive_run_empty_history() -> None:
     assert deload._consecutive_trained_weeks([]) == 0
 
 
+def test_mean_working_rpe_excludes_warmups() -> None:
+    # A warm-up set carrying an RPE must not pull the working-set RPE mean — the
+    # fatigue trigger reads working sets only. Pins the is_warmup() unification at
+    # this site so a future edit can't silently let warm-ups back into the mean.
+    raw = {
+        "w1": make_workout(
+            "w1",
+            start="2026-06-08T17:00:00+00:00",
+            end="2026-06-08T18:00:00+00:00",
+            exercises=[
+                make_exercise(
+                    sets=[
+                        make_set(60, 5, rpe=10.0, type="warmup"),  # excluded
+                        make_set(100, 5, rpe=7.0),  # the only working set
+                    ]
+                )
+            ],
+        )
+    }
+    records = build_records(raw)
+    assert deload._mean_working_rpe(records, date(2026, 6, 1)) == 7.0
+
+
 # --- it FIRES -----------------------------------------------------------------
 
 

@@ -210,3 +210,29 @@ def test_rendered_section_is_idempotent() -> None:
     first = render_exercise_note(history, {}, 0, cfg)
     second = render_exercise_note(history, {}, 0, cfg)
     assert first == second
+
+
+def test_warmup_set_is_not_the_progression_basis() -> None:
+    # The most recent session logs a heavy low-rep warm-up (100 kg x 3, e1RM 110)
+    # before the working set (60 kg x 8). The "aim for X" target must base on the
+    # WORKING set (60 x 8 -> 60 x 9), never the warm-up — the exact contamination
+    # Samrath's `guide return` (post-lapse 60%-load comeback) would have hit.
+    raw = {}
+    for i, day in enumerate(_DATES[:3]):
+        sets = [make_set(60, 8)]
+        if i == 2:  # most recent: heavy warm-up logged before the working set
+            sets = [make_set(100, 3, type="warmup"), make_set(60, 8)]
+        raw[f"w{i}"] = make_workout(
+            f"w{i}",
+            "Push Day",
+            start=f"{day}T17:00:00+00:00",
+            end=f"{day}T18:00:00+00:00",
+            exercises=[make_exercise("Bench Press (Barbell)", "T-BENCH", sets)],
+        )
+    history = exercise_histories(build_records(raw))["Bench Press (Barbell)"]
+    target = next_target(history, _cfg())
+    assert target is not None
+    assert target["current_weight_kg"] == 60.0
+    assert target["current_reps"] == 8
+    assert target["target_reps"] == 9
+    assert "60 kg × 8" in target["note"]

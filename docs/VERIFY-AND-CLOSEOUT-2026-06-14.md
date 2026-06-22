@@ -14,13 +14,13 @@ So unlike mission-control / the other repos, **there is no unmerged audit branch
 **The hard-verification target here is the smallest of the five**, because this repo also carries the *least* Codex debt: Codex ran AND a fresh Opus verifier ran (mutation-proven) on both the overnight fixes and the morning A1/A2 fixes. Re-confirmation, not re-litigation.
 
 ## 1. Orient (read in this order)
-1. `CLAUDE.md` (fences) → `HANDOFF.md` → `docs/handoffs/2026-06-14-morning-merge-a1a2.md` (the authoritative carry-on — newest) → `docs/handoffs/2026-06-14-overnight-audit.md` (the audit report) → `C:\Users\samra\Atlas\repos\_shared-context\` SAMRATH.md + ORCHESTRATION.md (+ the Codex/Opus two-pass doctrine).
+1. `CLAUDE.md` (fences) → `HANDOFF.md` → `docs/handoffs/2026-06-14-morning-merge-a1a2.md` (the authoritative carry-on — newest) → `docs/handoffs/2026-06-14-overnight-audit.md` (the audit report) → `C:\Users\samra\vault\_shared-context\` SAMRATH.md + ORCHESTRATION.md (+ the Codex/Opus two-pass doctrine).
 2. **Re-derive the live git state** (do not trust the snapshot below — confirm it):
-   - `git -C "C:/Users/samra/Atlas/repos/HA-hevy" log --oneline --decorate --graph -15`
-   - `git -C "C:/Users/samra/Atlas/repos/HA-hevy" status`
-   - `git -C "C:/Users/samra/Atlas/repos/HA-hevy" rev-list --left-right --count main...overnight-audit-2026-06-14`
-   - `git -C "C:/Users/samra/Atlas/repos/HA-hevy" diff --stat f28a6d0..overnight-audit-2026-06-14`
-   - `git -C "C:/Users/samra/Atlas/repos/HA-hevy" merge-base --is-ancestor overnight-audit-2026-06-14 main && echo MERGED` (expect MERGED)
+   - `git -C "C:/Users/samra/repos/HA-hevy" log --oneline --decorate --graph -15`
+   - `git -C "C:/Users/samra/repos/HA-hevy" status`
+   - `git -C "C:/Users/samra/repos/HA-hevy" rev-list --left-right --count main...overnight-audit-2026-06-14`
+   - `git -C "C:/Users/samra/repos/HA-hevy" diff --stat f28a6d0..overnight-audit-2026-06-14`
+   - `git -C "C:/Users/samra/repos/HA-hevy" merge-base --is-ancestor overnight-audit-2026-06-14 main && echo MERGED` (expect MERGED)
 
 **Snapshot as of 14/06 ~16:00 (VERIFY it still holds — every number here was re-derived from the live repo when this was written):**
 - **Base (pre-audit) = `f28a6d0`** (`prompt: drop nonexistent Fable-5 model reference`). This is the audit's `pre_audit_commit`. (NB: this is *not* a hash to flip the repo public — see §5.)
@@ -72,7 +72,7 @@ Because it's already merged, verify on `main` (the live state Samrath shipped). 
 ## 5. Already handled, don't redo — and `_shared-context` is OFF-LIMITS
 - **The branch is already merged + pushed.** Do not re-merge, do not re-push, do not delete the `overnight-audit-2026-06-14` ref without asking (it's a harmless ancestor of `main` now).
 - **A standalone pre-public secrets/injection audit already cleared this repo as "safe to flip public."** The overnight report verified secrets/injection/data-loss fences all NIL across the full history (`config.toml` never held a key; keys flow env→header only). **Do NOT re-run a secrets sweep.** The *only* pre-flip action is **rotate `HEVY_API_KEY`** (standing lesson: any key that's appeared in a chat is burned), and the flip itself is a **separate** Samrath call — both already in the HANDOFF checklist. Mentioned here only so you don't redo the audit.
-- **`_shared-context` is OFF-LIMITS.** The overnight `AUDIT_LOG.md` cross-write incident the report flags was **already reconciled by the vault session**, and `_shared-context`'s `main` already carries the reconciled AUDIT_LOG + guard-hardening commits on **Samrath's** push gate. **Do NOT touch `C:\Users\samra\Atlas\repos\_shared-context` at all** — not to read-fix, not to roll up, not to commit.
+- **`_shared-context` is OFF-LIMITS.** The overnight `AUDIT_LOG.md` cross-write incident the report flags was **already reconciled by the vault session**, and `_shared-context`'s `main` already carries the reconciled AUDIT_LOG + guard-hardening commits on **Samrath's** push gate. **Do NOT touch `C:\Users\samra\vault\_shared-context` at all** — not to read-fix, not to roll up, not to commit.
 
 ## 6. Fences (hevy-brain `CLAUDE.md` — no later reasoning overrides these)
 - **Never hit the real Hevy account in tests** — sync/push tests stay **offline by design** (fixtures/mocks only). Runtime smoke uses read-only/offline commands; **never** run `push` or `coach --api` during verification.

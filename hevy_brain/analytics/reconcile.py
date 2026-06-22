@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..models import is_warmup
 from .prs import epley_1rm
 
 # Hevy stores weights to 2dp; anything under half a kilo is rounding, not drift.
@@ -111,9 +112,8 @@ def aggregate_server(sets: list[dict[str, Any]]) -> dict[str, Any]:
 
     ``sessions`` counts distinct ``workout_id`` values (the list itself is one
     entry per set, not per session). The rest mirror ``prs.exercise_histories``
-    (same Epley formula, same None→0 handling) so a clean cache produces
-    identical numbers — including the warm-up rule: warm-up sets are excluded
-    from the 1RM estimate but still count toward best weight and volume.
+    exactly (same Epley formula, same None→0 handling) so a clean cache produces
+    identical numbers.
     """
     workout_ids: set[str] = set()
     best_weight = 0.0
@@ -123,12 +123,9 @@ def aggregate_server(sets: list[dict[str, Any]]) -> dict[str, Any]:
         weight = float(s.get("weight_kg") or 0)
         reps = int(s.get("reps") or 0)
         best_weight = max(best_weight, weight)
-        # Mirror prs._session_entry: warm-up sets do not count toward the 1RM
-        # estimate, but DO count toward best_weight and volume (matching the
-        # cache's max_weight_kg / volume_kg, which include every set). The live
-        # payload keys the set type ``set_type``; the nested-event shape may use
-        # ``type`` — honour whichever is present.
-        if (s.get("set_type") or s.get("type")) != "warmup":
+        # est-1RM excludes warm-ups (mirrors prs._session_entry); weight, volume
+        # and the session count stay warm-up-inclusive so `verify` reconciles.
+        if not is_warmup(s):
             best_e1rm = max(best_e1rm, epley_1rm(weight, reps))
         total_volume += weight * reps
         workout_id = s.get("workout_id")
