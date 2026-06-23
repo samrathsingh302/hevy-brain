@@ -1,6 +1,6 @@
 # hevy-brain — Claude Code instructions
 **Read order, every session:** 1) this file · 2) HANDOFF.md (always — current state, gotchas)
-· 3) C:\Users\samra\vault\_shared-context\SAMRATH.md + PROMPTING_GUIDE.md + ORCHESTRATION.md (who you work for, how we prompt, how to split work across agents)
+· 3) C:\Users\samra\vault\_shared-context\SAMRATH.md + LOOP-GUIDE.md (who you work for; how we prompt + split work across agents + run the autonomous loop — LOOP-GUIDE consolidates the former PROMPTING_GUIDE + ORCHESTRATION)
 · 4) PROMPT.md (the original build spec named in HANDOFF). If _shared-context is unreachable, say so; key defaults:
 free tiers only · British English, dd/mm/yyyy, £ · evidence over intuition · tests with code ·
 no data loss · don't ask about things SAMRATH.md §3 lets you decide; always ask about §4.
@@ -26,6 +26,6 @@ env var (never config or git) · hit the real Hevy account in tests (offline onl
 auto-write to Hevy (writes only via explicit `push` commands). Data/cache/notes stay gitignored.
 
 ## Working style
-One slice per session · decompose across agents first (ORCHESTRATION.md: how does this split?) ·
+One slice per session · decompose across agents first (LOOP-GUIDE.md §3: how does this split?) ·
 commit per coherent step, push per session · tests written with code ·
-end every session: update HANDOFF (dated handoffs in docs/handoffs/ are the history), emit the carry-on prompt (PROMPTING_GUIDE §4).
+end every session: update HANDOFF (dated handoffs in docs/handoffs/ are the history), emit the carry-on prompt (LOOP-GUIDE.md §14).
