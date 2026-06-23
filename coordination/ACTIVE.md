@@ -1,4 +1,4 @@
-# ACTIVE.md — write-claim file for hevy-brain (ORCHESTRATION.md §14)
+# ACTIVE.md — write-claim file for hevy-brain (`LOOP-GUIDE.md` §5)
 
 No active claim.
 
