@@ -67,8 +67,11 @@ class Config:
     def knowledge_root(self) -> Path:
         """Folder holding the read-only knowledge layer (topics/notes/_meta).
 
-        Defaults to the vault root, where the atlas-pipeline knowledge folders
-        live as siblings of the hevy-brain subfolder.
+        Since the 27/06/2026 three-zone reorg these folders live under the
+        vault's ``brain/`` zone, so ``[knowledge] path`` must point there (the
+        canonical config.toml uses ``C:\\Users\\samra\\vault\\brain``). The
+        ``vault_path`` fallback is a legacy default that no longer resolves on
+        its own.
         """
         return self.knowledge_path or self.vault_path
 

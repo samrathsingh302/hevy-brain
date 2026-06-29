@@ -105,7 +105,7 @@ class KnowledgeBase:
     """Read-only view over the vault knowledge layer (topics/notes/_meta).
 
     ``root`` is the folder that contains the ``topics/``, ``notes/`` and
-    ``_meta/`` directories (in this vault, the Atlas root). All reads are
+    ``_meta/`` directories (in this vault, the brain/ zone). All reads are
     jailed under ``root`` and refused inside ``sources/``.
     """
 
