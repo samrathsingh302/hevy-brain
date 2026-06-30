@@ -19,3 +19,8 @@ data/
 vault_staging/
 logs/
 exports/
+
+# Secrets — never commit real env files
+.env
+.env.*
+!.env.example
