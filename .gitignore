@@ -19,6 +19,7 @@ data/
 vault_staging/
 logs/
 exports/
+.mcp.json
 
 # Secrets — never commit real env files
 .env
