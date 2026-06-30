@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from .clock import to_london
+
 
 def set_volume_kg(workout_set: dict[str, Any]) -> float:
     """Return volume (weight * reps) for a single set, treating None as 0."""
@@ -40,8 +42,16 @@ def parse_iso(value: str | None) -> datetime | None:
 
 def build_workout_record(workout: dict[str, Any]) -> dict[str, Any]:
     """Build a processed record from a raw API workout payload."""
+    # Hevy timestamps are UTC; everything downstream dates and displays a
+    # workout by its Europe/London wall-clock (so a 00:30 BST session is not
+    # filed on the previous day, and times read in local hours). The raw
+    # cache is left untouched — only these derived records carry London time.
     start_time = parse_iso(workout.get("start_time"))
     end_time = parse_iso(workout.get("end_time"))
+    if start_time is not None:
+        start_time = to_london(start_time)
+    if end_time is not None:
+        end_time = to_london(end_time)
     duration_seconds = 0.0
     if start_time and end_time:
         duration_seconds = max(0.0, (end_time - start_time).total_seconds())

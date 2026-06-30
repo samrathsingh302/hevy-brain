@@ -56,6 +56,25 @@ def test_civil_day_converts_from_a_non_utc_offset() -> None:
     assert clock.civil_day(instant) == date(2026, 7, 1)
 
 
+def test_to_london_preserves_the_instant_in_local_hours() -> None:
+    # 21:18 UTC in April == 22:18 +01:00 — same instant, London wall-clock.
+    aware = datetime(2026, 4, 11, 21, 18, tzinfo=UTC)
+    london = clock.to_london(aware)
+    assert london.tzinfo is clock.LONDON
+    assert (london.hour, london.minute) == (22, 18)
+    assert london == aware  # same instant, only the representation differs
+
+
+def test_to_london_treats_naive_as_utc() -> None:
+    naive = datetime(2026, 7, 1, 23, 30)  # noqa: DTZ001 — naive-as-UTC under test
+    assert clock.to_london(naive).date() == date(2026, 7, 2)
+
+
+def test_civil_day_delegates_to_to_london() -> None:
+    instant = datetime(2026, 7, 1, 23, 30, tzinfo=UTC)
+    assert clock.civil_day(instant) == clock.to_london(instant).date()
+
+
 def test_now_london_is_london_aware() -> None:
     now = clock.now_london()
     assert now.tzinfo is clock.LONDON
