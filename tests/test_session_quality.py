@@ -10,11 +10,15 @@ from hevy_brain.models import build_records
 
 
 def _at(workout_id: str, hour: int, *, exercises: list[dict] | None = None) -> dict:
-    """A workout starting at `hour`:00 UTC, ending an hour later."""
+    """A workout starting at local `hour`:00, ending an hour later.
+
+    Uses a winter (GMT) date so the UTC fixture hour equals the Europe/London
+    wall-clock hour the bucketing reads — keeping these tests DST-stable.
+    """
     return make_workout(
         workout_id,
-        start=f"2026-06-08T{hour:02d}:00:00+00:00",
-        end=f"2026-06-08T{hour + 1:02d}:00:00+00:00",
+        start=f"2026-01-08T{hour:02d}:00:00+00:00",
+        end=f"2026-01-08T{hour + 1:02d}:00:00+00:00",
         exercises=exercises,
     )
 
