@@ -65,7 +65,7 @@ class Config:
 
     @property
     def knowledge_root(self) -> Path:
-        """Folder holding the read-only knowledge layer (topics/notes/_meta).
+        r"""Folder holding the read-only knowledge layer (topics/notes/_meta).
 
         Since the 27/06/2026 three-zone reorg these folders live under the
         vault's ``brain/`` zone, so ``[knowledge] path`` must point there (the
