@@ -16,6 +16,9 @@ dependencies = [
     "PyYAML>=6.0",
     "pydantic>=2.7",
     "anthropic>=0.40",
+    # IANA tz database for zoneinfo (Europe/London civil-day clock). Windows
+    # ships no system tzdata, so this is a hard runtime dep, not just dev.
+    "tzdata>=2024.1",
 ]
 
 [project.optional-dependencies]
