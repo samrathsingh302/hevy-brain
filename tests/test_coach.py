@@ -239,9 +239,8 @@ def test_render_coach_note_includes_recap_when_given() -> None:
 def test_cmd_coach_free_persists_focus_and_shows_recap(
     tmp_path, raw_workouts: dict
 ) -> None:
-    from datetime import UTC, datetime
-
     from hevy_brain import cli
+    from hevy_brain.clock import today_london
     from hevy_brain.config import Config
     from hevy_brain.store.cache import CacheStore
 
@@ -255,7 +254,7 @@ def test_cmd_coach_free_persists_focus_and_shows_recap(
         store.upsert_workout(workout)
     store.save()
 
-    today = datetime.now(tz=UTC).date()
+    today = today_london()
     note_path = config.vault_root / advisor.briefing_note_path(today)
 
     # First run: no prior snapshot -> no recap, but a snapshot is persisted.
@@ -359,9 +358,8 @@ def test_cmd_coach_api_refuses_when_budget_exhausted(
 ) -> None:
     """The daily budget guard must refuse a metered run at the command level —
     before any billable call — once today's cap is already reached."""
-    from datetime import UTC, datetime
-
     from hevy_brain import cli
+    from hevy_brain.clock import today_london
     from hevy_brain.config import Config
     from hevy_brain.store.cache import CacheStore
 
@@ -373,7 +371,7 @@ def test_cmd_coach_api_refuses_when_budget_exhausted(
     store = CacheStore(config.data_dir)
     for workout in raw_workouts.values():
         store.upsert_workout(workout)
-    today = datetime.now(tz=UTC).date()
+    today = today_london()
     store.meta["coach_calls"] = [
         f"{today.isoformat()}T10:00:00+00:00"
     ] * config.coach_max_calls_per_day

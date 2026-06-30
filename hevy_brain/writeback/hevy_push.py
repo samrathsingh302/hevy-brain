@@ -14,6 +14,7 @@ from typing import Any
 import yaml
 
 from ..api.client import HevyApiClient, HevyApiClientConflictError
+from ..clock import today_london
 from ..models import build_workout_record, parse_iso
 from ..vault.routines import ROUTINE_NOTE_TYPE, routine_exercises_spec
 from ..vault.workouts import WORKOUT_NOTE_TYPE, workout_exercises_spec
@@ -542,7 +543,7 @@ async def push_measurement(
     if unknown:
         msg = f"Unknown measurement fields: {sorted(unknown)}"
         raise ValueError(msg)
-    date_str = date_str or datetime.now(tz=UTC).date().isoformat()
+    date_str = date_str or today_london().isoformat()
     body = {**fields, "date": date_str}
     try:
         await client.async_create_body_measurement(body)

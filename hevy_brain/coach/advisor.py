@@ -8,13 +8,14 @@ catch CoachError and continue.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from ..analytics import patterns, stats
 from ..analytics.prs import recent_prs
+from ..clock import now_london
 from ..knowledge import Claim
 from ..vault.writer import render_note
 
@@ -233,7 +234,7 @@ def check_budget(meta: dict[str, Any], today: date, max_per_day: int) -> None:
 def record_call(meta: dict[str, Any]) -> None:
     """Log a coach invocation (keeps the last 50)."""
     calls = meta.setdefault("coach_calls", [])
-    calls.append(datetime.now(tz=UTC).isoformat())
+    calls.append(now_london().isoformat())
     meta["coach_calls"] = calls[-50:]
 
 

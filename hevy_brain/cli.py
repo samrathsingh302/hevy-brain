@@ -14,6 +14,7 @@ from typing import Any
 import aiohttp
 
 from .api.client import HevyApiClient
+from .clock import today_london
 from .config import Config, load_config
 from .store.cache import CacheLockBusyError, CacheStore, cache_lock
 from .sync import sync
@@ -186,7 +187,7 @@ def _cmd_ask(config: Config, question: str) -> int:
     if not store.workouts:
         print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
         return 1
-    today = datetime.now(tz=UTC).date()
+    today = today_london()
     records = build_records(store.workouts)
     histories = exercise_histories(records)
     knowledge, retrieval = _load_knowledge_for_question(config, question)
@@ -262,7 +263,7 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
     if not store.workouts:
         print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
         return 1
-    today = datetime.now(tz=UTC).date()
+    today = today_london()
     records = build_records(store.workouts)
     histories = exercise_histories(records)
     knowledge = _load_knowledge(config)
@@ -377,7 +378,7 @@ def _cmd_guide_return(config: Config) -> int:
     if not store.workouts:
         print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
         return 1
-    today = datetime.now(tz=UTC).date()
+    today = today_london()
     records = build_records(store.workouts)
     lapse = lapse_status(records, today)
     if lapse is None:
@@ -456,7 +457,7 @@ def _cmd_guide_redesign(config: Config) -> int:
     if not store.workouts:
         print("Cache is empty - run 'hevy-brain sync' first.", file=sys.stderr)
         return 1
-    today = datetime.now(tz=UTC).date()
+    today = today_london()
     records = build_records(store.workouts)
     histories = exercise_histories(records)
     snapshot = training_snapshot(
@@ -670,7 +671,7 @@ def _track_draft_adherence(config: Config, body: dict[str, Any]) -> None:
     """
     from .coach import adherence
 
-    target = adherence.build_target(body, datetime.now(tz=UTC).date())
+    target = adherence.build_target(body, today_london())
     if target is None:
         return
     try:

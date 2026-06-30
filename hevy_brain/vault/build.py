@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 from ..analytics.prs import exercise_histories
+from ..clock import today_london
 from ..config import Config
 from ..models import build_records
 from ..store.cache import CacheStore
@@ -21,7 +21,7 @@ def build_vault(
     Returns counts of changed files per category. Notes for workouts that
     were deleted in Hevy are moved to Archive/ (never destroyed).
     """
-    today = today or datetime.now(tz=UTC).date()
+    today = today or today_london()
     writer = VaultWriter(config.vault_root)
     config.vault_root.mkdir(parents=True, exist_ok=True)
 
