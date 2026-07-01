@@ -184,11 +184,13 @@ def test_weekly_overload(raw_workouts: dict) -> None:
     assert bench["prior_week_kg"] == 0
 
 
-def test_warmups_excluded_from_e1rm_but_not_weight_or_volume() -> None:
-    # A heavy low-rep warm-up (100 kg x 3, Epley 110) out-Epleys the working set
-    # (60 kg x 8, Epley 76). best_e1rm/best_set must track the WORKING set, while
-    # top_weight_kg and volume_kg stay warm-up-INCLUSIVE (uniform, per the audit
-    # call). Before the fix, best_set was the warm-up -> wrong plateau/targets.
+def test_warmups_excluded_from_e1rm_and_top_weight_but_not_volume() -> None:
+    # A heavy low-rep warm-up (100 kg x 3, Epley 110) out-Epleys AND out-weighs
+    # the working set (60 kg x 8, Epley 76). best_e1rm/best_set AND top_weight
+    # must track the WORKING set, so a warm-up can neither inflate est-1RM nor
+    # register a top-weight PR. Volume stays warm-up-INCLUSIVE (total tonnage);
+    # reconcile.aggregate_server mirrors the weight exclusion so `verify` still
+    # reconciles (see test_verify.TestWarmupReconciliation).
     raw = {
         "w1": make_workout(
             "w1",
@@ -203,9 +205,37 @@ def test_warmups_excluded_from_e1rm_but_not_weight_or_volume() -> None:
     assert session["best_set"]["weight_kg"] == 60
     assert session["best_set"]["reps"] == 8
     assert session["best_e1rm_kg"] == epley_1rm(60, 8)
-    # Heaviest weight + volume remain warm-up-inclusive (consistent app-wide).
-    assert session["top_weight_kg"] == 100
+    # Top weight now tracks the heaviest WORKING set (the warm-up is excluded).
+    assert session["top_weight_kg"] == 60
+    # Volume stays warm-up-inclusive (total tonnage lifted).
     assert session["volume_kg"] == 100 * 3 + 60 * 8
+
+
+def test_heavy_warmup_does_not_register_a_weight_pr() -> None:
+    # The deferred bug, now fixed: a heavy warm-up single counting as a
+    # top-weight PR. Session 1 works up to 60 kg; session 2 opens with a 120 kg
+    # warm-up but only works at 60 kg. No new *working* top weight -> no weight
+    # PR, and best_weight_kg stays the working 60.
+    raw = {
+        "w1": make_workout(
+            "w1",
+            start="2026-05-25T17:00:00+00:00",
+            end="2026-05-25T18:00:00+00:00",
+            exercises=[make_exercise(sets=[make_set(60, 8)])],
+        ),
+        "w2": make_workout(
+            "w2",
+            start="2026-06-01T17:00:00+00:00",
+            end="2026-06-01T18:00:00+00:00",
+            exercises=[
+                make_exercise(sets=[make_set(120, 1, type="warmup"), make_set(60, 8)])
+            ],
+        ),
+    }
+    history = exercise_histories(build_records(raw))["Bench Press (Barbell)"]
+    weight_prs = [p for p in history["prs"] if p["type"] == "weight"]
+    assert weight_prs == []
+    assert history["best_weight_kg"] == 60
 
 
 def test_all_warmup_history_zero_e1rm_and_no_phantom_plateau() -> None:

@@ -198,17 +198,18 @@ def _server_warmup_set(workout_id: str, weight_kg: float, reps: int) -> dict:
 
 
 class TestWarmupReconciliation:
-    """Warm-ups must not inflate the server est-1RM, and a warm-up present in
-    BOTH the cache and the server history must still reconcile clean — the
-    load-bearing property of the prs + reconcile same-commit fix."""
+    """Warm-ups must not inflate the server est-1RM or top weight, and a warm-up
+    present in BOTH the cache and the server history must still reconcile clean
+    — the load-bearing property of the prs + reconcile same-commit fix."""
 
-    def test_aggregate_excludes_warmup_from_e1rm_only(self) -> None:
-        # warm-up 100x3 (Epley 110) out-Epleys the working 60x8 (Epley 76):
-        # best_e1rm tracks the working set; weight + volume stay inclusive.
+    def test_aggregate_excludes_warmup_from_e1rm_and_weight(self) -> None:
+        # warm-up 100x3 (Epley 110) out-Epleys AND out-weighs the working 60x8:
+        # best_e1rm and best_weight both track the working set (mirroring the
+        # cache's top_working_weight_kg); volume stays warm-up-inclusive.
         sets = [_server_warmup_set("w1", 100, 3), _server_set("w1", 60, 8)]
         agg = reconcile.aggregate_server(sets)
         assert agg["sessions"] == 1
-        assert agg["best_weight_kg"] == 100
+        assert agg["best_weight_kg"] == 60
         assert agg["total_volume_kg"] == 100 * 3 + 60 * 8
         assert agg["best_e1rm_kg"] == epley_1rm(60, 8)
 

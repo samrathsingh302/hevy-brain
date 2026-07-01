@@ -122,10 +122,11 @@ def aggregate_server(sets: list[dict[str, Any]]) -> dict[str, Any]:
     for s in sets:
         weight = float(s.get("weight_kg") or 0)
         reps = int(s.get("reps") or 0)
-        best_weight = max(best_weight, weight)
-        # est-1RM excludes warm-ups (mirrors prs._session_entry); weight, volume
-        # and the session count stay warm-up-inclusive so `verify` reconciles.
+        # Heaviest weight and est-1RM both exclude warm-ups, mirroring the cache
+        # (models.top_working_weight_kg + prs._session_entry) so `verify` still
+        # reconciles; volume and the session count stay warm-up-inclusive.
         if not is_warmup(s):
+            best_weight = max(best_weight, weight)
             best_e1rm = max(best_e1rm, epley_1rm(weight, reps))
         total_volume += weight * reps
         workout_id = s.get("workout_id")

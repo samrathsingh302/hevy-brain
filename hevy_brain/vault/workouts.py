@@ -153,7 +153,7 @@ def render_workout_note(
             lines.append(_set_row(index, workout_set))
         lines.append(
             f"\n**Volume:** {exercise['volume_kg']:g} kg · "
-            f"**Top weight:** {exercise['max_weight_kg']:g} kg"
+            f"**Top weight:** {exercise['top_working_weight_kg']:g} kg"
         )
 
     lines.append(

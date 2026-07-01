@@ -87,7 +87,7 @@ def pre_lapse_baselines(
             entry["sessions"] += 1
             entry["volume_kg"] += exercise["volume_kg"]
             entry["top_weight_kg"] = max(
-                entry["top_weight_kg"], exercise["max_weight_kg"]
+                entry["top_weight_kg"], exercise["top_working_weight_kg"]
             )
 
     for title, entry in by_exercise.items():

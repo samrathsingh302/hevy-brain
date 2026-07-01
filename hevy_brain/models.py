@@ -75,8 +75,14 @@ def build_workout_record(workout: dict[str, Any]) -> dict[str, Any]:
                 "set_count": len(sets),
                 "total_reps": exercise_reps,
                 "volume_kg": exercise_volume,
-                "max_weight_kg": max(
-                    (s.get("weight_kg") or 0 for s in sets), default=0
+                # Heaviest WORKING set — warm-ups are excluded so a heavy
+                # warm-up single can't register a top-weight PR or show as the
+                # session's top weight. reconcile.aggregate_server mirrors this
+                # exclusion so `verify` still reconciles against Hevy; volume
+                # stays warm-up-inclusive (total tonnage).
+                "top_working_weight_kg": max(
+                    (s.get("weight_kg") or 0 for s in sets if not is_warmup(s)),
+                    default=0,
                 ),
             }
         )
