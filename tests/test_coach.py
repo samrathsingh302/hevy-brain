@@ -105,6 +105,55 @@ def test_budget_guard() -> None:
     advisor.check_budget(meta, TODAY, max_per_day=2)
 
 
+# --- corrupt-cache guard (A4, 2026-06-14 audit) ------------------------------
+# meta.json is user-visible and occasionally hand-edited; a corrupt coach_calls
+# must never crash the coach run with an AttributeError/TypeError.
+
+# Every shape a hand-edit could leave coach_calls in (was: unguarded crashes).
+_CORRUPT_COACH_CALLS = [
+    "2026-06-10T10:00:00+00:00",  # a bare string, not a list
+    [123, 456],  # non-string entries -> .startswith blew up
+    {"x": 1},  # a mapping
+    None,  # explicit null
+    42,  # a number
+    ["2026-06-10T09:00:00", 5, None, "2026-06-10T11:00:00"],  # mixed junk
+]
+
+
+def test_check_budget_tolerates_corrupt_coach_calls() -> None:
+    # None of these may raise; a corrupt value counts as no calls (permissive,
+    # not fail-closed — a typo must not lock the personal budget forever).
+    for corrupt in _CORRUPT_COACH_CALLS:
+        advisor.check_budget({"coach_calls": corrupt}, TODAY, max_per_day=4)
+
+
+def test_record_call_heals_corrupt_coach_calls() -> None:
+    # record_call must not raise and must normalise the store to clean ISO
+    # strings, so a bad edit can't strand the daily-budget count.
+    for corrupt in _CORRUPT_COACH_CALLS:
+        meta: dict = {"coach_calls": corrupt}
+        advisor.record_call(meta)
+        assert isinstance(meta["coach_calls"], list)
+        assert all(isinstance(c, str) for c in meta["coach_calls"])
+        assert meta["coach_calls"]  # today's stamp was appended
+
+    # The valid strings inside a mixed list survive the heal; junk is dropped.
+    meta = {"coach_calls": ["2026-06-10T09:00:00", 5, None, "2026-06-10T11:00:00"]}
+    advisor.record_call(meta)
+    assert meta["coach_calls"][:2] == ["2026-06-10T09:00:00", "2026-06-10T11:00:00"]
+    assert len(meta["coach_calls"]) == 3  # two survivors + the new stamp
+
+
+def test_budget_still_enforced_after_healing_a_corrupt_store() -> None:
+    # A corrupt store heals to empty, so the next record_call rebuilds a real
+    # count that the guard then enforces normally.
+    meta: dict = {"coach_calls": "junk"}
+    advisor.check_budget(meta, TODAY, max_per_day=1)  # corrupt -> 0 calls, allowed
+    meta["coach_calls"] = [f"{TODAY.isoformat()}T10:00:00+00:00"]
+    with pytest.raises(CoachError, match="budget"):
+        advisor.check_budget(meta, TODAY, max_per_day=1)
+
+
 def test_render_coach_note() -> None:
     note = advisor.render_coach_note(_report(), TODAY)
 

@@ -219,9 +219,23 @@ def build_context(
     return "\n".join(lines)
 
 
+def _coach_calls(meta: dict[str, Any]) -> list[str]:
+    """Return the coach-call timestamps, tolerating a hand-edited meta.json.
+
+    ``meta.json`` is user-visible and occasionally hand-edited, so a corrupt
+    ``coach_calls`` must never crash the coach run: a non-list value is treated
+    as empty and non-string entries are dropped. Mirrors the isinstance-guarded
+    siblings (`coach.memory.latest_focus`, `coach.adherence.latest_target`).
+    """
+    calls = meta.get("coach_calls", [])
+    if not isinstance(calls, list):
+        return []
+    return [c for c in calls if isinstance(c, str)]
+
+
 def check_budget(meta: dict[str, Any], today: date, max_per_day: int) -> None:
     """Raise CoachError if today's coach-call budget is exhausted."""
-    calls = meta.get("coach_calls", [])
+    calls = _coach_calls(meta)
     today_calls = [c for c in calls if c.startswith(today.isoformat())]
     if len(today_calls) >= max_per_day:
         msg = (
@@ -232,8 +246,14 @@ def check_budget(meta: dict[str, Any], today: date, max_per_day: int) -> None:
 
 
 def record_call(meta: dict[str, Any]) -> None:
-    """Log a coach invocation (keeps the last 50)."""
-    calls = meta.setdefault("coach_calls", [])
+    """Log a coach invocation (keeps the last 50).
+
+    A corrupt ``coach_calls`` (hand-edited to a non-list, or holding non-string
+    junk) is healed here: the value is normalised to a clean list of ISO
+    strings before the new stamp is appended, so a bad edit can't strand the
+    daily-budget count.
+    """
+    calls = _coach_calls(meta)
     calls.append(now_london().isoformat())
     meta["coach_calls"] = calls[-50:]
 
