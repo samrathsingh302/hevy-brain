@@ -12,7 +12,7 @@ from hevy_brain.config import Config
 from hevy_brain.models import build_records
 from hevy_brain.store.cache import CacheStore
 from hevy_brain.vault.build import build_vault
-from hevy_brain.vault.dashboards import render_dashboard
+from hevy_brain.vault.dashboards import render_body_log, render_dashboard
 from hevy_brain.vault.exercises import render_exercise_note
 from hevy_brain.vault.workouts import workout_note_paths
 
@@ -61,6 +61,55 @@ def test_build_vault_generates_all_notes(tmp_path: Path, raw_workouts: dict) -> 
 
     dashboard = (root / "Dashboard.md").read_text(encoding="utf-8")
     assert "3** workouts" in dashboard or "**3** workouts" in dashboard
+
+
+# --- account-with-none graceful degrade --------------------------------------
+# A synced account can legitimately have no routines and no body measurements
+# (a very common shape). The build must degrade cleanly, never crash.
+
+
+def test_render_body_log_degrades_with_no_measurements(raw_workouts: dict) -> None:
+    # Histories are present (real lifts), but with zero measurements there is no
+    # bodyweight to compute ratios from -> the strength-to-bodyweight section is
+    # omitted (not crashed) and the log shows the honest 'none yet' line.
+    histories = exercise_histories(build_records(raw_workouts))
+
+    note = render_body_log([], histories, TODAY)
+
+    assert "No body measurements logged yet." in note
+    assert "Strength-to-bodyweight" not in note
+    assert "entries: 0" in note  # frontmatter count reflects the empty log
+
+
+def test_build_vault_degrades_on_account_with_no_routines_or_measurements(
+    tmp_path: Path, raw_workouts: dict
+) -> None:
+    # 'Account with none': real workouts, but no routines and no measurements.
+    config = _config(tmp_path)
+    store = CacheStore(tmp_path / "data")
+    for workout in raw_workouts.values():
+        store.upsert_workout(workout)
+    store.set_measurements([])  # none logged
+    # routines / routine_folders left at their empty {} defaults
+
+    changed = build_vault(config, store, today=TODAY)
+
+    # Empty routines -> zero routine notes, nothing archived, no crash.
+    assert changed["routines"] == 0
+    assert changed["archived"] == 0
+    routines_dir = config.vault_root / "Routines"
+    assert not routines_dir.exists() or not list(routines_dir.glob("*.md"))
+
+    # Empty measurements -> a degraded Body Log, not a missing/broken note.
+    body_log = (config.vault_root / "Measurements" / "Body Log.md").read_text(
+        encoding="utf-8"
+    )
+    assert "No body measurements logged yet." in body_log
+    assert "Strength-to-bodyweight" not in body_log
+
+    # The rest of the vault still built from the workouts.
+    assert changed["workouts"] == 3
+    assert (config.vault_root / "Dashboard.md").is_file()
 
 
 def test_charts_render_in_dashboard_and_exercise_notes(
