@@ -67,11 +67,10 @@ class Config:
     def knowledge_root(self) -> Path:
         r"""Folder holding the read-only knowledge layer (topics/notes/_meta).
 
-        Since the 27/06/2026 three-zone reorg these folders live under the
-        vault's ``brain/`` zone, so ``[knowledge] path`` must point there (the
-        canonical config.toml uses ``C:\\Users\\samra\\vault\\brain``). The
-        ``vault_path`` fallback is a legacy default that no longer resolves on
-        its own.
+        When the optional knowledge bridge is used, these folders typically live
+        under a ``brain/`` zone in the vault, so ``[knowledge] path`` should
+        point there (e.g. ``C:\\path\\to\\vault\\brain``). The ``vault_path``
+        fallback is a legacy default that no longer resolves on its own.
         """
         return self.knowledge_path or self.vault_path
 
