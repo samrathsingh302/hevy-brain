@@ -30,7 +30,7 @@ def _session_entry(record: dict[str, Any], exercise: dict[str, Any]) -> dict[str
         "date": record["start_time"].date(),
         "workout_id": record["id"],
         "workout_title": record["title"],
-        "top_weight_kg": exercise["max_weight_kg"],
+        "top_weight_kg": exercise["top_working_weight_kg"],
         "best_e1rm_kg": best_e1rm,
         "best_set": best_e1rm_set,
         "volume_kg": exercise["volume_kg"],

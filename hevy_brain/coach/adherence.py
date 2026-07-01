@@ -109,7 +109,7 @@ def _trained_top_weight(
         hit = False
         for exercise in record["exercises"]:
             if exercise.get("template_id") == template_id:
-                best = max(best, exercise.get("max_weight_kg") or 0.0)
+                best = max(best, exercise.get("top_working_weight_kg") or 0.0)
                 hit = True
         if hit:
             sessions += 1
