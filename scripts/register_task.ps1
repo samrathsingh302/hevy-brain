@@ -9,7 +9,15 @@
 
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path "$PSScriptRoot\..").Path
-$python = (Get-Command python).Source
+# Pin the project's baseline interpreter (Python >=3.12), NOT whatever bare
+# `python` resolves to first on PATH. A stray Python 3.14 ahead of 3.12 on PATH
+# — with none of the deps installed — is exactly what silently stalled the
+# hourly sync for ~16 days. Resolve the absolute exe so the task action does not
+# depend on PATH at run time.
+$python = (& py -3.12 -c 'import sys; print(sys.executable)' 2>$null)
+if (-not $python) {
+    throw "Python 3.12 not found via 'py -3.12'. Install it (pyproject requires >=3.12) or edit this line."
+}
 $logDir = Join-Path $repo 'logs'
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
