@@ -20,6 +20,7 @@ vault_staging/
 logs/
 exports/
 .mcp.json
+coordination/   # session write-claims / fleet runtime live in the vault dev zone, not the repo
 
 # Secrets — never commit real env files
 .env
