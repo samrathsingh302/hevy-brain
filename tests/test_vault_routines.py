@@ -76,6 +76,20 @@ def test_routine_note_rendered_with_roundtrip_frontmatter(tmp_path: Path) -> Non
     assert "%% hevy-brain:end %%" in text
 
 
+def test_empty_routines_build_writes_no_routine_notes(tmp_path: Path) -> None:
+    """An account with no routines must degrade cleanly: zero routine notes,
+    nothing archived, and no stray managed files under Routines/."""
+    config = _config(tmp_path)
+    store = _store(tmp_path, [])  # no routines at all
+
+    changed = build_vault(config, store, today=TODAY)
+
+    assert changed["routines"] == 0
+    assert changed["archived"] == 0
+    routines_dir = config.vault_root / "Routines"
+    assert not routines_dir.exists() or not list(routines_dir.glob("*.md"))
+
+
 def test_routine_regen_is_idempotent(tmp_path: Path) -> None:
     config = _config(tmp_path)
     store = _store(tmp_path, [make_routine()])
