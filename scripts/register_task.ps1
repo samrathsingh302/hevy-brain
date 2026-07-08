@@ -3,7 +3,8 @@
 #   - "HevyBrain Coach": runs `hevy-brain coach` Sundays at 19:00
 # Run from the repo root in an elevated or normal PowerShell:
 #   powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1
-# Requires HEVY_API_KEY (and ANTHROPIC_API_KEY for coach) set as USER
+# Requires HEVY_API_KEY set as USER (ANTHROPIC_API_KEY is NOT needed for the
+# scheduled coach — it uses the free path; only manual `coach --api` reads it)
 # environment variables so the scheduled task inherits them:
 #   [Environment]::SetEnvironmentVariable('HEVY_API_KEY', '<key>', 'User')
 
