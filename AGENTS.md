@@ -1,6 +1,6 @@
 # AGENTS.md — hevy-brain
 
-> Onboarding for ANY coding agent. Claude Code also reads `CLAUDE.md` (which wins on conflict). Locked decisions live vault-side in `vault\dev\hevy-brain\DECISIONS.md` — read before proposing changes.
+> Onboarding for ANY coding agent. Claude Code also reads `CLAUDE.md` (which wins on conflict). Locked decisions live vault-side in `vault\dev\repos\hevy-brain\DECISIONS.md` — read before proposing changes.
 
 ## What this is
 A standalone Python CLI that syncs full Hevy workout history into an Obsidian vault, analyses training patterns, gives free AI coaching, and pushes changes back to Hevy on explicit command. Single-user (Samrath), personal use. Generated notes land in `C:\Users\samra\vault\life\Hevy\`; the local JSON cache is the source of truth and the vault is rebuildable offline from it.
@@ -36,10 +36,10 @@ powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1   # scheduled
 - `HEVY_API_KEY` / `ANTHROPIC_API_KEY` live in env vars only — never config, never git. The repo is PUBLIC.
 - Tests never touch the real Hevy account — offline fixtures/mocks only.
 - No automated writes to Hevy — writeback only via explicit `push` commands.
-- Data/cache/notes/config stay gitignored; working markdown (handoffs/plans/tasks) lives in `vault\dev\hevy-brain\`, never in the repo.
+- Data/cache/notes/config stay gitignored; working markdown (handoffs/plans/tasks) lives in `vault\dev\repos\hevy-brain\`, never in the repo.
 
 ## Definition of done
-Green gate = pytest + ruff check + ruff format --check + mypy, AND `sync/vault/coach/push` run cleanly against the real account. Every session ends with a dated 6-key handoff in `vault\dev\hevy-brain\handoffs\` + tasks.md updated + a commit — a session without its handoff has failed its exit.
+Green gate = pytest + ruff check + ruff format --check + mypy, AND `sync/vault/coach/push` run cleanly against the real account. Every session ends with a dated 6-key handoff in `vault\dev\repos\hevy-brain\handoffs\` + tasks.md updated + a commit — a session without its handoff has failed its exit.
 
 ## Where state lives
-Current state = the newest dated file in `C:\Users\samra\vault\dev\hevy-brain\handoffs\` + `vault\dev\hevy-brain\tasks.md` (open issues under `## Issues` / GitHub issues).
+Current state = the newest dated file in `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` + `vault\dev\repos\hevy-brain\tasks.md` (open issues under `## Issues` / GitHub issues).
