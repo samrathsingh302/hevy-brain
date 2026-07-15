@@ -25,8 +25,10 @@ New-Item -ItemType Directory -Force $logDir | Out-Null
 function Register-HevyTask {
     param([string]$Name, [string]$Command, $Trigger)
     $log = Join-Path $logDir (($Command -replace ' ', '_') + '.log')
-    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument (
-        "-NoProfile -WindowStyle Hidden -Command `"& '$python' -m hevy_brain.cli $Command *>> '$log'`""
+    # wscript (GUI app) launcher: powershell.exe alone flashes a console/WT tab on
+    # every run even with -WindowStyle Hidden (window exists before the flag parses).
+    $action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument (
+        "`"$PSScriptRoot\run_hidden.vbs`" powershell.exe -NoProfile -Command `"& '$python' -m hevy_brain.cli $Command *>> '$log'`""
     ) -WorkingDirectory $repo
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable `
         -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
