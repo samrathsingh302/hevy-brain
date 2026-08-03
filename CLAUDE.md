@@ -1,14 +1,14 @@
 # hevy-brain — Claude Code instructions
 **Read order, every session:** 1) this file · 2) current state = newest dated handoff in `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` (always — gotchas; handoffs moved to the vault 26/06/2026, no repo HANDOFF.md)
 · 3) C:\Users\samra\vault\dev\_global\_archive\doctrine\SAMRATH.md + LOOP-GUIDE.md (who you work for; how we prompt + split work across agents + run the autonomous loop — LOOP-GUIDE consolidates the former PROMPTING_GUIDE + ORCHESTRATION)
-· 4) `C:\Users\samra\vault\dev\repos\hevy-brain\prompts\PROMPT.md` (the original build spec). If _global is unreachable, say so; key defaults:
+· 4) identity + build spec live in this CLAUDE.md (there is no `prompts\PROMPT.md`); repo state = the newest vault handoff. If _global is unreachable, say so; key defaults:
 free tiers only · British English, dd/mm/yyyy, £ · evidence over intuition · tests with code ·
 no data loss · don't ask about things SAMRATH.md §3 lets you decide; always ask about §4.
 
 ## What this is
 A standalone Python CLI that syncs your full Hevy workout history into your Obsidian second brain,
 analyses training patterns, gives free AI coaching, and pushes changes back to Hevy. The generated
-notes live at `C:\Users\samra\vault\life\Hevy\` (the vault's life zone — see Config; 01/07/2026, moved
+notes live at `C:\Users\samra\vault\hevy\` (a top-level vault zone — see Config; 01/07/2026, moved
 in from the old repo `vault_staging/`). For Samrath, personal use. Done = sync/vault/coach/push all run
 cleanly against the real account.
 
@@ -17,11 +17,11 @@ cleanly against the real account.
 - `hevy_brain/`: `cli.py` (dispatch) · `config.py` · `api/client.py` (Hevy client) · `sync.py` (full +
   incremental `/workouts/events`) · `store/cache.py` (local JSON, source of truth) · `models.py` ·
   `analytics/` (stats, prs, patterns) · `vault/` (writer + builders) · `coach/advisor.py` · `writeback/`.
-- Config: `config.toml` (vault path + subfolder → output at `vault\life\Hevy\`; gitignored, local-only). Data cache in `data/` — gitignored, never committed.
+- Config: `config.toml` (vault path + subfolder → output at `vault\hevy\`; gitignored, local-only). Data cache in `data/` — gitignored, never committed.
 - Test: `python -m pytest tests -q` (offline, no network). Lint: `python -m ruff check hevy_brain tests`.
 
 ## Fences
-Never: write outside the configured vault subfolder (`life/Hevy`; path-traversal guard) · do non-atomic vault writes ·
+Never: write outside the configured vault subfolder (`hevy`; path-traversal guard) · do non-atomic vault writes ·
 overwrite user edits below the `%% hevy-brain:end %%` marker (preserve them on regen) · delete a
 workout note (archive to `Archive/`, never destroy) · put the Hevy key anywhere but the `HEVY_API_KEY`
 env var (never config or git) · hit the real Hevy account in tests (offline only — fixtures/mocks) ·
@@ -35,7 +35,7 @@ end every session: write a dated handoff to `C:\Users\samra\vault\dev\repos\hevy
 ---
 
 ## Markdown lives in the vault `dev/` zone (26/06/2026 — supersedes "repo reality wins" for working md)
-Two vault destinations, don't conflate them: the app's **product output** (generated Hevy notes) writes to the **life** zone at `C:\Users\samra\vault\life\Hevy\`; all **working/session md** below (handoffs, tasks, logs…) lives in the **dev** zone. Neither belongs in this repo:
+Two vault destinations, don't conflate them: the app's **product output** (generated Hevy notes) writes to the top-level **hevy** zone at `C:\Users\samra\vault\hevy\`; all **working/session md** below (handoffs, tasks, logs…) lives in the **dev** zone. Neither belongs in this repo:
 - **Handoffs** -> `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` — newest dated file = current state (no `HANDOFF.md` in the repo anymore)
 - **Tasks** -> `C:\Users\samra\vault\dev\repos\hevy-brain\tasks.md`
 - **Logs** `dev\repos/hevy-brain\logs\` · **Specs** `dev\repos/hevy-brain\specs\` · **Plans** `dev\repos/hevy-brain\plans\` · **Guides** `dev\repos/hevy-brain\guides\` · **Prompts** `dev\repos/hevy-brain\prompts\`
