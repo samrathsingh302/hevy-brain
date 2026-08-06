@@ -1,9 +1,6 @@
 # hevy-brain — Claude Code instructions
 **Read order, every session:** 1) this file · 2) current state = newest dated handoff in `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` (always — gotchas; handoffs moved to the vault 26/06/2026, no repo HANDOFF.md)
-· 3) C:\Users\samra\vault\dev\_global\_archive\doctrine\SAMRATH.md + LOOP-GUIDE.md (who you work for; how we prompt + split work across agents + run the autonomous loop — LOOP-GUIDE consolidates the former PROMPTING_GUIDE + ORCHESTRATION)
-· 4) identity + build spec live in this CLAUDE.md (there is no `prompts\PROMPT.md`); repo state = the newest vault handoff. If _global is unreachable, say so; key defaults:
-free tiers only · British English, dd/mm/yyyy, £ · evidence over intuition · tests with code ·
-no data loss · don't ask about things SAMRATH.md §3 lets you decide; always ask about §4.
+· 3) identity + build spec live in this CLAUDE.md (there is no `prompts\PROMPT.md`). House doctrine, defaults and the session ritual load from the global `~/.claude/CLAUDE.md` — not restated here (trimmed 05/08/2026).
 
 ## What this is
 A standalone Python CLI that syncs your full Hevy workout history into your Obsidian second brain,
@@ -28,26 +25,9 @@ env var (never config or git) · hit the real Hevy account in tests (offline onl
 auto-write to Hevy (writes only via explicit `push` commands). Data/cache/notes stay gitignored.
 
 ## Working style
-One slice per session · decompose across agents first (LOOP-GUIDE.md §3: how does this split?) ·
-commit per coherent step, push per session · tests written with code ·
-end every session: write a dated handoff to `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` (newest = current state), emit the carry-on prompt (LOOP-GUIDE.md §14).
+One slice per session · commit per coherent step, push per session · tests written with code.
 
 ---
 
-## Markdown lives in the vault `dev/` zone (26/06/2026 — supersedes "repo reality wins" for working md)
-Two vault destinations, don't conflate them: the app's **product output** (generated Hevy notes) writes to the top-level **hevy** zone at `C:\Users\samra\vault\hevy\`; all **working/session md** below (handoffs, tasks, logs…) lives in the **dev** zone. Neither belongs in this repo:
-- **Handoffs** -> `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` — newest dated file = current state (no `HANDOFF.md` in the repo anymore)
-- **Tasks** -> `C:\Users\samra\vault\dev\repos\hevy-brain\tasks.md`
-- **Logs** `dev\repos/hevy-brain\logs\` · **Specs** `dev\repos/hevy-brain\specs\` · **Plans** `dev\repos/hevy-brain\plans\` · **Guides** `dev\repos/hevy-brain\guides\` · **Prompts** `dev\repos/hevy-brain\prompts\`
-End a session by writing a dated handoff `YYYY-MM-DD-HHmm-<slug>.md` to `dev\repos/hevy-brain\handoffs\`. Write all of the above there, never in this repo. This repo keeps only code + `README.md` + `CLAUDE.md` + skills/agents + fixtures + product content; a few design docs that code loads by path stay here by necessity. Cheap context: vault `dev\index.md` + `ROUTER.md` route intent -> exact file.
-
-### Every session
-1. **Catch up** — read the newest file in `vault\dev\repos\hevy-brain\handoffs\` first (where the last session stopped, what's next, gotchas).
-2. **Log as you go** — keep a `Now / Next` line in the live handoff; substantial logs → `vault\dev\repos\hevy-brain\logs\`.
-3. **Hand off at the end** — write a dated `YYYY-MM-DD-HHmm-<slug>.md` to `vault\dev\repos\hevy-brain\handoffs\` (status / goal / outcome / gotchas / carry-on), update `vault\dev\repos\hevy-brain\tasks.md`, commit. A session without its handoff has failed its exit.
-
-### Too large? Split it
-If a task feels too big or token use is running high, **stop and propose splitting it into smaller, independently-verifiable slices** (one slice per session) before continuing — never barrel through one giant attempt.
-
-### New session / steer from your phone
-Spawn a fresh session by running `claude` in this repo dir (Samrath can just say "open a new session" → it's spawned seeded). Monitor from a phone via push notifications (`/config` → notify on finish / needs-input), read the handoffs in Obsidian mobile, and steer live cloud sessions at claude.ai/code.
+## Two vault destinations — don't conflate them
+The app's **product output** (generated Hevy notes) writes to the top-level hevy zone at `C:\Users\samra\vault\hevy\`; all **working/session md** lives at `C:\Users\samra\vault\dev\repos\hevy-brain\` (`handoffs\` newest dated file = current state · `tasks.md` · `logs\` `specs\` `plans\` `guides\` `prompts\`). Neither belongs in this repo — it keeps only code + `README.md` + `CLAUDE.md` + skills/agents + fixtures + product content. Session ritual (catch-up, handoff at close, split-when-large, seeded spawns) = the global contract in `~/.claude/CLAUDE.md` (trimmed 05/08/2026; ROUTER retired).
