@@ -1,5 +1,5 @@
 # hevy-brain — Claude Code instructions
-**Read order, every session:** 1) this file · 2) current state = newest dated handoff in `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` (always — gotchas; handoffs moved to the vault 26/06/2026, no repo HANDOFF.md)
+**Read order, every session:** 1) this file · 2) current state = newest dated handoff in `C:\Users\samra\OneDrive\dev\repos\hevy-brain\handoffs\` (always — gotchas; handoffs moved to the vault 26/06/2026, no repo HANDOFF.md)
 · 3) identity + build spec live in this CLAUDE.md (there is no `prompts\PROMPT.md`). House doctrine, defaults and the session ritual load from the global `~/.claude/CLAUDE.md` — not restated here (trimmed 05/08/2026).
 
 ## What this is
@@ -30,4 +30,4 @@ One slice per session · commit per coherent step, push per session · tests wri
 ---
 
 ## Two vault destinations — don't conflate them
-The app's **product output** (generated Hevy notes) writes to the top-level hevy zone at `C:\Users\samra\vault\hevy\`; all **working/session md** lives at `C:\Users\samra\vault\dev\repos\hevy-brain\` (`handoffs\` newest dated file = current state · `tasks.md` · `logs\` `specs\` `plans\` `guides\` `prompts\`). Neither belongs in this repo — it keeps only code + `README.md` + `CLAUDE.md` + skills/agents + fixtures + product content. Session ritual (catch-up, handoff at close, split-when-large, seeded spawns) = the global contract in `~/.claude/CLAUDE.md` (trimmed 05/08/2026; ROUTER retired).
+The app's **product output** (generated Hevy notes) writes to the top-level hevy zone at `C:\Users\samra\vault\hevy\`; all **working/session md** lives at `C:\Users\samra\OneDrive\dev\repos\hevy-brain\` (`handoffs\` newest dated file = current state · `tasks.md` · `logs\` `specs\` `plans\` `guides\` `prompts\`). Neither belongs in this repo — it keeps only code + `README.md` + `CLAUDE.md` + skills/agents + fixtures + product content. Session ritual (catch-up, handoff at close, split-when-large, seeded spawns) = the global contract in `~/.claude/CLAUDE.md` (trimmed 05/08/2026; ROUTER retired).
