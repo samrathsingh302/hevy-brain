@@ -22,6 +22,11 @@ ignore = [
     "PLC0415", # lazy imports are intentional (optional deps, CLI startup)
     "PLR0913", # renderers legitimately take several data inputs
     "RUF001",  # × and · are intentional in markdown output
+    # Newly stable in ruff 0.16. A licence-header policy rule for repos that
+    # mandate per-file notices; this one is single-author and ships an MIT
+    # LICENSE, so the header adds nothing. (Samrath, 10/08/2026 — the only
+    # ignore added for the 0.16 bump; ISC004 and PLR0917 were fixed in code.)
+    "CPY001",  # Missing copyright notice at top of file
 ]
 
 [lint.per-file-ignores]
