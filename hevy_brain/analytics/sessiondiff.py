@@ -183,17 +183,25 @@ def exercise_diff(history: dict[str, Any]) -> dict[str, Any]:
 def render_overall(diff: dict[str, Any]) -> list[str]:
     """Render the overall (whole-workout) diff as ASCII stdout lines."""
     lines = [
-        f"Last two sessions: {diff['prior_date'].isoformat()} "
-        f"-> {diff['latest_date'].isoformat()}",
-        f"  {_direction(diff['volume_delta_kg'])} volume    "
-        f"{diff['prior_volume_kg']:,.0f} -> {diff['latest_volume_kg']:,.0f} kg "
-        f"({_fmt_delta(diff['volume_delta_kg'], 'kg')})",
-        f"  {_direction(diff['duration_delta_min'])} duration  "
-        f"{diff['prior_duration_min']} -> {diff['latest_duration_min']} min "
-        f"({_fmt_delta(diff['duration_delta_min'], 'min')})",
-        f"  {_direction(diff['exercise_count_delta'])} exercises "
-        f"{diff['prior_exercise_count']} -> {diff['latest_exercise_count']} "
-        f"({_fmt_delta(diff['exercise_count_delta'])})",
+        (
+            f"Last two sessions: {diff['prior_date'].isoformat()} "
+            f"-> {diff['latest_date'].isoformat()}"
+        ),
+        (
+            f"  {_direction(diff['volume_delta_kg'])} volume    "
+            f"{diff['prior_volume_kg']:,.0f} -> {diff['latest_volume_kg']:,.0f} kg "
+            f"({_fmt_delta(diff['volume_delta_kg'], 'kg')})"
+        ),
+        (
+            f"  {_direction(diff['duration_delta_min'])} duration  "
+            f"{diff['prior_duration_min']} -> {diff['latest_duration_min']} min "
+            f"({_fmt_delta(diff['duration_delta_min'], 'min')})"
+        ),
+        (
+            f"  {_direction(diff['exercise_count_delta'])} exercises "
+            f"{diff['prior_exercise_count']} -> {diff['latest_exercise_count']} "
+            f"({_fmt_delta(diff['exercise_count_delta'])})"
+        ),
     ]
     if diff["exercises"]:
         lines.append("\nTop working set, exercises trained in both:")
@@ -214,18 +222,28 @@ def render_overall(diff: dict[str, Any]) -> list[str]:
 def render_exercise(diff: dict[str, Any]) -> list[str]:
     """Render the per-exercise diff as ASCII stdout lines."""
     return [
-        f"{diff['exercise']}: {diff['prior_date'].isoformat()} "
-        f"-> {diff['latest_date'].isoformat()}",
-        f"  {_direction(diff['top_weight_delta_kg'])} top set   "
-        f"{_set_label(diff['prior_set'])} -> {_set_label(diff['latest_set'])} "
-        f"({_fmt_delta(diff['top_weight_delta_kg'], 'kg')})",
-        f"  {_direction(diff['e1rm_delta_kg'])} est 1RM   "
-        f"{diff['prior_e1rm_kg']:.1f} -> {diff['latest_e1rm_kg']:.1f} kg "
-        f"({_fmt_delta(diff['e1rm_delta_kg'], 'kg')})",
-        f"  {_direction(diff['reps_delta'])} reps      "
-        f"{diff['prior_reps']} -> {diff['latest_reps']} "
-        f"({_fmt_delta(diff['reps_delta'])})",
-        f"  {_direction(diff['volume_delta_kg'])} volume    "
-        f"{diff['prior_volume_kg']:,.0f} -> {diff['latest_volume_kg']:,.0f} kg "
-        f"({_fmt_delta(diff['volume_delta_kg'], 'kg')})",
+        (
+            f"{diff['exercise']}: {diff['prior_date'].isoformat()} "
+            f"-> {diff['latest_date'].isoformat()}"
+        ),
+        (
+            f"  {_direction(diff['top_weight_delta_kg'])} top set   "
+            f"{_set_label(diff['prior_set'])} -> {_set_label(diff['latest_set'])} "
+            f"({_fmt_delta(diff['top_weight_delta_kg'], 'kg')})"
+        ),
+        (
+            f"  {_direction(diff['e1rm_delta_kg'])} est 1RM   "
+            f"{diff['prior_e1rm_kg']:.1f} -> {diff['latest_e1rm_kg']:.1f} kg "
+            f"({_fmt_delta(diff['e1rm_delta_kg'], 'kg')})"
+        ),
+        (
+            f"  {_direction(diff['reps_delta'])} reps      "
+            f"{diff['prior_reps']} -> {diff['latest_reps']} "
+            f"({_fmt_delta(diff['reps_delta'])})"
+        ),
+        (
+            f"  {_direction(diff['volume_delta_kg'])} volume    "
+            f"{diff['prior_volume_kg']:,.0f} -> {diff['latest_volume_kg']:,.0f} kg "
+            f"({_fmt_delta(diff['volume_delta_kg'], 'kg')})"
+        ),
     ]
