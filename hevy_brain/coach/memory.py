@@ -186,8 +186,10 @@ def grade_focus(
 
     if not new_records:
         body = [
-            f"\n_No workouts logged since {prev_date.isoformat()} — "
-            "nothing to grade yet._"
+            (
+                f"\n_No workouts logged since {prev_date.isoformat()} — "
+                "nothing to grade yet._"
+            )
         ]
         return "\n".join(header + body) + callout
 

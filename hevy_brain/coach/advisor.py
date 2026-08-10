@@ -138,6 +138,7 @@ def build_context(
     records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
     today: date,
+    *,
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
     plateau_weeks: int = 4,

@@ -75,10 +75,12 @@ def _programme_lines(snapshot: dict[str, Any], today: date) -> list[str]:
     window = f"{snapshot['weeks']} weeks ending {snapshot['window_end'].isoformat()}"
     staleness = (today - snapshot["window_end"]).days
     lines = [
-        f"\n## Training window ({window})\n"
-        f"- {snapshot['sessions']} sessions "
-        f"({snapshot['sessions_per_week']:.1f}/week), "
-        f"{snapshot['weekly_volume_kg']:,.0f} kg/week"
+        (
+            f"\n## Training window ({window})\n"
+            f"- {snapshot['sessions']} sessions "
+            f"({snapshot['sessions_per_week']:.1f}/week), "
+            f"{snapshot['weekly_volume_kg']:,.0f} kg/week"
+        )
     ]
     if staleness > 7:
         lines.append(

@@ -47,8 +47,10 @@ def _lapse_callout(
         else "Time to get back in?"
     )
     return [
-        f"\n> [!warning] **{nudge['days_since']} days** since your last session "
-        f"({last}, _{title}_). {tail}"
+        (
+            f"\n> [!warning] **{nudge['days_since']} days** since your last session "
+            f"({last}, _{title}_). {tail}"
+        )
     ]
 
 
@@ -85,10 +87,12 @@ def _deload_callout(
     if status["mean_rpe"] is not None and status["mean_rpe"] >= status["deload_rpe"]:
         evidence.append(f"mean working-set RPE {status['mean_rpe']:.1f}")
     return [
-        f"\n> [!note] Deload readiness\n"
-        f"> {'; '.join(evidence)} — a lighter week may be worth considering.\n"
-        "> This is a general training-science heuristic, not personalised or "
-        "medical advice."
+        (
+            f"\n> [!note] Deload readiness\n"
+            f"> {'; '.join(evidence)} — a lighter week may be worth considering.\n"
+            "> This is a general training-science heuristic, not personalised or "
+            "medical advice."
+        )
     ]
 
 
@@ -123,8 +127,10 @@ def _landmarks_lines(
         return []
     lines = [
         "\n## Volume landmarks",
-        "\n_General guideline, not personalised advice — edit the bands in "
-        "`config.toml`._",
+        (
+            "\n_General guideline, not personalised advice — edit the bands in "
+            "`config.toml`._"
+        ),
     ]
     if status["lapsed"] or not status["rows"]:
         lines.append("\nNo recent training to assess against volume landmarks.")
@@ -206,12 +212,13 @@ def render_dashboard(
     workout_paths: dict[str, str],
     store_meta: dict[str, Any],
     today: date,
+    *,
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
     volume_weeks: int = 0,
     lapse_nudge_days: int = 0,
     guide_lapse_days: int = 14,
-    heatmap_enabled: bool = False,  # noqa: FBT001, FBT002 (append-only fence: must trail)
+    heatmap_enabled: bool = False,  # append-only fence: must trail
     heatmap_weeks: int = 26,
     deload_weeks: int = 0,
     deload_rpe: float = 8.5,
@@ -407,6 +414,7 @@ def _render_period_review(
     period_records: list[dict[str, Any]],
     prior_records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
+    *,
     workout_paths: dict[str, str],
     period_start: date,
     period_end: date,
@@ -466,6 +474,7 @@ def generate_reviews(
     histories: dict[str, dict[str, Any]],
     workout_paths: dict[str, str],
     today: date,
+    *,
     review_weeks: int = 4,
     review_months: int = 2,
     templates: dict[str, dict[str, Any]] | None = None,
@@ -496,11 +505,11 @@ def generate_reviews(
             period,
             prior,
             histories,
-            workout_paths,
-            start,
-            end,
-            templates,
-            overrides,
+            workout_paths=workout_paths,
+            period_start=start,
+            period_end=end,
+            templates=templates,
+            overrides=overrides,
         )
         if writer.write(f"Reviews/{title}.md", note):
             changed += 1
@@ -532,11 +541,11 @@ def generate_reviews(
             period,
             prior,
             histories,
-            workout_paths,
-            start,
-            end,
-            templates,
-            overrides,
+            workout_paths=workout_paths,
+            period_start=start,
+            period_end=end,
+            templates=templates,
+            overrides=overrides,
         )
         if writer.write(f"Reviews/{title}.md", note):
             changed += 1

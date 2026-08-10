@@ -137,8 +137,10 @@ def _grade_item(
     target_w = item.get("top_weight_kg")
     if not target_w:
         return (
-            f"- **{label}**: trained over {sessions} {sess} "
-            "(bodyweight — load not graded)",
+            (
+                f"- **{label}**: trained over {sessions} {sess} "
+                "(bodyweight — load not graded)"
+            ),
             True,
             None,
         )
@@ -192,8 +194,10 @@ def grade_target(
         return "\n".join(
             [
                 *header,
-                f"\n_No workouts logged since {pushed.isoformat()} — "
-                "the draft hasn't been trained yet._",
+                (
+                    f"\n_No workouts logged since {pushed.isoformat()} — "
+                    "the draft hasn't been trained yet._"
+                ),
             ]
         )
 

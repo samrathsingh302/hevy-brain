@@ -18,6 +18,7 @@ class FakeClient:
 
     def __init__(
         self,
+        *,
         workouts: list[dict] | None = None,
         events: list[dict] | None = None,
         measurements: list[dict] | None = None,
