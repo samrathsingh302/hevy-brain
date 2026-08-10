@@ -81,6 +81,7 @@ def render_year_review(
     year_records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
     today: date,
+    *,
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
 ) -> str:
@@ -168,6 +169,7 @@ def generate_year_reviews(
     records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
     today: date,
+    *,
     templates: dict[str, dict[str, Any]] | None = None,
     overrides: dict[str, str] | None = None,
 ) -> int:
@@ -180,7 +182,12 @@ def generate_year_reviews(
     for year in years:
         year_records = [r for r in records if r["start_time"].date().year == year]
         note = render_year_review(
-            year, year_records, histories, today, templates, overrides
+            year,
+            year_records,
+            histories,
+            today,
+            templates=templates,
+            overrides=overrides,
         )
         if writer.write(f"Reviews/{year} Year in Review.md", note):
             changed += 1
