@@ -59,6 +59,10 @@ class RoutineNoteError(Exception):
     """Raised when a routine note cannot be parsed."""
 
 
+class MeasurementMergeError(Exception):
+    """Raised when a measurement PUT would overwrite a record we cannot read."""
+
+
 def _read_frontmatter(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---"):
@@ -527,12 +531,46 @@ async def push_workout_update(
     return await client.async_update_workout(workout_id, body)
 
 
+_MEASUREMENT_PAGE_SIZE = 10  # Hevy API hard cap
+_MEASUREMENT_MAX_PAGES = 200
+
+
+async def _existing_measurement(
+    client: HevyApiClient, date_str: str
+) -> dict[str, Any] | None:
+    """Fetch the stored measurement record for ``date_str``, if Hevy has one.
+
+    Hevy exposes no GET-by-date, so the paginated list is drained and matched
+    on ``date``.
+    """
+    page = 1
+    while page <= _MEASUREMENT_MAX_PAGES:
+        response = await client.async_get_body_measurements(
+            page=page, page_size=_MEASUREMENT_PAGE_SIZE
+        )
+        batch = response.get("body_measurements", []) if response else []
+        for record in batch:
+            if isinstance(record, dict) and record.get("date") == date_str:
+                return record
+        page_count = response.get("page_count") if response else None
+        if not batch or (page_count is not None and page >= page_count):
+            return None
+        page += 1
+    return None
+
+
 async def push_measurement(
     client: HevyApiClient,
     fields: dict[str, float],
     date_str: str | None = None,
 ) -> str:
-    """Log a body measurement; on 409 (date exists) overwrite via PUT.
+    """Log a body measurement; on 409 (date exists) read-merge, then PUT.
+
+    The PUT is a whole-record replacement and Hevy has no undo, so pushing
+    only the given fields would silently wipe every other field recorded that
+    day (e.g. a waist measurement lost by a weight-only push). The existing
+    record is therefore fetched first and the new fields merged over it. If
+    the record cannot be read back, the push FAILS rather than overwrite blind.
 
     Returns the date the measurement was written for.
     """
@@ -548,5 +586,19 @@ async def push_measurement(
     try:
         await client.async_create_body_measurement(body)
     except HevyApiClientConflictError:
-        await client.async_update_body_measurement(date_str, dict(fields))
+        existing = await _existing_measurement(client, date_str)
+        if existing is None:
+            msg = (
+                f"Hevy reports a measurement already exists for {date_str} but it "
+                "could not be read back; refusing to PUT, which would overwrite "
+                "the whole record. Retry, or edit the entry in the Hevy app."
+            )
+            raise MeasurementMergeError(msg) from None
+        merged = {
+            key: value
+            for key, value in existing.items()
+            if key in MEASUREMENT_FIELDS and value is not None
+        }
+        merged.update(fields)
+        await client.async_update_body_measurement(date_str, merged)
     return date_str
