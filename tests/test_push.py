@@ -20,6 +20,7 @@ from hevy_brain.models import build_workout_record
 from hevy_brain.vault.routines import render_routine_note
 from hevy_brain.vault.workouts import render_workout_note
 from hevy_brain.writeback.hevy_push import (
+    MeasurementMergeError,
     PlannedWorkoutError,
     RoutineNoteError,
     WorkoutNoteError,
@@ -573,18 +574,100 @@ async def test_push_measurement_posts() -> None:
     assert body == {"weight_kg": 78.4, "date": "2026-06-10"}
 
 
-async def test_push_measurement_falls_back_to_put_on_conflict() -> None:
+def _conflicting_client(pages: list[dict]) -> MagicMock:
+    """A client whose POST 409s and whose GET returns the given pages."""
     client = MagicMock()
     client.async_create_body_measurement = AsyncMock(
         side_effect=HevyApiClientConflictError("exists")
     )
     client.async_update_body_measurement = AsyncMock(return_value={})
+    client.async_get_body_measurements = AsyncMock(side_effect=pages)
+    return client
+
+
+async def test_push_measurement_read_merges_on_conflict() -> None:
+    # The PUT replaces the whole record and Hevy has no undo, so a weight-only
+    # push must NOT wipe the waist/fat fields already recorded that day.
+    client = _conflicting_client(
+        [
+            {
+                "page": 1,
+                "page_count": 1,
+                "body_measurements": [
+                    {
+                        "id": 1,
+                        "date": "2026-06-10",
+                        "weight_kg": 80.0,
+                        "waist": 84.0,
+                        "fat_percent": 18.0,
+                        "created_at": "2026-06-10T07:00:00.000Z",
+                    }
+                ],
+            }
+        ]
+    )
 
     await push_measurement(client, {"weight_kg": 78.4}, date_str="2026-06-10")
 
     args = client.async_update_body_measurement.await_args.args
     assert args[0] == "2026-06-10"
-    assert args[1] == {"weight_kg": 78.4}
+    # New value wins; every other recorded field is preserved; server-side
+    # bookkeeping (id, created_at, date) is not echoed back.
+    assert args[1] == {"weight_kg": 78.4, "waist": 84.0, "fat_percent": 18.0}
+
+
+async def test_push_measurement_read_merge_pages_to_find_the_date() -> None:
+    client = _conflicting_client(
+        [
+            {
+                "page": 1,
+                "page_count": 2,
+                "body_measurements": [{"id": 1, "date": "2026-06-09", "waist": 90.0}],
+            },
+            {
+                "page": 2,
+                "page_count": 2,
+                "body_measurements": [
+                    {"id": 2, "date": "2026-06-10", "weight_kg": 80.0, "waist": 84.0}
+                ],
+            },
+        ]
+    )
+
+    await push_measurement(client, {"weight_kg": 78.4}, date_str="2026-06-10")
+
+    assert client.async_get_body_measurements.await_count == 2
+    assert client.async_update_body_measurement.await_args.args[1] == {
+        "weight_kg": 78.4,
+        "waist": 84.0,
+    }
+
+
+async def test_push_measurement_refuses_to_put_when_the_record_is_unreadable() -> None:
+    # 409 says a record exists, but it is not in the list: overwriting blind
+    # would destroy it, so the push fails instead.
+    client = _conflicting_client(
+        [{"page": 1, "page_count": 1, "body_measurements": []}]
+    )
+
+    with pytest.raises(MeasurementMergeError, match="refusing to PUT"):
+        await push_measurement(client, {"weight_kg": 78.4}, date_str="2026-06-10")
+
+    client.async_update_body_measurement.assert_not_awaited()
+
+
+async def test_push_measurement_creates_without_reading_when_no_conflict() -> None:
+    # No existing record → plain create, and no read-merge round trip at all.
+    client = MagicMock()
+    client.async_create_body_measurement = AsyncMock(return_value={})
+    client.async_get_body_measurements = AsyncMock(return_value={})
+    client.async_update_body_measurement = AsyncMock(return_value={})
+
+    date_str = await push_measurement(client, {"weight_kg": 78.4}, date_str="2026-06-10")
+
+    assert date_str == "2026-06-10"
+    client.async_get_body_measurements.assert_not_awaited()
+    client.async_update_body_measurement.assert_not_awaited()
 
 
 async def test_push_measurement_validates_fields() -> None:

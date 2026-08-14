@@ -688,7 +688,11 @@ def _track_draft_adherence(config: Config, body: dict[str, Any]) -> None:
 
 
 async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int:
-    from .writeback.hevy_push import MEASUREMENT_FIELDS, push_measurement
+    from .writeback.hevy_push import (
+        MEASUREMENT_FIELDS,
+        MeasurementMergeError,
+        push_measurement,
+    )
 
     fields = {
         name: getattr(args, name)
@@ -703,7 +707,11 @@ async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int
         return 1
 
     async def run(client: HevyApiClient) -> int:
-        date_str = await push_measurement(client, fields, args.date)
+        try:
+            date_str = await push_measurement(client, fields, args.date)
+        except MeasurementMergeError as err:
+            print(f"Error: {err}", file=sys.stderr)
+            return 1
         printable = ", ".join(f"{k}={v:g}" for k, v in fields.items())
         print(f"Measurement logged for {date_str}: {printable}")
         return 0
