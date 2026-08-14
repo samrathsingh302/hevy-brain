@@ -77,7 +77,10 @@ def test_generate_report_uses_injected_client(raw_workouts: dict) -> None:
 
     assert report.summary == "Solid week overall."
     kwargs = client.messages.parse.call_args.kwargs
-    assert kwargs["model"] == "claude-opus-4-8"
+    # The Messages API has no floating "opus" alias, so the default is the
+    # current Opus id itself — pinned in one place (advisor.DEFAULT_MODEL).
+    assert kwargs["model"] == advisor.DEFAULT_MODEL
+    assert kwargs["model"] == "claude-opus-5"
     assert kwargs["thinking"] == {"type": "adaptive"}
     assert kwargs["output_config"] == {"effort": "high"}
     assert kwargs["output_format"] is CoachReport

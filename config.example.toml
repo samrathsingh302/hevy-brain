@@ -16,7 +16,8 @@ data_dir = "data"
 page_size = 10  # Hevy API hard cap
 
 [coach]
-model = "claude-opus-4-8"
+# The Messages API has no floating "opus" alias — pin the current Opus id.
+model = "claude-opus-5"
 max_calls_per_day = 4
 
 [knowledge]
