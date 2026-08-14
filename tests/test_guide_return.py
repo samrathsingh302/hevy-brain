@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from conftest import make_routine, make_routine_exercise, make_routine_set
+from test_knowledge import parsed_claims
 
 from hevy_brain.analytics.comeback import lapse_status, pre_lapse_baselines
 from hevy_brain.analytics.prs import exercise_histories
@@ -268,6 +269,20 @@ def test_build_return_context_lists_drafts_and_claims(raw_workouts: dict) -> Non
     assert "[[Routines/Drafts/Return Week 1 — Push Day.md]]" in context
     assert "--dry-run" in context
     assert "[[xJ0IBzCjEPk#^claim-07]]" in context
+
+
+@pytest.mark.parametrize("link_format", ["markdown", "wikilink"])
+def test_return_context_carries_claims_parsed_from_the_vault(
+    raw_workouts: dict, tmp_path: Path, link_format: str
+) -> None:
+    # Claims parsed out of a real topic page — live markdown links AND the
+    # retired wikilinks — must reach the return context as citations.
+    claims = parsed_claims(tmp_path, link_format)
+    assert claims, f"no claims parsed from a {link_format} topic page"
+
+    context = _context(raw_workouts, knowledge=claims)
+
+    assert "[[noteA#^claim-22]]" in context
 
 
 def test_build_return_context_flags_empty_corpus(raw_workouts: dict) -> None:

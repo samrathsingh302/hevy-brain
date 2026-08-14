@@ -10,6 +10,9 @@ training science:
 Every claim is returned with its evidence tag (``strong`` / ``preliminary`` /
 ``opinion`` / ``contested``) and its block-anchored link
 (``[[id#^claim-xx]]``) so the citation round-trips back to the vault.
+Claim links are *parsed* in both vault link shapes — the live markdown one
+(``[id#^claim-xx](../notes/id.md#^claim-xx)``, in force since the estate's
+link-style purge) and the retired wikilink one.
 
 Fences (mirroring ``routing.md`` and the project ``CLAUDE.md``):
 
@@ -31,16 +34,32 @@ import yaml
 EVIDENCE_TAGS = ("strong", "preliminary", "opinion", "contested")
 CLAIM_TYPES = ("DO", "AVOID", "INFO")
 
-# [[id#^claim-12]] — id is alnum/_/- only, so transcript links such as
+# A claim link in either shape the vault has used:
+#   markdown  [id#^claim-12](../notes/id.md#^claim-12)   — live since the
+#             estate's link-style purge (~31/07/2026); this is what topic
+#             pages and _meta/claims-index.md carry now.
+#   wikilink  [[id#^claim-12]]                            — retired shape,
+#             still parsed for back-compat with older/hand-written pages.
+# id is alnum/_/- only, so transcript links such as
 # [[id.transcript#^t1120|ctx]] (a "." in the id, a "t" anchor) never match.
-_CLAIM_LINK_RE = re.compile(r"\[\[([A-Za-z0-9_-]+)#\^(claim-\d+)\]\]")
+_CLAIM_LINK_PATTERN = (
+    r"(?:\[\[([A-Za-z0-9_-]+)#\^(claim-\d+)\]\]"
+    r"|\[([A-Za-z0-9_-]+)#\^(claim-\d+)\]\([^)\s]*\))"
+)
+_CLAIM_LINK_RE = re.compile(_CLAIM_LINK_PATTERN)
 _EVIDENCE_RE = re.compile(r"\[(" + "|".join(EVIDENCE_TAGS) + r")\]")
 _LIST_MARKER_RE = re.compile(r"^\s*-\s+")
 _TYPE_PREFIX_RE = re.compile(r"^(" + "|".join(CLAIM_TYPES) + r")\s+")
 _PRIORITY_TAIL_RE = re.compile(r"\s*\((?:priority|DOSE):.*$", re.IGNORECASE)
-# A line in claims-index.md: "- [[id#^claim-01]] DO [strong] — text"
+# Live topic-page bullets end with the source timestamp beside the claim link —
+# "[47:19](https://www.youtube.com/watch?v=...&t=2839s)". A citation ornament,
+# not part of the paraphrase, so it is stripped like the claim link itself.
+_TIMESTAMP_LINK_RE = re.compile(r"\[\d{1,3}:\d{2}(?::\d{2})?\]\([^)\s]*\)")
+# A claims-index.md entry: a list bullet whose claim link (either shape) is
+# followed by the claim type, the evidence tag and the statement — live shape
+# "[id#^claim-01](../notes/id.md#^claim-01) DO [strong] — text".
 _INDEX_LINE_RE = re.compile(
-    r"-\s*\[\[([A-Za-z0-9_-]+)#\^(claim-\d+)\]\]\s+(\w+)\s+\[(\w+)\]\s+[—-]\s+(.*)"
+    r"-\s*" + _CLAIM_LINK_PATTERN + r"\s+(\w+)\s+\[(\w+)\]\s+[—-]\s+(.*)"
 )
 
 SOURCES_DIRNAME = "sources"
@@ -89,11 +108,22 @@ class RetrievalResult:
     gap: bool  # True when nothing was found — an ingestion gap, do not infer
 
 
+def _link_target(match: re.Match[str]) -> tuple[str, str]:
+    """(source_id, anchor) from a claim-link match, either link shape."""
+    return (match.group(1) or match.group(3), match.group(2) or match.group(4))
+
+
+def _find_claim_links(text: str) -> list[tuple[str, str]]:
+    """Every (source_id, anchor) claim link on a line, either link shape."""
+    return [_link_target(m) for m in _CLAIM_LINK_RE.finditer(text)]
+
+
 def _clean_text(line: str) -> str:
     """Strip the list marker, claim-type prefix, evidence tags and links."""
     text = _LIST_MARKER_RE.sub("", line).strip()
     text = _TYPE_PREFIX_RE.sub("", text)
     text = _CLAIM_LINK_RE.sub("", text)
+    text = _TIMESTAMP_LINK_RE.sub("", text)
     text = _EVIDENCE_RE.sub("", text)
     text = _PRIORITY_TAIL_RE.sub("", text)
     # Collapse whitespace and tidy a trailing separator left by a removed link.
@@ -163,7 +193,7 @@ class KnowledgeBase:
             return None
         claims: list[Claim] = []
         for line in text.splitlines():
-            links = _CLAIM_LINK_RE.findall(line)
+            links = _find_claim_links(line)
             if not links:
                 continue
             evidence_match = _EVIDENCE_RE.search(line)
@@ -277,7 +307,8 @@ class KnowledgeBase:
             match = _INDEX_LINE_RE.match(line.strip())
             if not match:
                 continue
-            source_id, anchor, claim_type, evidence, body = match.groups()
+            source_id, anchor = _link_target(match)
+            claim_type, evidence, body = match.group(5), match.group(6), match.group(7)
             claims.append(
                 Claim(
                     source_id=source_id,

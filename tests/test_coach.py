@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from test_knowledge import parsed_claims
 
 from hevy_brain.analytics.prs import exercise_histories
 from hevy_brain.coach import advisor
@@ -258,6 +260,25 @@ def test_briefing_with_knowledge_grounds_advice(raw_workouts: dict) -> None:
 
     assert advisor.KNOWLEDGE_HEADING in note
     assert "[[xJ0IBzCjEPk#^claim-22]]" in note
+
+
+@pytest.mark.parametrize("link_format", ["markdown", "wikilink"])
+def test_briefing_grounds_claims_parsed_from_the_vault(
+    raw_workouts: dict, tmp_path: Path, link_format: str
+) -> None:
+    # End-to-end: a real topic page (live markdown links AND the retired
+    # wikilinks) parsed by the reader must reach the briefing as a citation.
+    claims = parsed_claims(tmp_path, link_format)
+    assert claims, f"no claims parsed from a {link_format} topic page"
+    records = build_records(raw_workouts)
+    histories = exercise_histories(records)
+
+    note = advisor.render_briefing(
+        advisor.build_context(records, histories, TODAY, knowledge=claims), TODAY
+    )
+
+    assert advisor.KNOWLEDGE_HEADING in note
+    assert "[[noteA#^claim-22]]" in note
 
 
 # --- coach memory recap (C1) -------------------------------------------------

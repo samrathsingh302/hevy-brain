@@ -14,6 +14,7 @@ from conftest import (
     make_set,
     make_workout,
 )
+from test_knowledge import parsed_claims
 
 from hevy_brain.analytics.prs import exercise_histories
 from hevy_brain.analytics.redesign import (
@@ -364,6 +365,20 @@ def test_build_redesign_context_lists_drafts_claims_available(
     assert "--dry-run" in context
     assert "Squat (Barbell)" in context
     assert "[[xJ0IBzCjEPk#^claim-07]]" in context
+
+
+@pytest.mark.parametrize("link_format", ["markdown", "wikilink"])
+def test_redesign_context_carries_claims_parsed_from_the_vault(
+    raw_workouts: dict, tmp_path: Path, link_format: str
+) -> None:
+    # Claims parsed out of a real topic page — live markdown links AND the
+    # retired wikilinks — must reach the redesign context as citations.
+    claims = parsed_claims(tmp_path, link_format)
+    assert claims, f"no claims parsed from a {link_format} topic page"
+
+    context = _context(raw_workouts, knowledge=claims)
+
+    assert "[[noteA#^claim-22]]" in context
 
 
 def test_build_redesign_context_flags_empty_corpus(raw_workouts: dict) -> None:

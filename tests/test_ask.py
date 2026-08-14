@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from test_knowledge import CLAIMS_INDEX, NOTE_A, NOTE_B, TOPIC_SLEEP, TOPIC_TRAINING
+from test_knowledge import write_fixture_vault
 
 from hevy_brain.cli import _load_knowledge_for_question
 from hevy_brain.coach.ask import (
@@ -106,17 +106,14 @@ def test_render_ask_briefing_bundles_question_and_context() -> None:
 # -- question-driven retrieval ----------------------------------------------
 
 
-@pytest.fixture
-def config(tmp_path: Path) -> Config:
-    """A config whose knowledge root holds the miniature knowledge layer."""
-    (tmp_path / "topics").mkdir()
-    (tmp_path / "notes").mkdir()
-    (tmp_path / "_meta").mkdir()
-    (tmp_path / "topics" / "training.md").write_text(TOPIC_TRAINING, encoding="utf-8")
-    (tmp_path / "topics" / "sleep.md").write_text(TOPIC_SLEEP, encoding="utf-8")
-    (tmp_path / "notes" / "noteA.md").write_text(NOTE_A, encoding="utf-8")
-    (tmp_path / "notes" / "noteB.md").write_text(NOTE_B, encoding="utf-8")
-    (tmp_path / "_meta" / "claims-index.md").write_text(CLAIMS_INDEX, encoding="utf-8")
+@pytest.fixture(params=["markdown", "wikilink"])
+def config(tmp_path: Path, request: pytest.FixtureRequest) -> Config:
+    """A config whose knowledge root holds the miniature knowledge layer.
+
+    Run against BOTH vault link formats — the live markdown one and the
+    retired wikilink one (H1, 13/08/2026).
+    """
+    write_fixture_vault(tmp_path, request.param)
     return Config(base_dir=tmp_path, vault_path=tmp_path, data_dir=tmp_path / "data")
 
 
