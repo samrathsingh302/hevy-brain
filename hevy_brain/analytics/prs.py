@@ -6,14 +6,24 @@ from typing import Any
 
 from ..models import is_warmup
 
+# Epley (like every 1RM formula) is fitted to low-rep sets and is only
+# considered usable to roughly 10-12 reps; past that its linear rep term runs
+# away and turns endurance work into fake strength. Unbounded, a 31.25 kg x 179
+# rep cable shrug estimated a 217.7 kg "1RM" and topped the strength-to-
+# bodyweight table (bug-hunt H2, 13/08/2026). Capping the rep count (rather
+# than dropping the set) keeps every exercise in the table with an estimate
+# that errs LOW — a set carried past the cap can only be under-credited, never
+# ranked above a genuine heavy single.
+EPLEY_REP_CAP = 12
+
 
 def epley_1rm(weight_kg: float, reps: int) -> float:
-    """Estimated one-rep max via the Epley formula."""
+    """Estimated one-rep max via the Epley formula, capped at 12 reps."""
     if reps <= 0 or weight_kg <= 0:
         return 0.0
     if reps == 1:
         return float(weight_kg)
-    return weight_kg * (1 + reps / 30)
+    return weight_kg * (1 + min(reps, EPLEY_REP_CAP) / 30)
 
 
 def _session_entry(record: dict[str, Any], exercise: dict[str, Any]) -> dict[str, Any]:
