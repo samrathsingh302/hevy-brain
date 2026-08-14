@@ -30,6 +30,26 @@ def is_warmup(workout_set: dict[str, Any]) -> bool:
     )
 
 
+# Hevy records a dumbbell exercise's load as the PAIR TOTAL (both bells added
+# together), while Samrath says the per-hand number ("PR is 42" = 85 kg here).
+# The stored numbers are left exactly as Hevy has them — normalising them is a
+# product decision, not a rendering one — but every dumbbell weight the vault
+# prints is LABELLED so a pair total is never read as a per-hand load, and so a
+# 42.5 kg per-hand figure is never typed into a draft that means 42.5 kg total.
+PAIR_TOTAL_MARKER = "(Dumbbell)"
+PAIR_TOTAL_LABEL = " (pair)"
+
+
+def is_pair_total(exercise_title: str) -> bool:
+    """Return True if this exercise's weights are Hevy pair totals."""
+    return PAIR_TOTAL_MARKER in (exercise_title or "")
+
+
+def pair_label(exercise_title: str) -> str:
+    """Return the ``" (pair)"`` suffix for dumbbell lifts, else ``""``."""
+    return PAIR_TOTAL_LABEL if is_pair_total(exercise_title) else ""
+
+
 def parse_iso(value: str | None) -> datetime | None:
     """Parse an ISO 8601 timestamp ('Z' suffix included), or None."""
     if not value:

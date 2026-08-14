@@ -15,16 +15,29 @@ from ..analytics import (
     strength_ratio,
 )
 from ..analytics.prs import recent_prs
+from ..models import pair_label
 from . import charts, heatmap
 from .writer import VaultWriter, render_note
 
 _RECENT_WORKOUTS = 10
+# PR kinds whose value is a LOAD (so a dumbbell pair total); "volume" is a
+# session total, where the per-hand/pair distinction does not apply.
+_LOAD_PR_TYPES = ("weight", "e1rm")
 
 
 def _link(workout_id: str, workout_paths: dict[str, str], fallback: str) -> str:
     path = workout_paths.get(workout_id, "")
     name = path.rsplit("/", 1)[-1].removesuffix(".md")
     return f"[[{name}]]" if name else fallback
+
+
+def _pr_line(pr: dict[str, Any]) -> str:
+    """One PR bullet, with dumbbell loads labelled as Hevy pair totals."""
+    pair = pair_label(pr["exercise"]) if pr["type"] in _LOAD_PR_TYPES else ""
+    return (
+        f"- {pr['date'].isoformat()} — **{pr['exercise']}** "
+        f"{pr['type']} {pr['value']:.1f} kg{pair}"
+    )
 
 
 def _lapse_callout(
@@ -309,11 +322,7 @@ def render_dashboard(
     prs = recent_prs(histories, limit=8)
     if prs:
         lines.append("\n## Recent PRs")
-        for pr in prs:
-            lines.append(
-                f"- {pr['date'].isoformat()} — **{pr['exercise']}** "
-                f"{pr['type']} {pr['value']:.1f} kg"
-            )
+        lines.extend(_pr_line(pr) for pr in prs)
 
     lines.append("\n## Recent workouts")
     for record in list(reversed(records))[:_RECENT_WORKOUTS]:
@@ -350,18 +359,27 @@ def _strength_to_bodyweight_lines(
         "| ---- | -------- | ------------ |",
     ]
     for r in ratios:
-        lines.append(f"| {r['exercise']} | {r['e1rm_kg']:.1f} kg | {r['ratio']:.2f}× |")
+        lines.append(
+            f"| {r['exercise']} | {r['e1rm_kg']:.1f} kg{pair_label(r['exercise'])} "
+            f"| {r['ratio']:.2f}× |"
+        )
+    if any(pair_label(r["exercise"]) for r in ratios):
+        lines.append(
+            "\nDumbbell rows are Hevy **pair totals** (both bells) — halve them "
+            "for the per-hand load."
+        )
 
     top = histories.get(ratios[0]["exercise"])
     trend = strength_ratio.ratio_trend(top, measurements) if top else []
     if len(trend) >= 2:
+        pair = pair_label(ratios[0]["exercise"])
         lines.append(f"\n## Relative strength trend — {ratios[0]['exercise']}")
         lines.append("\n| Date | Bodyweight | Est. 1RM | × bodyweight |")
         lines.append("| ---- | ---------- | -------- | ------------ |")
         for p in trend:
             lines.append(
                 f"| {p['date'].isoformat()} | {p['bodyweight_kg']:g} kg "
-                f"| {p['e1rm_kg']:.1f} kg | {p['ratio']:.2f}× |"
+                f"| {p['e1rm_kg']:.1f} kg{pair} | {p['ratio']:.2f}× |"
             )
     return lines
 
@@ -447,11 +465,7 @@ def _render_period_review(
     if period_prs:
         period_prs.sort(key=lambda p: p["date"])
         lines.append("\n## PRs")
-        for pr in period_prs:
-            lines.append(
-                f"- {pr['date'].isoformat()} — **{pr['exercise']}** "
-                f"{pr['type']} {pr['value']:.1f} kg"
-            )
+        lines.extend(_pr_line(pr) for pr in period_prs)
 
     lines.append("\n## Sessions")
     if period_records:

@@ -477,3 +477,72 @@ def test_duplicate_title_same_day_gets_suffix() -> None:
 
     assert paths["aaaa1111"] == "Workouts/2026-06-08 Push Day.md"
     assert paths["bbbb2222"] == "Workouts/2026-06-08 Push Day (bbbb2222).md"
+
+
+# --- dumbbell pair totals ----------------------------------------------------
+# Hevy stores dumbbell loads as PAIR TOTALS while Samrath speaks per-hand
+# ("PR is 42" = 85 kg here). The numbers are left as Hevy has them; the vault
+# labels them so the two units can never be confused (bug-hunt, 13/08/2026).
+
+
+def _dumbbell_history(title: str = "Shrug (Dumbbell)") -> dict:
+    raw = {}
+    for i, day in enumerate(("2026-05-25", "2026-06-01", "2026-06-08")):
+        raw[f"d{i}"] = make_workout(
+            f"d{i}",
+            "Pull Day",
+            start=f"{day}T17:00:00+00:00",
+            end=f"{day}T18:00:00+00:00",
+            exercises=[make_exercise(title, "T-DB", [make_set(80 + i * 5, 8)])],
+        )
+    return exercise_histories(build_records(raw))
+
+
+def test_exercise_note_labels_dumbbell_loads_as_pair_totals() -> None:
+    note = render_exercise_note(_dumbbell_history()["Shrug (Dumbbell)"], {})
+
+    assert "best weight **90 kg (pair)**" in note
+    assert "PAIR TOTALS" in note
+    assert "45 kg per hand" in note
+
+
+def test_exercise_note_leaves_barbell_loads_unlabelled() -> None:
+    note = render_exercise_note(
+        _dumbbell_history("Shrug (Barbell)")["Shrug (Barbell)"], {}
+    )
+
+    assert "(pair)" not in note
+    assert "per hand" not in note
+
+
+def test_dashboard_pr_lines_label_dumbbell_loads() -> None:
+    histories = _dumbbell_history()
+    records = build_records(
+        {
+            "d0": make_workout(
+                "d0",
+                "Pull Day",
+                start="2026-06-08T17:00:00+00:00",
+                end="2026-06-08T18:00:00+00:00",
+                exercises=[
+                    make_exercise("Shrug (Dumbbell)", "T-DB", [make_set(90, 8)])
+                ],
+            )
+        }
+    )
+
+    dashboard = render_dashboard(records, histories, {}, {}, TODAY)
+
+    assert "weight 90.0 kg (pair)" in dashboard
+    # A volume PR is a session total, not a load — no pair label there.
+    assert "volume 720.0 kg (pair)" not in dashboard
+
+
+def test_strength_table_labels_dumbbell_rows() -> None:
+    histories = _dumbbell_history()
+    measurements = [{"date": "2026-06-09", "weight_kg": 90.0}]
+
+    note = render_body_log(measurements, histories, TODAY)
+
+    assert "| Shrug (Dumbbell) | 114.0 kg (pair) |" in note
+    assert "Dumbbell rows are Hevy **pair totals**" in note

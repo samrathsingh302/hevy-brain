@@ -2,6 +2,16 @@
 
 Write-back is always human-triggered (CLI command); nothing here runs
 automatically.
+
+WARNING — per-hand vs pair totals. Hevy stores a dumbbell exercise's
+``weight_kg`` as the PAIR TOTAL (both bells added together), and everything
+parsed out of a note here is sent to Hevy verbatim, in that unit. A draft
+hand-written in per-hand numbers ("PR is 42") therefore pushes HALF the
+intended load, silently and with no undo. Nothing in this module converts
+between the two — the vault's generated notes label dumbbell loads
+``(pair)`` (``models.pair_label``) so a hand-edited draft starts from the
+right unit. Deciding on real normalisation is a product decision, still
+open; do not add a silent conversion here.
 """
 
 from __future__ import annotations

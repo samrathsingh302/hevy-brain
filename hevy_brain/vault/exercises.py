@@ -6,6 +6,7 @@ from typing import Any
 
 from ..analytics import progression
 from ..config import Config
+from ..models import pair_label
 from . import charts
 from .writer import VaultWriter, render_note, sanitize_filename
 
@@ -52,13 +53,20 @@ def render_exercise_note(
         "tags": ["hevy/exercise"],
     }
 
+    pair = pair_label(history["title"])
     lines = [f"# {history['title']}"]
     lines.append(
         f"\nPerformed **{history['times_performed']}×** · last on "
         f"**{history['last_performed'].isoformat()}** · best weight "
-        f"**{history['best_weight_kg']:g} kg** · best est. 1RM "
-        f"**{history['best_e1rm_kg']:.1f} kg**"
+        f"**{history['best_weight_kg']:g} kg{pair}** · best est. 1RM "
+        f"**{history['best_e1rm_kg']:.1f} kg{pair}**"
     )
+    if pair:
+        lines.append(
+            f"\n> [!info] Hevy stores dumbbell loads as PAIR TOTALS — the "
+            f"{history['best_weight_kg']:g} kg above is "
+            f"{history['best_weight_kg'] / 2:g} kg per hand."
+        )
 
     lines.extend(_progression_section(history, progression_cfg))
 
