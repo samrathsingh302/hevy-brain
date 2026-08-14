@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
 from conftest import make_exercise, make_set, make_workout
 
 from hevy_brain.analytics import patterns, stats
@@ -58,6 +59,36 @@ def test_epley() -> None:
     assert epley_1rm(100, 10) == 100 * (1 + 10 / 30)
     assert epley_1rm(0, 5) == 0
     assert epley_1rm(100, 0) == 0
+
+
+def test_epley_caps_the_rep_count() -> None:
+    # Past ~12 reps Epley is unreliable; the estimate must flatten, not run
+    # away (H2: 31.25 kg x 179 reps once estimated a 217.7 kg 1RM).
+    assert epley_1rm(100, 12) == 100 * (1 + 12 / 30)
+    assert epley_1rm(100, 13) == epley_1rm(100, 12)
+    assert epley_1rm(100, 179) == epley_1rm(100, 12)
+    assert epley_1rm(31.25, 179) == pytest.approx(43.75)
+    assert epley_1rm(31.25, 179) < epley_1rm(100, 1)
+
+
+def test_high_rep_set_cannot_top_the_strength_table(raw_workouts: dict) -> None:
+    # An endurance set on a light exercise must not outrank a heavy lift in
+    # the e1RM ranking that feeds the strength-to-bodyweight table (H2, live
+    # data: Shrug (Cable) 31.25 kg x 179 reps ranked as a 217.7 kg lift).
+    shrug_day = make_workout(
+        "w4",
+        "Shrug Day",
+        start="2026-06-09T17:00:00+00:00",
+        end="2026-06-09T17:30:00+00:00",
+        exercises=[
+            make_exercise("Shrug (Cable)", "T-SHRUG", [make_set(31.25, 179)])
+        ],
+    )
+    histories = exercise_histories(build_records({**raw_workouts, "w4": shrug_day}))
+
+    assert histories["Shrug (Cable)"]["best_e1rm_kg"] == pytest.approx(43.75)
+    heaviest = max(histories.values(), key=lambda h: h["best_e1rm_kg"])
+    assert heaviest["title"] != "Shrug (Cable)"
 
 
 def test_exercise_histories_and_prs(raw_workouts: dict) -> None:
