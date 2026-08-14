@@ -19,7 +19,11 @@ from ..clock import now_london
 from ..knowledge import Claim
 from ..vault.writer import render_note
 
-DEFAULT_MODEL = "claude-opus-4-8"
+# The current Opus on the Messages API. Unlike the Claude Code CLI, the API has
+# NO floating "opus" alias — a bare "opus" 404s — so the newest generation's own
+# suffix-free id is the closest thing to a floating pin here. Ids never carry a
+# date suffix; bump this one line when a newer Opus ships.
+DEFAULT_MODEL = "claude-opus-5"
 
 # Provenance labels for every guidance claim in coach output (E5).
 PROVENANCE_VALUES = ("cited", "general-knowledge")

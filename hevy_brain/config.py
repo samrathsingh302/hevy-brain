@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .analytics import landmarks
+from .coach.advisor import DEFAULT_MODEL as DEFAULT_COACH_MODEL
 
 DEFAULT_CONFIG_FILE = "config.toml"
 
@@ -27,7 +28,7 @@ class Config:
     knowledge_topics: list[str] = field(default_factory=lambda: ["training"])
     data_dir: Path = Path("data")
     page_size: int = 10
-    coach_model: str = "claude-opus-4-8"
+    coach_model: str = DEFAULT_COACH_MODEL
     coach_max_calls_per_day: int = 4
     plateau_weeks: int = 4
     push_pull_low: float = 0.8
@@ -136,7 +137,7 @@ def load_config(
         knowledge_topics=list(knowledge.get("topics", ["training"])),
         data_dir=data_dir,
         page_size=int(sync.get("page_size", 10)),
-        coach_model=coach.get("model", "claude-opus-4-8"),
+        coach_model=coach.get("model", DEFAULT_COACH_MODEL),
         coach_max_calls_per_day=int(coach.get("max_calls_per_day", 4)),
         plateau_weeks=int(analytics.get("plateau_weeks", 4)),
         push_pull_low=float(analytics.get("push_pull_low", 0.8)),
