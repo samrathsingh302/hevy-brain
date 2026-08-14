@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -9,9 +10,25 @@ import pytest
 from hevy_brain.knowledge import KnowledgeAccessError, KnowledgeBase
 
 # A miniature knowledge layer mirroring the real vault's shapes:
-# topic page paraphrases that link [[id#^claim-xx]]; notes with DO/AVOID/INFO
+# topic page paraphrases that link a claim; notes with DO/AVOID/INFO
 # bullets, evidence tags and bare ^claim anchors; a claims-index; a sources/
 # folder that must never be read.
+#
+# LINK FORMATS. The fixture text below is written in the RETIRED wikilink
+# shape; `to_markdown_links` rewrites it into the LIVE markdown shape the
+# vault has used since the estate's link-style purge (~31/07/2026). Every
+# test in this file runs against BOTH — the `kb` fixture is parametrised —
+# because encoding only the retired shape is exactly what let the knowledge
+# bridge sit dead for two weeks with a green suite (bug-hunt H1, 13/08/2026).
+
+_WIKILINK_RE = re.compile(r"\[\[([A-Za-z0-9_-]+)#\^(claim-\d+)\]\]")
+
+
+def to_markdown_links(text: str) -> str:
+    """Rewrite ``[[id#^claim-x]]`` into ``[id#^claim-x](../notes/id.md#^claim-x)``."""
+    return _WIKILINK_RE.sub(
+        lambda m: f"[{m[1]}#^{m[2]}](../notes/{m[1]}.md#^{m[2]})", text
+    )
 
 TOPIC_TRAINING = """\
 ---
@@ -98,19 +115,39 @@ type: claims-index
 """
 
 
-@pytest.fixture
-def kb(tmp_path: Path) -> KnowledgeBase:
-    """Build a fixture knowledge layer under tmp_path and return a KB."""
-    (tmp_path / "topics").mkdir()
-    (tmp_path / "notes").mkdir()
-    (tmp_path / "_meta").mkdir()
-    (tmp_path / "sources").mkdir()
+def write_fixture_vault(root: Path, link_format: str) -> None:
+    """Write the miniature knowledge layer in the given link format.
 
-    (tmp_path / "topics" / "training.md").write_text(TOPIC_TRAINING, encoding="utf-8")
-    (tmp_path / "topics" / "sleep.md").write_text(TOPIC_SLEEP, encoding="utf-8")
-    (tmp_path / "notes" / "noteA.md").write_text(NOTE_A, encoding="utf-8")
-    (tmp_path / "notes" / "noteB.md").write_text(NOTE_B, encoding="utf-8")
-    (tmp_path / "_meta" / "claims-index.md").write_text(CLAIMS_INDEX, encoding="utf-8")
+    ``link_format`` is ``"markdown"`` (live vault shape) or ``"wikilink"``
+    (retired shape, kept for back-compat).
+    """
+    shape = to_markdown_links if link_format == "markdown" else (lambda t: t)
+    (root / "topics").mkdir(exist_ok=True)
+    (root / "notes").mkdir(exist_ok=True)
+    (root / "_meta").mkdir(exist_ok=True)
+    (root / "topics" / "training.md").write_text(shape(TOPIC_TRAINING), encoding="utf-8")
+    (root / "topics" / "sleep.md").write_text(shape(TOPIC_SLEEP), encoding="utf-8")
+    (root / "notes" / "noteA.md").write_text(NOTE_A, encoding="utf-8")
+    (root / "notes" / "noteB.md").write_text(NOTE_B, encoding="utf-8")
+    (root / "_meta" / "claims-index.md").write_text(shape(CLAIMS_INDEX), encoding="utf-8")
+
+
+def parsed_claims(root: Path, link_format: str) -> list:
+    """Claims PARSED out of the fixture vault written in ``link_format``.
+
+    Shared with the coach/guide tests so their citation assertions ride on
+    real parsing instead of hand-built Claim objects — the gap that kept the
+    suite green through the two-week knowledge-bridge outage (H1).
+    """
+    write_fixture_vault(root, link_format)
+    return KnowledgeBase(root).claims_for_topic("training")
+
+
+@pytest.fixture(params=["markdown", "wikilink"])
+def kb(tmp_path: Path, request: pytest.FixtureRequest) -> KnowledgeBase:
+    """Fixture knowledge layer under tmp_path, in BOTH vault link formats."""
+    write_fixture_vault(tmp_path, request.param)
+    (tmp_path / "sources").mkdir()
     (tmp_path / "sources" / "noteA.transcript.md").write_text(
         "SECRET raw transcript text", encoding="utf-8"
     )
@@ -133,9 +170,12 @@ def test_read_topic_extracts_claims_with_tags_and_links(kb: KnowledgeBase) -> No
     assert c22.evidence == "opinion"
     assert c22.link == "[[noteA#^claim-22]]"
     assert "intense exercise late" in c22.text
-    # Evidence tag and link are stripped out of the paraphrase text.
+    # Evidence tag and link are stripped out of the paraphrase text, in both
+    # link formats (no wikilink brackets, no markdown link + target left over).
     assert "[opinion]" not in c22.text
     assert "[[" not in c22.text
+    assert "](" not in c22.text
+    assert "../notes/" not in c22.text
 
 
 def test_read_topic_ignores_transcript_links(kb: KnowledgeBase) -> None:
@@ -236,3 +276,75 @@ def test_reads_outside_root_refused(kb: KnowledgeBase) -> None:
 def test_missing_topic_returns_none(kb: KnowledgeBase) -> None:
     assert kb.read_topic("does-not-exist") is None
     assert kb.claims_for_topic("does-not-exist") == []
+
+
+# -- live vault shape (byte-for-byte, so the transform above can't drift) ----
+
+# Copied from the live shape of OneDrive\brain\topics\*.md (14/08/2026), with
+# synthetic ids: a paraphrase bullet carrying an evidence tag, a markdown claim
+# link, and a timestamp link that must NOT be mistaken for a claim link. The
+# `-Abc_1` id also pins the leading-hyphen ids the real vault uses.
+TOPIC_LIVE_SHAPE = """\
+---
+type: topic
+title: Live Shape
+tags: [training]
+---
+
+# Live Shape
+
+Cross-links: [romance](romance.md). Personalised for [about-me](../about-me.md).
+
+- Read power as the primal drive for control, not domination. \
+[opinion] [-Abc_1#^claim-73](../notes/-Abc_1.md#^claim-73) \
+[47:19](https://www.youtube.com/watch?v=-Abc_1&t=2839s)
+- A transcript link is not a claim link. \
+[-Abc_1.transcript#^t1120](../sources/-Abc_1.transcript.md#^t1120)
+"""
+
+INDEX_LIVE_SHAPE = """\
+---
+type: claims-index
+---
+
+# Claims index
+
+## [Some Note](../notes/-Abc_1.md)
+domain: health · tags: `sleep` · claims: 1
+
+- [-Abc_1#^claim-01](../notes/-Abc_1.md#^claim-01) INFO [opinion] — Sleep is one \
+of the **three pillars of health**.
+"""
+
+
+@pytest.fixture
+def live_kb(tmp_path: Path) -> KnowledgeBase:
+    (tmp_path / "topics").mkdir()
+    (tmp_path / "_meta").mkdir()
+    (tmp_path / "topics" / "live.md").write_text(TOPIC_LIVE_SHAPE, encoding="utf-8")
+    (tmp_path / "_meta" / "claims-index.md").write_text(
+        INDEX_LIVE_SHAPE, encoding="utf-8"
+    )
+    return KnowledgeBase(tmp_path)
+
+
+def test_live_topic_shape_parses_exactly_one_claim(live_kb: KnowledgeBase) -> None:
+    page = live_kb.read_topic("live")
+    assert page is not None
+    # The timestamp link and the transcript link are both ignored.
+    assert [(c.source_id, c.anchor) for c in page.claims] == [("-Abc_1", "claim-73")]
+    claim = page.claims[0]
+    assert claim.evidence == "opinion"
+    assert claim.text.startswith("Read power as the primal drive")
+    assert "youtube.com" not in claim.text
+    assert "../notes/" not in claim.text
+
+
+def test_live_claims_index_shape_parses(live_kb: KnowledgeBase) -> None:
+    claims = live_kb.iter_index_claims()
+    assert len(claims) == 1
+    claim = claims[0]
+    assert (claim.source_id, claim.anchor) == ("-Abc_1", "claim-01")
+    assert claim.claim_type == "INFO"
+    assert claim.evidence == "opinion"
+    assert claim.text.startswith("Sleep is one")
