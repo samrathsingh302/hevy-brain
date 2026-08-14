@@ -14,4 +14,11 @@ For i = 0 To a.Count - 1
 Next
 ' Wait for the child (True): wscript then lives as long as the real work, so the
 ' task's MultipleInstances/ExecutionTimeLimit settings still apply to it.
-If Len(s) > 0 Then CreateObject("WScript.Shell").Run Trim(s), 0, True
+' PROPAGATE the child's exit code (bug-hunt T3 class, 14/08/2026): calling .Run as a
+' statement threw the return value away, so wscript always quit 0 and the task recorded
+' 0x0 however the sync or the coach had actually ended - a carrier that can fail for ever
+' while reading green. As a function call it returns the child's code; WScript.Quit hands
+' that to the scheduler as LastTaskResult.
+Dim rc : rc = 0
+If Len(s) > 0 Then rc = CreateObject("WScript.Shell").Run(Trim(s), 0, True)
+WScript.Quit rc
