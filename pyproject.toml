@@ -27,7 +27,7 @@ dev = [
     "pytest-asyncio>=0.25",
     "pytest-cov>=6",
     "ruff==0.16.1",
-    "mypy==2.3.0",
+    "mypy==2.3.1",
 ]
 
 [project.urls]
