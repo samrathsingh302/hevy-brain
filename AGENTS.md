@@ -39,7 +39,7 @@ powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1   # scheduled
 - Data/cache/notes/config stay gitignored; working markdown (handoffs/plans/tasks) lives in `vault\dev\repos\hevy-brain\`, never in the repo.
 
 ## Definition of done
-Green gate = pytest + ruff check + ruff format --check + mypy, AND `sync/vault/coach/push` run cleanly against the real account. Every session ends with a dated 6-key handoff in `vault\dev\repos\hevy-brain\handoffs\` + tasks.md updated + a commit — a session without its handoff has failed its exit.
+Green gate = pytest + ruff check + ruff format --check + mypy, AND `sync/vault/coach/push` run cleanly against the real account. Every session ends with a dated 8-key handoff (`issues` optional, `seat-issues` never omitted) in `vault\dev\repos\hevy-brain\handoffs\` + tasks.md updated + a commit — a session without its handoff has failed its exit.
 
 ## Where state lives
 Current state = the newest dated file in `C:\Users\samra\vault\dev\repos\hevy-brain\handoffs\` + `vault\dev\repos\hevy-brain\tasks.md` (open issues under `## Issues` / GitHub issues).
