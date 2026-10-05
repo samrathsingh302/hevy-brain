@@ -10,7 +10,7 @@ from conftest import make_routine, make_workout
 
 from hevy_brain.api.client import HevyApiClientError
 from hevy_brain.store.cache import CacheStore
-from hevy_brain.sync import sync
+from hevy_brain.sync import full_backfill, sync
 
 
 class FakeClient:
@@ -124,6 +124,57 @@ async def test_incremental_applies_updates_and_deletes(tmp_path: Path) -> None:
     assert store.workouts["w1"]["title"] == "Edited"
     assert "w9" in store.workouts
     assert "w2" in store.archived
+
+
+async def test_replayed_event_at_cursor_is_unchanged_not_updated(
+    tmp_path: Path,
+) -> None:
+    """Regression: an event re-fetched at the cursor whose payload equals the
+    cache is not an update (the hourly log read ``~1 updated`` with nothing
+    changed)."""
+    client = FakeClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+    cursor_before = store.meta["events_cursor"]
+
+    replay = make_workout("w1")
+    assert replay["updated_at"] == cursor_before
+    client.events = [{"type": "updated", "workout": replay}]
+    result = await sync(client, store)
+
+    assert result.updated == 0
+    assert result.unchanged == 1
+    assert not result.changed
+    assert store.meta["events_cursor"] == cursor_before
+
+
+async def test_replayed_event_with_changed_payload_is_updated(
+    tmp_path: Path,
+) -> None:
+    client = FakeClient(workouts=[make_workout("w1")])
+    store = CacheStore(tmp_path)
+    await sync(client, store)
+
+    client.events = [{"type": "updated", "workout": make_workout("w1", title="Leg")}]
+    result = await sync(client, store)
+
+    assert result.updated == 1
+    assert result.unchanged == 0
+    assert result.changed
+    assert store.workouts["w1"]["title"] == "Leg"
+
+
+async def test_full_backfill_counts_identical_workouts_as_unchanged(
+    tmp_path: Path,
+) -> None:
+    store = CacheStore(tmp_path)
+    client = FakeClient(workouts=[make_workout("w1"), make_workout("w2")])
+    await full_backfill(client, store)
+
+    client.workouts = [make_workout("w1"), make_workout("w2", title="Edited")]
+    result = await full_backfill(client, store)
+
+    assert (result.added, result.updated, result.unchanged) == (0, 1, 1)
 
 
 async def test_backfill_cursor_stamped_from_newest_workout(tmp_path: Path) -> None:
