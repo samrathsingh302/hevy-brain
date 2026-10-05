@@ -82,9 +82,17 @@ class CacheStore:
         self.meta: dict[str, Any] = _load_json(data_dir / _META_FILE, {})
 
     def upsert_workout(self, workout: dict[str, Any]) -> str:
-        """Insert or update a raw workout. Returns 'added' or 'updated'."""
+        """Insert or update a raw workout.
+
+        Returns 'added', 'updated', or 'unchanged' — the last when the stored
+        payload already equals the incoming one (a replayed event), in which
+        case the store is not touched.
+        """
         workout_id = workout["id"]
-        status = "updated" if workout_id in self.workouts else "added"
+        existing = self.workouts.get(workout_id)
+        if existing is not None and existing == workout:
+            return "unchanged"
+        status = "updated" if existing is not None else "added"
         self.workouts[workout_id] = workout
         return status
 

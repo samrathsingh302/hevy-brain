@@ -32,6 +32,17 @@ def test_upsert_distinguishes_added_and_updated(tmp_path: Path) -> None:
     assert store.workouts["w1"]["title"] == "Renamed"
 
 
+def test_upsert_of_identical_payload_is_unchanged(tmp_path: Path) -> None:
+    store = CacheStore(tmp_path)
+    stored = make_workout("w1")
+    store.upsert_workout(stored)
+
+    assert store.upsert_workout(make_workout("w1")) == "unchanged"
+    assert store.workouts["w1"] is stored  # the store is not touched
+    assert store.upsert_workout(make_workout("w1", title="Leg")) == "updated"
+    assert store.workouts["w1"]["title"] == "Leg"
+
+
 def test_archive_moves_not_deletes(tmp_path: Path) -> None:
     store = CacheStore(tmp_path)
     store.upsert_workout(make_workout("w1"))

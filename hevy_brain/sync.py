@@ -28,6 +28,7 @@ class SyncResult:
     full_backfill: bool = False
     added: int = 0
     updated: int = 0
+    unchanged: int = 0  # replayed payloads equal to the cache; not a change
     deleted: int = 0
     measurements: int = 0
     routines: int = 0
@@ -80,6 +81,16 @@ async def _paginate(
     return items
 
 
+def _count_upsert(result: SyncResult, status: str) -> None:
+    """Tally one ``upsert_workout`` status into the run summary."""
+    if status == "added":
+        result.added += 1
+    elif status == "updated":
+        result.updated += 1
+    else:
+        result.unchanged += 1
+
+
 async def full_backfill(
     client: HevyApiClient, store: CacheStore, page_size: int = 10
 ) -> SyncResult:
@@ -87,11 +98,7 @@ async def full_backfill(
     result = SyncResult(full_backfill=True)
     workouts = await _paginate(client.async_get_workouts, "workouts", page_size)
     for workout in workouts:
-        status = store.upsert_workout(workout)
-        if status == "added":
-            result.added += 1
-        else:
-            result.updated += 1
+        _count_upsert(result, store.upsert_workout(workout))
     # Seed the events cursor from the newest server-side timestamp, NOT local
     # utcnow: anything created server-side between fetch and stamp would fall
     # before a utcnow cursor and be skipped forever. Replaying the newest
@@ -114,11 +121,7 @@ async def incremental_sync(client: HevyApiClient, store: CacheStore) -> SyncResu
         if event_type == "updated":
             workout = event.get("workout") or {}
             if workout.get("id"):
-                status = store.upsert_workout(workout)
-                if status == "added":
-                    result.added += 1
-                else:
-                    result.updated += 1
+                _count_upsert(result, store.upsert_workout(workout))
         elif event_type == "deleted":
             workout_id = event.get("id") or (event.get("workout") or {}).get("id")
             if workout_id and store.archive_workout(workout_id):
