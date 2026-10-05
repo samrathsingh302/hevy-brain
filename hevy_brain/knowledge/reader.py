@@ -25,6 +25,7 @@ Fences (mirroring ``routing.md`` and the project ``CLAUDE.md``):
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -63,6 +64,21 @@ _INDEX_LINE_RE = re.compile(
 )
 
 SOURCES_DIRNAME = "sources"
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _read_text(path: Path) -> str | None:
+    """Return a file's UTF-8 text, or None (logged) when it is not UTF-8.
+
+    One badly encoded page (e.g. saved as cp1252) is skipped, never a
+    traceback — the rest of the knowledge layer still loads.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as err:
+        LOGGER.warning("Skipping knowledge file that is not UTF-8: %s (%s)", path, err)
+        return None
 
 
 class KnowledgeAccessError(Exception):
@@ -171,7 +187,7 @@ class KnowledgeBase:
         target = self._safe(rel_path)
         if not target.is_file():
             return None
-        return target.read_text(encoding="utf-8")
+        return _read_text(target)
 
     # -- topic pages (steps 1 + 2) ---------------------------------------
 
@@ -279,7 +295,8 @@ class KnowledgeBase:
             if not base.is_dir():
                 continue
             for path in sorted(base.glob("*.md")):
-                if concept in self._frontmatter_tags(path.read_text(encoding="utf-8")):
+                text = _read_text(path)
+                if text is not None and concept in self._frontmatter_tags(text):
                     hits[kind].append(path.stem)
         return hits
 
