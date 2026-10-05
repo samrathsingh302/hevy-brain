@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -143,6 +144,15 @@ class CacheLockBusyError(RuntimeError):
     """Raised when another hevy-brain process already holds the cache lock."""
 
 
+# How long a busy lock is retried before giving up. The hourly sync and the
+# Sunday coach can fire together (-StartWhenAvailable replays a missed run on
+# wake); the loser waits for the winner instead of skipping, so the weekly
+# briefing is never lost to a lock collision. Read at call time, so tests can
+# monkeypatch it.
+LOCK_WAIT_SECONDS = 180.0
+LOCK_POLL_SECONDS = 0.5
+
+
 def _lock_fd(fd: int, *, acquire: bool) -> None:
     """Acquire (non-blocking) or release an OS advisory lock on a file fd.
 
@@ -168,7 +178,12 @@ def _lock_fd(fd: int, *, acquire: bool) -> None:
 
 
 @contextmanager
-def cache_lock(data_dir: Path) -> Iterator[None]:
+def cache_lock(
+    data_dir: Path,
+    *,
+    wait_seconds: float | None = None,
+    poll_seconds: float = LOCK_POLL_SECONDS,
+) -> Iterator[None]:
     """Hold a process-wide exclusive lock over the cache read-modify-write cycle.
 
     Every command builds its own CacheStore and ``save()`` rewrites all eight
@@ -178,14 +193,27 @@ def cache_lock(data_dir: Path) -> Iterator[None]:
     dropping the other's just-saved workouts/cursor. Held from before the load
     until after the save, this lock serialises them.
 
-    Non-blocking: if another run already holds it, raises CacheLockBusyError (the
-    CLI turns that into a clean "another run in progress" skip, exit 0). The OS
-    releases the lock if the holder dies, so a crash leaves no stale lock.
+    Bounded wait: a busy lock is retried every ``poll_seconds`` for up to
+    ``wait_seconds`` (default LOCK_WAIT_SECONDS); if still held, raises
+    CacheLockBusyError (the CLI turns that into a clean "another run in
+    progress" skip, exit 0). The OS releases the lock if the holder dies, so a
+    crash leaves no stale lock.
     """
+    if wait_seconds is None:
+        wait_seconds = LOCK_WAIT_SECONDS
+    deadline = time.monotonic() + wait_seconds
     data_dir.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(data_dir / ".lock"), os.O_RDWR | os.O_CREAT, 0o644)
     try:
-        _lock_fd(fd, acquire=True)
+        while True:
+            try:
+                _lock_fd(fd, acquire=True)
+                break
+            except CacheLockBusyError:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise
+                time.sleep(min(poll_seconds, remaining))
         try:
             yield
         finally:
