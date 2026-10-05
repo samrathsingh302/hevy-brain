@@ -453,9 +453,13 @@ def test_archived_workout_note_moves_to_archive(
     changed = build_vault(config, store, today=TODAY)
 
     root = config.vault_root
-    assert changed["archived"] == 1
+    # The Pull Day note plus Bent Over Row and Lat Pulldown, which w2 alone fed.
+    assert changed["archived"] == 3
     assert not (root / "Workouts" / "2026-06-01 Pull Day.md").exists()
     assert (root / "Archive" / "2026-06-01 Pull Day.md").exists()
+    for exercise in ("Bent Over Row (Barbell)", "Lat Pulldown (Cable)"):
+        assert (root / "Archive" / f"{exercise}.md").exists()
+        assert not (root / "Exercises" / f"{exercise}.md").exists()
 
 
 def test_duplicate_title_same_day_gets_suffix() -> None:

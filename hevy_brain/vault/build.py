@@ -114,6 +114,8 @@ def build_vault(
     # A routine renamed in Hevy leaves its old-title note behind (the store
     # only remembers deletions) — sweep managed notes no routine owns.
     archived_count += routines.archive_stale_routine_notes(writer, active_routine_paths)
+    # Likewise an exercise renamed or deleted in Hevy leaves its old note.
+    archived_count += exercises.archive_stale_exercise_notes(writer, histories)
     changed["archived"] = archived_count
     # Notes skipped because they were held open (locked) in Obsidian; surfaced
     # so a partial rebuild is visible rather than silent. Zero in the common case.

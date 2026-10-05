@@ -278,6 +278,53 @@ def test_missing_topic_returns_none(kb: KnowledgeBase) -> None:
     assert kb.claims_for_topic("does-not-exist") == []
 
 
+# A topic page saved as cp1252, not UTF-8 — the em dash is byte 0x97, which
+# is not valid UTF-8. Tagged `training` so the concept-tag scan reads it too.
+TOPIC_CP1252 = """\
+---
+type: topic
+tags: [training]
+---
+
+- Rest days matter — always. [opinion] [[noteA#^claim-22]]
+"""
+
+
+def test_badly_encoded_topic_is_skipped_not_raised(
+    kb: KnowledgeBase, caplog: pytest.LogCaptureFixture
+) -> None:
+    (kb.root / "topics" / "bad.md").write_bytes(TOPIC_CP1252.encode("cp1252"))
+
+    assert kb.read_topic("bad") is None
+    assert "not UTF-8" in caplog.text
+    # The other topics still load, through every path that reads a page.
+    assert {c.anchor for c in kb.claims_for_topic("training")} == {
+        "claim-05",
+        "claim-06",
+        "claim-22",
+    }
+    assert kb.files_with_tag("training")["topics"] == ["training"]
+    assert kb.retrieve(topic="bad", concept="training").step == "tag"
+
+
+def test_badly_encoded_topic_degrades_the_coach_loader(tmp_path: Path) -> None:
+    from hevy_brain.cli import _load_knowledge
+    from hevy_brain.config import Config
+
+    write_fixture_vault(tmp_path, "markdown")
+    (tmp_path / "topics" / "bad.md").write_bytes(TOPIC_CP1252.encode("cp1252"))
+    config = Config(
+        base_dir=tmp_path,
+        vault_path=tmp_path / "vault",
+        knowledge_path=tmp_path,
+        knowledge_topics=["bad", "training"],
+    )
+
+    claims = _load_knowledge(config)
+
+    assert {c.anchor for c in claims} == {"claim-05", "claim-06", "claim-22"}
+
+
 # -- live vault shape (byte-for-byte, so the transform above can't drift) ----
 
 # Copied from the live shape of OneDrive\brain\topics\*.md (14/08/2026), with
