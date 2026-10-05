@@ -215,6 +215,34 @@ def test_weekly_overload(raw_workouts: dict) -> None:
     assert bench["prior_week_kg"] == 0
 
 
+def _overload_session(day: date, weight: float) -> dict:
+    iso = day.isoformat()
+    return make_workout(
+        f"w-{iso}",
+        start=f"{iso}T17:00:00+00:00",
+        end=f"{iso}T18:00:00+00:00",
+        exercises=[make_exercise(sets=[make_set(weight, 5)])],
+    )
+
+
+def test_weekly_overload_day_seven_is_in_the_prior_week() -> None:
+    # Both windows are 7 days (the stats.aggregates week): today-7 is PRIOR.
+    raw = {
+        "a": _overload_session(date(2026, 6, 3), 60),  # TODAY - 7
+        "b": _overload_session(date(2026, 6, 9), 100),  # TODAY - 1
+    }
+    deltas = patterns.weekly_overload(build_records(raw), TODAY)
+
+    bench = next(d for d in deltas if d["exercise"] == "Bench Press (Barbell)")
+    assert bench["last_week_kg"] == 100 * 5
+    assert bench["prior_week_kg"] == 60 * 5
+
+
+def test_weekly_overload_day_fourteen_is_in_neither_week() -> None:
+    raw = {"a": _overload_session(date(2026, 5, 27), 60)}  # TODAY - 14
+    assert patterns.weekly_overload(build_records(raw), TODAY) == []
+
+
 def test_warmups_excluded_from_e1rm_and_top_weight_but_not_volume() -> None:
     # A heavy low-rep warm-up (100 kg x 3, Epley 110) out-Epleys AND out-weighs
     # the working set (60 kg x 8, Epley 76). best_e1rm/best_set AND top_weight
