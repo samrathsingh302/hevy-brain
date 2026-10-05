@@ -8,10 +8,10 @@ deterministic thresholds computed from the user's own logged training, and is
 are not doing.
 
 The callout fires only when ALL of these hold:
-  1. a run of ``>= deload_weeks`` consecutive trained ISO-weeks ending at the
-     last workout's week (an unbroken accumulation block);
-  2. that run ends near now — the last workout is within ``recent_days`` of
-     ``today`` (else the account is lapsed -> do not fire);
+  1. a run of ``>= deload_weeks`` consecutive trained ISO-weeks ending at
+     ``today``'s week, or the previous week when this one is not trained yet (an
+     unbroken accumulation block; a lapse ends the run);
+  2. the last workout is within ``RECENT_DAYS`` of ``today`` and not after it;
   3. a fatigue signal — at least one stalled lift (``detect_plateaus``) OR the
      mean working-set RPE over the recent window is ``>= deload_rpe``.
 
@@ -32,17 +32,25 @@ from . import patterns, stats
 RECENT_DAYS = 14
 
 
-def _consecutive_trained_weeks(records: list[dict[str, Any]]) -> int:
-    """Run length of consecutive trained ISO-weeks ending at the last workout.
+def _consecutive_trained_weeks(
+    records: list[dict[str, Any]], today: date | None = None
+) -> int:
+    """Run length of consecutive trained ISO-weeks ending at ``today``'s week.
 
     Builds the set of ISO-week Mondays that have >=1 session, then walks
-    backward one week at a time from the last workout's week, counting until the
-    first week with zero sessions. Returns 0 for an empty history.
+    backward one week at a time from ``today``'s week (the last workout's week
+    when ``today`` is None), counting until the first week with zero sessions.
+    An untrained current week is allowed (not trained yet this week), so the
+    walk then starts at the previous week; an untrained previous week too ends
+    the run — a lapse carries no run. Returns 0 for an empty history.
     """
     if not records:
         return 0
     trained_weeks = {stats.week_start(r["start_time"].date()) for r in records}
-    cursor = stats.week_start(records[-1]["start_time"].date())
+    anchor = records[-1]["start_time"].date() if today is None else today
+    cursor = stats.week_start(anchor)
+    if cursor not in trained_weeks:
+        cursor -= timedelta(weeks=1)
     run = 0
     while cursor in trained_weeks:
         run += 1
@@ -99,10 +107,13 @@ def deload_status(
     if deload_weeks <= 0 or not records:
         return None
 
-    run = _consecutive_trained_weeks(records)
+    run = _consecutive_trained_weeks(records, today)
     if run < deload_weeks:
         return None
 
+    # Kept as the future-date guard. The upper bound is redundant for a lapse:
+    # a run that reaches today's or last ISO week has its last workout <= 13 days
+    # back, and a lapse already ended the run above.
     last_date = records[-1]["start_time"].date()
     if not (0 <= (today - last_date).days <= RECENT_DAYS):
         return None  # lapsed, or future-dated -> not ready to deload

@@ -200,15 +200,43 @@ def test_callout_empty_when_silent() -> None:
     )
 
 
-# --- just past the RECENT_DAYS boundary --------------------------------------
+# --- the lapse boundary: the run is anchored at today's ISO week -------------
 
 
-def test_fires_when_run_ends_exactly_at_recent_days_boundary() -> None:
-    # Last workout exactly RECENT_DAYS (14) before today -> still "near now".
-    last = TODAY - timedelta(days=deload.RECENT_DAYS)  # 2026-05-27 (a Wednesday)
-    raw = _weekly(weeks=9, last_monday=last, weight=100, reps=5, rpe=9.0)
-    # The run is anchored at the last workout's week; it ends within 14 days.
+def test_fires_when_run_ends_in_the_previous_iso_week() -> None:
+    # Current week (2026-06-08) not trained yet; the run ends on the previous
+    # week's Monday -> the walk starts at that week, the run is live.
+    raw = _weekly(weeks=9, last_monday=date(2026, 6, 1), weight=100, reps=5, rpe=9.0)
     assert _status(raw) is not None
+
+
+def test_silent_when_run_ends_two_iso_weeks_back() -> None:
+    # Last workout Sunday 2026-05-31: only 10 days back, but both the current
+    # and the previous ISO week are untrained -> the run has ended.
+    raw = _weekly(weeks=9, last_monday=date(2026, 5, 31), weight=100, reps=5, rpe=9.0)
+    assert _status(raw) is None
+
+
+def test_silent_when_seven_week_run_ended_thirteen_days_ago() -> None:
+    # The live Dashboard bug: "7 consecutive training weeks" under "13 days since
+    # your last session". A 12-13-day break carries no run.
+    last = TODAY - timedelta(days=13)  # 2026-05-28, two ISO weeks back
+    raw = _weekly(weeks=7, last_monday=last, weight=100, reps=5, rpe=9.0)
+    assert _status(raw) is None
+
+
+def test_fires_when_seven_week_run_ends_this_week() -> None:
+    raw = _weekly(weeks=7, last_monday=TODAY, weight=100, reps=5, rpe=9.0)
+    status = _status(raw)
+    assert status is not None
+    assert status["weeks"] == 7
+
+
+def test_fires_when_seven_week_run_ends_last_week_and_this_week_is_empty() -> None:
+    raw = _weekly(weeks=7, last_monday=date(2026, 6, 3), weight=100, reps=5, rpe=9.0)
+    status = _status(raw)
+    assert status is not None
+    assert status["weeks"] == 7
 
 
 def test_silent_one_day_past_recent_days() -> None:
