@@ -80,9 +80,7 @@ def test_high_rep_set_cannot_top_the_strength_table(raw_workouts: dict) -> None:
         "Shrug Day",
         start="2026-06-09T17:00:00+00:00",
         end="2026-06-09T17:30:00+00:00",
-        exercises=[
-            make_exercise("Shrug (Cable)", "T-SHRUG", [make_set(31.25, 179)])
-        ],
+        exercises=[make_exercise("Shrug (Cable)", "T-SHRUG", [make_set(31.25, 179)])],
     )
     histories = exercise_histories(build_records({**raw_workouts, "w4": shrug_day}))
 

@@ -3,7 +3,7 @@
 > Onboarding for ANY coding agent. Claude Code also reads `CLAUDE.md` (which wins on conflict). Locked decisions live vault-side in `vault\dev\repos\hevy-brain\DECISIONS.md` — read before proposing changes.
 
 ## What this is
-A standalone Python CLI that syncs full Hevy workout history into an Obsidian vault, analyses training patterns, gives free AI coaching, and pushes changes back to Hevy on explicit command. Single-user (Samrath), personal use. Generated notes land in `C:\Users\samra\vault\life\Hevy\`; the local JSON cache is the source of truth and the vault is rebuildable offline from it.
+A standalone Python CLI that syncs full Hevy workout history into an Obsidian vault, analyses training patterns, gives free AI coaching, and pushes changes back to Hevy on explicit command. Single-user (Samrath), personal use. Generated notes land in `C:\Users\samra\OneDrive\brain\hevy\`; the local JSON cache is the source of truth and the vault is rebuildable offline from it.
 
 ## Architecture (10 lines)
 - Python ≥3.12, setuptools packaging (`pyproject.toml`); deps: aiohttp, PyYAML, pydantic, anthropic, tzdata.
@@ -20,7 +20,7 @@ A standalone Python CLI that syncs full Hevy workout history into an Obsidian va
 ## Build / test / run
 ```
 pip install -e ".[dev]"                          # dev install (run from the repo root — see caveat)
-python -m pytest tests -q                        # 482 tests
+python -m pytest tests -q                        # 556 tests
 python -m ruff check hevy_brain tests            # lint (ruff pinned 0.15.20)
 python -m ruff format hevy_brain tests           # format
 mypy hevy_brain                                  # types (mypy pinned 2.1.0)
@@ -30,7 +30,7 @@ powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1   # scheduled
 **Caveat (open issue #13):** the editable install may point at the deleted `HA-hevy` path and the `hevy-brain` console script resolves to a dependency-less Python 3.14 shim. Use `py -3.12 -m hevy_brain.cli`, never `hevy-brain.exe`; fix = `py -3.12 -m pip install -e .` from the repo root.
 
 ## Fences (hard rules)
-- Never write outside the configured vault subfolder `life/Hevy` (path-traversal guard exists — keep it).
+- Never write outside the configured vault subfolder `hevy` (path-traversal guard exists — keep it).
 - Vault writes are atomic (mkstemp+replace) and never overwrite user edits below the `%% hevy-brain:end %%` marker.
 - Never delete a workout note — archive to `Archive/`.
 - `HEVY_API_KEY` / `ANTHROPIC_API_KEY` live in env vars only — never config, never git. The repo is PUBLIC.
