@@ -118,7 +118,8 @@ def render_workout_note(
         "title": record["title"],
         "start_time": start.isoformat(),
         "end_time": record["end_time"].isoformat() if record["end_time"] else None,
-        "is_private": record.get("is_private", False),
+        # No is_private line: Hevy's GET never returns it, so any value written
+        # here would be invented (and pushed back by 'push workout --update').
         "duration_min": round(record["duration_seconds"] / 60, 1),
         "volume_kg": round(record["volume_kg"], 1),
         "total_reps": record["total_reps"],

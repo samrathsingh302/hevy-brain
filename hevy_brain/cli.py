@@ -533,6 +533,7 @@ async def _cmd_push_workout(
         print("--dry-run only applies to 'push workout --update'.", file=sys.stderr)
         return 1
 
+    from .api.client import HevyApiClientError
     from .writeback.hevy_push import (
         PlannedWorkoutError,
         parse_planned_workout,
@@ -553,7 +554,11 @@ async def _cmd_push_workout(
     )
 
     async def run(client: HevyApiClient) -> int:
-        await push_workout(client, body)
+        try:
+            await push_workout(client, body)
+        except HevyApiClientError as err:
+            print(f"Push failed: {err}", file=sys.stderr)
+            return 1
         print("Workout created in Hevy. Run 'hevy-brain full' to pull it back.")
         return 0
 
@@ -564,6 +569,7 @@ async def _cmd_push_workout_update(config: Config, file: Path, *, dry_run: bool)
     from .api.client import HevyApiClientError
     from .writeback.hevy_push import (
         WorkoutNoteError,
+        is_private_warning,
         parse_workout_note,
         push_workout_update,
         unwrap_workout,
@@ -594,6 +600,7 @@ async def _cmd_push_workout_update(config: Config, file: Path, *, dry_run: bool)
         print(f"Workout '{title}' ({workout_id}) — changes to push:")
         for line in diff:
             print(f"  {line}")
+        print(is_private_warning(body))
         if dry_run:
             print("Dry run — nothing sent.")
             return 0
@@ -614,6 +621,7 @@ async def _cmd_push_workout_update(config: Config, file: Path, *, dry_run: bool)
 async def _cmd_push_routine(config: Config, file: Path, *, dry_run: bool) -> int:
     from .api.client import HevyApiClientError
     from .writeback.hevy_push import (
+        ROUTINE_NOTES_WARNING,
         RoutineNoteError,
         parse_routine_note,
         push_routine,
@@ -645,6 +653,7 @@ async def _cmd_push_routine(config: Config, file: Path, *, dry_run: bool) -> int
         print(f"Routine '{title}' ({routine_id}) — changes to push:")
         for line in diff:
             print(f"  {line}")
+        print(ROUTINE_NOTES_WARNING)
         if dry_run:
             print("Dry run — nothing sent.")
             return 0
@@ -688,6 +697,7 @@ def _track_draft_adherence(config: Config, body: dict[str, Any]) -> None:
 
 
 async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int:
+    from .api.client import HevyApiClientError
     from .writeback.hevy_push import (
         MEASUREMENT_FIELDS,
         MeasurementMergeError,
@@ -711,6 +721,9 @@ async def _cmd_push_measurement(config: Config, args: argparse.Namespace) -> int
             date_str = await push_measurement(client, fields, args.date)
         except MeasurementMergeError as err:
             print(f"Error: {err}", file=sys.stderr)
+            return 1
+        except HevyApiClientError as err:
+            print(f"Push failed: {err}", file=sys.stderr)
             return 1
         printable = ", ".join(f"{k}={v:g}" for k, v in fields.items())
         print(f"Measurement logged for {date_str}: {printable}")
@@ -887,6 +900,18 @@ async def _cmd_verify_exercise(config: Config, name: str) -> int:
     return await _with_client(config, run)
 
 
+def _iso_date(value: str) -> str:
+    """Argparse type: a strict YYYY-MM-DD date, returned unchanged."""
+    try:
+        valid = date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        valid = False
+    if not valid:
+        msg = f"invalid date {value!r} (expected YYYY-MM-DD)"
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -1030,7 +1055,7 @@ def build_parser() -> argparse.ArgumentParser:
         "measurement", help="Log a body measurement in Hevy"
     )
     push_measurement.add_argument(
-        "--date", default=None, help="YYYY-MM-DD (default today)"
+        "--date", type=_iso_date, default=None, help="YYYY-MM-DD (default today)"
     )
     from .writeback.hevy_push import MEASUREMENT_FIELDS
 
