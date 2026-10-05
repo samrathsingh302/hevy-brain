@@ -56,6 +56,22 @@ _SET_TYPES = ("warmup", "normal", "failure", "dropset")
 # Hevy workout sets accept RPE 6-10 in half-point steps (routine sets do not).
 _VALID_RPE = frozenset({6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0})
 
+# Fields the API writes but never reads back: the diff cannot show what a push
+# does to them, so every push says so out loud.
+ROUTINE_NOTES_WARNING = (
+    "warning: routine-level notes are not readable through the API "
+    "and are cleared by this push"
+)
+
+
+def is_private_warning(body: dict[str, Any]) -> str:
+    """Return the fixed warning for a workout PUT: visibility is unreadable."""
+    value = str(bool(body["workout"].get("is_private", False))).lower()
+    return (
+        f"warning: Hevy does not return is_private — sending {value}; "
+        "a workout you set private in the app would become public"
+    )
+
 
 class PlannedWorkoutError(Exception):
     """Raised when a planned-workout note cannot be parsed."""
@@ -340,9 +356,10 @@ def parse_routine_note(path: Path) -> tuple[str, dict[str, Any]]:
         exercises.append(exercise)
 
     routine: dict[str, Any] = {"title": str(title)}
-    # Hevy rejects "notes": "" with a 400 and treats a missing key as "clear
-    # the notes" (PUT is a full replacement) — verified live 13/06/2026. So:
-    # notes in the frontmatter are sent; no notes line means none in Hevy.
+    # Routine-level notes are write-only: no GET returns them, and a PUT that
+    # omits the key clears the stored note (proven 14/08/2026); "notes": ""
+    # is rejected with a 400. A note regenerated from a GET therefore never
+    # carries notes, so this push clears them unless a draft sets them by hand.
     notes = str(data.get("notes") or "")
     if notes:
         routine["notes"] = notes
@@ -453,6 +470,8 @@ def routine_diff(current: dict[str, Any], body: dict[str, Any]) -> list[str]:
     new = body["routine"]
     if (current.get("title") or "") != new["title"]:
         lines.append(f"~ title: {current.get('title')!r} → {new['title']!r}")
+    # GET never returns routine-level notes, so "current" is always empty here:
+    # this line only fires when a draft sets notes, and a clear stays invisible.
     if (current.get("notes") or "") != (new.get("notes") or ""):
         lines.append("~ routine notes changed")
     lines += _exercise_diff(

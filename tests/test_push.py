@@ -546,6 +546,80 @@ async def test_cmd_push_workout_dry_run_without_update_is_rejected(
     )
 
 
+IS_PRIVATE_WARNING = (
+    "warning: Hevy does not return is_private — sending false; "
+    "a workout you set private in the app would become public"
+)
+ROUTINE_NOTES_WARNING = (
+    "warning: routine-level notes are not readable through the API "
+    "and are cleared by this push"
+)
+
+
+def test_rendered_workout_note_has_no_is_private(tmp_path: Path) -> None:
+    """Hevy's GET never returns is_private, so a generated note must not
+    assert a value it cannot know (audit #3)."""
+    file, _ = _workout_note_file(tmp_path, edited=False)
+
+    assert "is_private" not in file.read_text(encoding="utf-8")
+
+
+def test_parse_workout_note_without_is_private_sends_false(tmp_path: Path) -> None:
+    """The wire default is unchanged: no key in the note → False on the PUT."""
+    file, _ = _workout_note_file(tmp_path, edited=False)
+
+    _, body = parse_workout_note(file)
+
+    assert body["workout"]["is_private"] is False
+
+
+async def test_cmd_push_workout_update_warns_is_private_cannot_be_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    from hevy_brain import cli
+
+    file, raw = _workout_note_file(tmp_path, edited=True)
+    client = MagicMock()
+    client.async_get_workout = AsyncMock(return_value={"workout": raw})
+    client.async_update_workout = AsyncMock(return_value={})
+
+    async def fake_with_client(config, runner):
+        return await runner(client)
+
+    monkeypatch.setattr(cli, "_with_client", fake_with_client)
+
+    for dry_run in (True, False):
+        assert (
+            await cli._cmd_push_workout(MagicMock(), file, update=True, dry_run=dry_run)
+            == 0
+        )
+        assert IS_PRIVATE_WARNING in capsys.readouterr().out.splitlines()
+
+
+async def test_cmd_push_routine_warns_routine_notes_are_cleared(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    from hevy_brain import cli
+
+    routine = make_routine("r1")
+    file = tmp_path / "note.md"
+    text = render_routine_note(routine, None).replace("weight_kg: 60", "weight_kg: 70")
+    file.write_text(text, encoding="utf-8")
+
+    client = MagicMock()
+    client.async_get_routine = AsyncMock(return_value={"routine": routine})
+    client.async_update_routine = AsyncMock(return_value={})
+
+    async def fake_with_client(config, runner):
+        return await runner(client)
+
+    monkeypatch.setattr(cli, "_with_client", fake_with_client)
+
+    for dry_run in (True, False):
+        assert await cli._cmd_push_routine(MagicMock(), file, dry_run=dry_run) == 0
+        assert ROUTINE_NOTES_WARNING in capsys.readouterr().out.splitlines()
+
+
 def test_parser_wires_push_workout_update_flags() -> None:
     from hevy_brain.cli import build_parser
 
@@ -663,7 +737,9 @@ async def test_push_measurement_creates_without_reading_when_no_conflict() -> No
     client.async_get_body_measurements = AsyncMock(return_value={})
     client.async_update_body_measurement = AsyncMock(return_value={})
 
-    date_str = await push_measurement(client, {"weight_kg": 78.4}, date_str="2026-06-10")
+    date_str = await push_measurement(
+        client, {"weight_kg": 78.4}, date_str="2026-06-10"
+    )
 
     assert date_str == "2026-06-10"
     client.async_get_body_measurements.assert_not_awaited()
