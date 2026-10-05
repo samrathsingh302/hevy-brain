@@ -33,8 +33,15 @@ def build_vault(
     e1rm_points = config.charts_e1rm_points if config.charts_enabled else 0
     heatmap_enabled = config.charts_enabled and config.charts_heatmap_enabled
 
+    # Workout notes are reconciled by hevy_id BEFORE any is written: moved to
+    # their computed path, or archived when no active workout owns them
+    # (deleted in Hevy, or stale) — never by a recomputed path.
+    archived_count, held = workouts.reconcile_workout_notes(writer, workout_paths)
+
     changed = {
-        "workouts": workouts.generate_workout_notes(writer, records, histories),
+        "workouts": workouts.generate_workout_notes(
+            writer, records, histories, skip=held
+        ),
         "exercises": exercises.generate_exercise_notes(
             writer,
             histories,
@@ -97,13 +104,7 @@ def build_vault(
         ),
     }
 
-    # Archive notes belonging to workouts/routines deleted in Hevy.
-    archived_records = build_records(store.archived)
-    archived_paths = workouts.workout_note_paths(archived_records)
-    archived_count = 0
-    for rel_path in archived_paths.values():
-        if writer.archive(rel_path):
-            archived_count += 1
+    # Archive notes belonging to routines deleted in Hevy.
     # A deleted routine's title can since have been reused by an active one
     # at the same path — never archive a path an active routine owns.
     active_routine_paths = set(routines.routine_note_paths(store.routines).values())
