@@ -30,6 +30,7 @@ def to_markdown_links(text: str) -> str:
         lambda m: f"[{m[1]}#^{m[2]}](../notes/{m[1]}.md#^{m[2]})", text
     )
 
+
 TOPIC_TRAINING = """\
 ---
 type: topic
@@ -125,11 +126,15 @@ def write_fixture_vault(root: Path, link_format: str) -> None:
     (root / "topics").mkdir(exist_ok=True)
     (root / "notes").mkdir(exist_ok=True)
     (root / "_meta").mkdir(exist_ok=True)
-    (root / "topics" / "training.md").write_text(shape(TOPIC_TRAINING), encoding="utf-8")
+    (root / "topics" / "training.md").write_text(
+        shape(TOPIC_TRAINING), encoding="utf-8"
+    )
     (root / "topics" / "sleep.md").write_text(shape(TOPIC_SLEEP), encoding="utf-8")
     (root / "notes" / "noteA.md").write_text(NOTE_A, encoding="utf-8")
     (root / "notes" / "noteB.md").write_text(NOTE_B, encoding="utf-8")
-    (root / "_meta" / "claims-index.md").write_text(shape(CLAIMS_INDEX), encoding="utf-8")
+    (root / "_meta" / "claims-index.md").write_text(
+        shape(CLAIMS_INDEX), encoding="utf-8"
+    )
 
 
 def parsed_claims(root: Path, link_format: str) -> list:
