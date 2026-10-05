@@ -10,10 +10,13 @@ belong in a draft copy, not in place.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+import yaml
+
 from ..analytics.prs import epley_1rm, prs_for_workout
-from .writer import VaultWriter, render_note, sanitize_filename
+from .writer import MANAGED_MARKER, VaultWriter, render_note, sanitize_filename
 
 WORKOUT_NOTE_TYPE = "hevy-workout"
 
@@ -165,15 +168,123 @@ def render_workout_note(
     return render_note(frontmatter, "\n".join(lines))
 
 
+def _managed_workout_id(text: str) -> str | None:
+    """Return the ``hevy_id`` of a note hevy-brain wrote; None for any other."""
+    if MANAGED_MARKER not in text or not text.startswith("---"):
+        return None
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return None
+    try:
+        data = yaml.safe_load(parts[1])
+    except yaml.YAMLError:
+        return None
+    if not isinstance(data, dict) or data.get("type") != WORKOUT_NOTE_TYPE:
+        return None
+    hevy_id = data.get("hevy_id")
+    return hevy_id if isinstance(hevy_id, str) and hevy_id else None
+
+
+def reconcile_workout_notes(
+    writer: VaultWriter, paths: dict[str, str]
+) -> tuple[int, set[str]]:
+    """Put each managed workout note at its computed path, keyed by ``hevy_id``.
+
+    Run before the notes are written. A path is recomputed from date + title
+    on every build, so a workout re-dated or renamed in Hevy — or a same-day
+    same-title one logged earlier, which shifts the suffixes — would otherwise
+    leave its note (and the user tail below the marker) at a stale path, or
+    hand that tail to whichever workout now computes to it. Each managed note
+    under ``Workouts/`` is therefore indexed by its frontmatter id: an active
+    workout's note is moved to the computed path (tail intact; the writer then
+    regenerates the managed part in place); a note whose id no active workout
+    has — deleted in Hevy, or unknown — and any second copy of an id are
+    archived, never deleted. User files and ``Drafts/`` are not touched.
+
+    Returns (notes archived, ids whose move was blocked by a lock this run —
+    the caller skips writing those, so the next build retries the move).
+    """
+    workouts_dir = writer.root / "Workouts"
+    if not workouts_dir.is_dir():
+        return 0, set()
+    notes: dict[str, str] = {}
+    for path in sorted(workouts_dir.glob("*.md")):
+        hevy_id = _managed_workout_id(path.read_text(encoding="utf-8"))
+        if hevy_id is not None:
+            notes[f"Workouts/{path.name}"] = hevy_id
+
+    # normcase: a title re-cased in Hevy is the same file on Windows.
+    key = os.path.normcase
+    indexed = {key(rel) for rel in notes}
+    placed = {i for rel, i in notes.items() if i in paths and key(rel) == key(paths[i])}
+    archived = 0
+    moves: list[tuple[str, str, str]] = []
+    for rel, hevy_id in notes.items():
+        target = paths.get(hevy_id)
+        if target is not None and key(rel) == key(target):
+            continue  # a note an active workout owns is never archived
+        # Movable only into a path that is free or about to be (an indexed
+        # note there is archived or moved first) — never over a user file.
+        if (
+            target is not None
+            and hevy_id not in placed
+            and (key(target) in indexed or not (writer.root / target).exists())
+        ):
+            placed.add(hevy_id)
+            moves.append((rel, target, hevy_id))
+        elif writer.archive(rel):
+            archived += 1
+
+    # Two-phase (via a per-id staging name) so moves that swap or chain paths
+    # never land on a note that has not left yet; a crash between phases
+    # leaves a managed .md the next build re-homes.
+    held: set[str] = set()
+    staged: list[tuple[str, str, str]] = []
+    for rel, target, hevy_id in moves:
+        staging = f"Workouts/{sanitize_filename(hevy_id)}.moving.md"
+        if _rename(writer, rel, staging):
+            staged.append((staging, target, hevy_id))
+        else:
+            held.add(hevy_id)
+    # A note that could not leave still holds its tail: no other workout may
+    # be written onto its path this run either.
+    stuck = {key(rel) for rel, _, hevy_id in moves if hevy_id in held}
+    held |= {i for i, path in paths.items() if key(path) in stuck}
+    for staging, target, hevy_id in staged:
+        if not _rename(writer, staging, target):
+            held.add(hevy_id)
+    return archived, held
+
+
+def _rename(writer: VaultWriter, source: str, destination: str) -> bool:
+    """Rename one note inside the vault; False (recorded) if locked or taken."""
+    # The writer's own path jail (writer.py is outside this change).
+    target = writer._target(destination)  # noqa: SLF001
+    if target.exists():
+        writer.failed.append(source)
+        return False
+    try:
+        writer._target(source).replace(target)  # noqa: SLF001
+    except PermissionError:
+        # Held open in Obsidian: skip like the writer does; next build retries.
+        writer.failed.append(source)
+        return False
+    return True
+
+
 def generate_workout_notes(
     writer: VaultWriter,
     records: list[dict[str, Any]],
     histories: dict[str, dict[str, Any]],
+    *,
+    skip: set[str] | None = None,
 ) -> int:
-    """Write all workout notes. Returns number of files changed."""
+    """Write all workout notes, except ids in ``skip``. Returns files changed."""
     paths = workout_note_paths(records)
     changed = 0
     for record in records:
+        if skip and record["id"] in skip:
+            continue
         note = render_workout_note(record, prs_for_workout(histories, record["id"]))
         if writer.write(paths[record["id"]], note):
             changed += 1

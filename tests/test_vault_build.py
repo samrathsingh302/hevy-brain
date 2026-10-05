@@ -479,6 +479,186 @@ def test_duplicate_title_same_day_gets_suffix() -> None:
     assert paths["bbbb2222"] == "Workouts/2026-06-08 Push Day (bbbb2222).md"
 
 
+# --- workout notes reconcile by hevy_id ---------------------------------------
+# Paths are recomputed from date + title every build; the note a workout owns
+# is found by its frontmatter id, so a deletion, re-date or shifted suffix can
+# neither re-archive every hour nor orphan a note and its user tail.
+
+_TAIL = "My own notes: felt strong.\n"
+_EARLY = {"start": "2026-06-08T07:00:00+00:00", "end": "2026-06-08T08:00:00+00:00"}
+
+
+def _vault_store(tmp_path: Path, *workouts: dict) -> tuple[Config, CacheStore]:
+    store = CacheStore(tmp_path / "data")
+    for workout in workouts:
+        store.upsert_workout(workout)
+    return _config(tmp_path), store
+
+
+def _add_tail(note: Path) -> None:
+    with note.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write(_TAIL)
+
+
+def _workout_ids(folder: Path) -> list[str]:
+    return sorted(
+        line.removeprefix("hevy_id: ")
+        for note in folder.glob("*.md")
+        for line in note.read_text(encoding="utf-8").splitlines()
+        if line.startswith("hevy_id: ")
+    )
+
+
+def test_deleted_same_day_twin_is_archived_once(tmp_path: Path) -> None:
+    # Audit #1: the deleted earlier twin's computed path is the survivor's new
+    # path, so the old path-keyed archive moved the live note every build.
+    config, store = _vault_store(
+        tmp_path,
+        make_workout("aaaa1111", "Push", **_EARLY),
+        make_workout("bbbb2222", "Push"),
+    )
+    build_vault(config, store, today=TODAY)
+
+    store.archive_workout("aaaa1111")
+    for _ in range(3):
+        build_vault(config, store, today=TODAY)
+
+    root = config.vault_root
+    assert _workout_ids(root / "Workouts") == ["bbbb2222"]
+    assert (root / "Workouts" / "2026-06-08 Push.md").is_file()
+    assert [p.name for p in (root / "Archive").iterdir()] == ["2026-06-08 Push.md"]
+    assert _workout_ids(root / "Archive") == ["aaaa1111"]
+
+
+def test_redated_workout_moves_its_note_with_the_tail(tmp_path: Path) -> None:
+    workout = make_workout("w1", "Push")
+    config, store = _vault_store(tmp_path, workout)
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    _add_tail(workouts_dir / "2026-06-08 Push.md")
+
+    store.upsert_workout(
+        {
+            **workout,
+            "start_time": "2026-06-09T17:00:00+00:00",
+            "end_time": "2026-06-09T18:00:00+00:00",
+        }
+    )
+    changed = build_vault(config, store, today=TODAY)
+
+    moved = workouts_dir / "2026-06-09 Push.md"
+    assert not (workouts_dir / "2026-06-08 Push.md").exists()
+    assert _workout_ids(workouts_dir) == ["w1"]
+    assert moved.read_text(encoding="utf-8").endswith(_TAIL)
+    assert "date: '2026-06-09'" in moved.read_text(encoding="utf-8")
+    assert changed["archived"] == 0
+    assert not (config.vault_root / "Archive").exists()
+
+
+def test_earlier_same_day_twin_never_inherits_the_tail(tmp_path: Path) -> None:
+    later = make_workout("bbbb2222", "Push")
+    config, store = _vault_store(tmp_path, later)
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    _add_tail(workouts_dir / "2026-06-08 Push.md")
+
+    # An earlier same-day "Push" synced late takes the clean name.
+    store.upsert_workout(make_workout("aaaa1111", "Push", **_EARLY))
+    build_vault(config, store, today=TODAY)
+
+    earlier_note = (workouts_dir / "2026-06-08 Push.md").read_text(encoding="utf-8")
+    later_note = (workouts_dir / "2026-06-08 Push (bbbb2222).md").read_text(
+        encoding="utf-8"
+    )
+    assert "hevy_id: aaaa1111" in earlier_note
+    assert _TAIL not in earlier_note
+    assert "hevy_id: bbbb2222" in later_note
+    assert later_note.endswith(_TAIL)
+
+
+def test_locked_note_is_left_for_the_next_build(tmp_path: Path, monkeypatch) -> None:
+    # Held open in Obsidian, the note cannot move: nothing is written onto
+    # its path this run (its tail is not handed over); the next build moves it.
+    config, store = _vault_store(tmp_path, make_workout("bbbb2222", "Push"))
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    clean = workouts_dir / "2026-06-08 Push.md"
+    _add_tail(clean)
+    store.upsert_workout(make_workout("aaaa1111", "Push", **_EARLY))
+
+    real_replace = Path.replace
+
+    def locked(self: Path, target: Path) -> Path:
+        if self.name == clean.name:
+            raise PermissionError(13, "locked")
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", locked)
+    blocked = build_vault(config, store, today=TODAY)
+    assert blocked["skipped"] == 1
+    assert "hevy_id: bbbb2222" in clean.read_text(encoding="utf-8")
+    assert clean.read_text(encoding="utf-8").endswith(_TAIL)
+
+    monkeypatch.undo()
+    build_vault(config, store, today=TODAY)
+    assert "hevy_id: aaaa1111" in clean.read_text(encoding="utf-8")
+    moved = workouts_dir / "2026-06-08 Push (bbbb2222).md"
+    assert moved.read_text(encoding="utf-8").endswith(_TAIL)
+
+
+def test_reconcile_sweeps_stale_notes_then_rebuilds_as_a_no_op(
+    tmp_path: Path,
+) -> None:
+    workout = make_workout("w1", "Push")
+    config, store = _vault_store(
+        tmp_path, workout, make_workout("w2", "Pull", start="2026-06-01T17:00:00+00:00")
+    )
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    # A managed note no workout in the store owns, and a user's own file.
+    stale = (workouts_dir / "2026-06-08 Push.md").read_text(encoding="utf-8")
+    (workouts_dir / "2026-05-01 Ghost.md").write_text(
+        stale.replace("hevy_id: w1", "hevy_id: ghost"), encoding="utf-8"
+    )
+    (workouts_dir / "My plan.md").write_text("no marker here\n", encoding="utf-8")
+
+    store.archive_workout("w2")
+    store.upsert_workout({**workout, "title": "Push Heavy"})
+    first = build_vault(config, store, today=TODAY)
+    second = build_vault(config, store, today=TODAY)
+
+    assert first["archived"] == 2
+    assert _workout_ids(config.vault_root / "Archive") == ["ghost", "w2"]
+    assert sorted(p.name for p in workouts_dir.iterdir()) == [
+        "2026-06-08 Push Heavy.md",
+        "My plan.md",
+    ]
+    assert (workouts_dir / "My plan.md").read_text(encoding="utf-8") == (
+        "no marker here\n"
+    )
+    assert second["workouts"] == 0
+    assert second["archived"] == 0
+
+
+def test_duplicate_note_for_one_id_is_archived(tmp_path: Path) -> None:
+    # Live (audit #2): a re-dated workout's old-path note survived beside the
+    # new one with the same hevy_id. The duplicate goes to Archive, intact.
+    config, store = _vault_store(tmp_path, make_workout("w1", "Push"))
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    live = workouts_dir / "2026-06-08 Push.md"
+    (workouts_dir / "2026-06-07 Push.md").write_text(
+        live.read_text(encoding="utf-8") + _TAIL, encoding="utf-8"
+    )
+
+    changed = build_vault(config, store, today=TODAY)
+
+    assert changed["archived"] == 1
+    assert _workout_ids(workouts_dir) == ["w1"]
+    archived = config.vault_root / "Archive" / "2026-06-07 Push.md"
+    assert archived.read_text(encoding="utf-8").endswith(_TAIL)
+
+
 # --- dumbbell pair totals ----------------------------------------------------
 # Hevy stores dumbbell loads as PAIR TOTALS while Samrath speaks per-hand
 # ("PR is 42" = 85 kg here). The numbers are left as Hevy has them; the vault
