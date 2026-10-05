@@ -161,16 +161,20 @@ def detect_plateaus(
 
 
 def weekly_overload(records: list[dict[str, Any]], today: date) -> list[dict[str, Any]]:
-    """Per-exercise volume delta: last 7 days vs the 7 days before that."""
+    """Per-exercise volume delta: last 7 days vs the 7 days before that.
+
+    Both windows are seven days, matching ``stats.aggregates``' week:
+    last = ``(today - 7, today]``, prior = ``(today - 14, today - 7]``.
+    """
     last_week_start = today - timedelta(days=7)
     prior_week_start = today - timedelta(days=14)
     last: dict[str, float] = {}
     prior: dict[str, float] = {}
     for record in records:
         workout_date = record["start_time"].date()
-        if workout_date >= last_week_start:
+        if workout_date > last_week_start:
             bucket = last
-        elif workout_date >= prior_week_start:
+        elif workout_date > prior_week_start:
             bucket = prior
         else:
             continue
