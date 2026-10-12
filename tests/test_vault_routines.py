@@ -179,3 +179,24 @@ def test_reused_title_never_archives_the_active_note(tmp_path: Path) -> None:
     note = config.vault_root / "Routines" / "Push Day A.md"
     assert note.is_file()
     assert _frontmatter(note)["hevy_routine_id"] == "r9"
+
+
+def test_non_utf8_file_in_routines_is_left_alone(tmp_path: Path) -> None:
+    """A non-UTF-8 file under Routines/ is skipped by the stale sweep, as the
+    exercise sweep skips one — never a UnicodeDecodeError out of the build."""
+    config = _config(tmp_path)
+    store = _store(tmp_path, [make_routine("r1"), make_routine("r2", "Pull Day A")])
+    build_vault(config, store, today=TODAY)
+
+    root = config.vault_root
+    cp1252 = root / "Routines" / "café notes.md"
+    cp1252_bytes = "# café — séance\n".encode("cp1252")
+    cp1252.write_bytes(cp1252_bytes)
+
+    store.set_routines([make_routine("r1")])
+    changed = build_vault(config, store, today=TODAY)
+
+    assert changed["archived"] == 1
+    assert (root / "Archive" / "Pull Day A.md").exists()
+    assert cp1252.read_bytes() == cp1252_bytes
+    assert not (root / "Archive" / "café notes.md").exists()

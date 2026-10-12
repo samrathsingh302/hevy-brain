@@ -125,7 +125,12 @@ class VaultWriter:
         return False
 
     def archive(self, rel_path: str, archive_dir: str = "Archive") -> bool:
-        """Move a note into the archive folder. Returns True if moved."""
+        """Move a note into the archive folder. Returns True if moved.
+
+        A note held open in Obsidian (locked for the whole retry budget) is
+        recorded in ``failed`` and left in place — False, never an abort of
+        the build. A non-lock OSError propagates, as in ``_publish``.
+        """
         source = self._target(rel_path)
         if not source.is_file():
             return False
@@ -137,5 +142,7 @@ class VaultWriter:
             while destination.exists():
                 destination = destination.with_name(f"{stem} ({counter}){suffix}")
                 counter += 1
-        source.replace(destination)
+        if not self._publish(source, destination):
+            self.failed.append(rel_path)
+            return False
         return True

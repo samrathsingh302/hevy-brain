@@ -182,7 +182,11 @@ def archive_stale_routine_notes(writer: VaultWriter, active_paths: set[str]) -> 
         rel_path = f"Routines/{path.name}"
         if rel_path in active_paths:
             continue
-        if not _is_managed_routine_note(path.read_text(encoding="utf-8")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue  # not a note hevy-brain wrote (it writes UTF-8)
+        if not _is_managed_routine_note(text):
             continue
         if writer.archive(rel_path):
             archived += 1
