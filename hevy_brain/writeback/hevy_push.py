@@ -98,7 +98,11 @@ def _read_frontmatter(path: Path) -> dict[str, Any]:
     if len(parts) < 3:
         msg = f"{path.name}: unterminated YAML frontmatter."
         raise PlannedWorkoutError(msg)
-    data = yaml.safe_load(parts[1])
+    try:
+        data = yaml.safe_load(parts[1])
+    except yaml.YAMLError as err:
+        msg = f"{path.name}: invalid YAML frontmatter: {err}"
+        raise PlannedWorkoutError(msg) from err
     if not isinstance(data, dict):
         msg = f"{path.name}: frontmatter is not a mapping."
         raise PlannedWorkoutError(msg)
@@ -115,6 +119,25 @@ def _coerce_iso(value: Any, fallback: datetime) -> str:
             msg = f"Invalid ISO 8601 timestamp: {value!r}"
             raise PlannedWorkoutError(msg) from err
     return fallback.isoformat()
+
+
+def _number(
+    value: Any,
+    caster: Callable[[Any], Any],
+    key: str,
+    exercise_name: str,
+    error: type[Exception],
+) -> Any:
+    """Cast a hand-written number, or raise the parser's own error naming it.
+
+    A typo in a draft ("8-10", "8,5", "ten", "90s") must read as a sentence
+    under "Cannot parse ...", never a ValueError traceback.
+    """
+    try:
+        return caster(value)
+    except (ValueError, TypeError) as err:
+        msg = f"{exercise_name}: {key} must be a number, got {value!r}"
+        raise error(msg) from err
 
 
 def _parse_workout_set(raw: Any, exercise_name: str) -> dict[str, Any]:
@@ -135,7 +158,9 @@ def _parse_workout_set(raw: Any, exercise_name: str) -> dict[str, Any]:
         ("custom_metric", float),
     ):
         if raw.get(key) is not None:
-            parsed[key] = caster(raw[key])
+            parsed[key] = _number(
+                raw[key], caster, key, exercise_name, PlannedWorkoutError
+            )
     if parsed.get("rpe") is not None and parsed["rpe"] not in _VALID_RPE:
         msg = (
             f"{exercise_name}: RPE must be 6–10 in half-point steps, "
@@ -153,6 +178,9 @@ def _parse_workout_exercises(raw_exercises: Any, path: Path) -> list[dict[str, A
 
     exercises: list[dict[str, Any]] = []
     for raw in raw_exercises:
+        if not isinstance(raw, dict):
+            msg = f"{path.name}: each exercise must be a mapping, got {raw!r}"
+            raise PlannedWorkoutError(msg)
         name = raw.get("name") or raw.get("exercise_template_id") or "exercise"
         template_id = raw.get("exercise_template_id") or raw.get("template_id")
         if not template_id:
@@ -169,7 +197,9 @@ def _parse_workout_exercises(raw_exercises: Any, path: Path) -> list[dict[str, A
         if raw.get("notes"):
             exercise["notes"] = str(raw["notes"])
         if raw.get("superset_id") is not None:
-            exercise["superset_id"] = int(raw["superset_id"])
+            exercise["superset_id"] = _number(
+                raw["superset_id"], int, "superset_id", str(name), PlannedWorkoutError
+            )
         exercises.append(exercise)
     return exercises
 
@@ -280,7 +310,9 @@ def _parse_routine_set(raw: Any, exercise_name: str) -> dict[str, Any]:
         ("custom_metric", float),
     ):
         if raw.get(key) is not None:
-            parsed[key] = caster(raw[key])
+            parsed[key] = _number(
+                raw[key], caster, key, exercise_name, RoutineNoteError
+            )
     rep_range = raw.get("rep_range")
     if rep_range is not None:
         if not isinstance(rep_range, dict) or rep_range.get("start") is None:
@@ -291,10 +323,50 @@ def _parse_routine_set(raw: Any, exercise_name: str) -> dict[str, Any]:
         # returned it instead of rejecting or inventing an end.
         end = rep_range.get("end")
         parsed["rep_range"] = {
-            "start": int(rep_range["start"]),
-            "end": int(end) if end is not None else None,
+            "start": _number(
+                rep_range["start"],
+                int,
+                "rep_range.start",
+                exercise_name,
+                RoutineNoteError,
+            ),
+            "end": (
+                _number(end, int, "rep_range.end", exercise_name, RoutineNoteError)
+                if end is not None
+                else None
+            ),
         }
     return parsed
+
+
+def _parse_routine_exercise(raw: Any, path: Path) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        msg = f"{path.name}: each exercise must be a mapping, got {raw!r}"
+        raise RoutineNoteError(msg)
+    name = raw.get("name") or raw.get("exercise_template_id") or "exercise"
+    template_id = raw.get("exercise_template_id")
+    if not template_id:
+        msg = f"{path.name}: exercise {name!r} is missing exercise_template_id."
+        raise RoutineNoteError(msg)
+    sets = raw.get("sets")
+    if not isinstance(sets, list) or not sets:
+        msg = f"{path.name}: exercise {name!r} needs a non-empty 'sets' list."
+        raise RoutineNoteError(msg)
+    exercise: dict[str, Any] = {
+        "exercise_template_id": str(template_id),
+        "sets": [_parse_routine_set(s, str(name)) for s in sets],
+    }
+    if raw.get("superset_id") is not None:
+        exercise["superset_id"] = _number(
+            raw["superset_id"], int, "superset_id", str(name), RoutineNoteError
+        )
+    if raw.get("rest_seconds") is not None:
+        exercise["rest_seconds"] = _number(
+            raw["rest_seconds"], int, "rest_seconds", str(name), RoutineNoteError
+        )
+    if raw.get("notes"):
+        exercise["notes"] = str(raw["notes"])
+    return exercise
 
 
 def parse_routine_note(path: Path) -> tuple[str, dict[str, Any]]:
@@ -332,28 +404,7 @@ def parse_routine_note(path: Path) -> tuple[str, dict[str, Any]]:
         msg = f"{path.name}: 'exercises' must be a non-empty list."
         raise RoutineNoteError(msg)
 
-    exercises: list[dict[str, Any]] = []
-    for raw in raw_exercises:
-        name = raw.get("name") or raw.get("exercise_template_id") or "exercise"
-        template_id = raw.get("exercise_template_id")
-        if not template_id:
-            msg = f"{path.name}: exercise {name!r} is missing exercise_template_id."
-            raise RoutineNoteError(msg)
-        sets = raw.get("sets")
-        if not isinstance(sets, list) or not sets:
-            msg = f"{path.name}: exercise {name!r} needs a non-empty 'sets' list."
-            raise RoutineNoteError(msg)
-        exercise: dict[str, Any] = {
-            "exercise_template_id": str(template_id),
-            "sets": [_parse_routine_set(s, str(name)) for s in sets],
-        }
-        if raw.get("superset_id") is not None:
-            exercise["superset_id"] = int(raw["superset_id"])
-        if raw.get("rest_seconds") is not None:
-            exercise["rest_seconds"] = int(raw["rest_seconds"])
-        if raw.get("notes"):
-            exercise["notes"] = str(raw["notes"])
-        exercises.append(exercise)
+    exercises = [_parse_routine_exercise(raw, path) for raw in raw_exercises]
 
     routine: dict[str, Any] = {"title": str(title)}
     # Routine-level notes are write-only: no GET returns them, and a PUT that
