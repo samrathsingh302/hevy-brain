@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import yaml
 from conftest import (
     make_exercise,
     make_routine,
@@ -544,6 +545,102 @@ async def test_cmd_push_workout_dry_run_without_update_is_rejected(
     assert (
         await cli._cmd_push_workout(MagicMock(), file, update=False, dry_run=True) == 1
     )
+
+
+# --- A typo in a draft is a sentence, not a traceback (N2) -------------------
+
+# Block-style sets: in a flow mapping the comma of "8,5" would split the key.
+_DRAFT_EXERCISES = """\
+exercises:
+  - name: Bench Press (Barbell)
+    exercise_template_id: T-BENCH
+    sets:
+      - weight_kg: 60
+        reps: 8
+"""
+_PLANNED_DRAFT = (
+    "---\ntype: hevy-planned-workout\ntitle: Push Day\n" + _DRAFT_EXERCISES + "---\n"
+)
+_WORKOUT_DRAFT = (
+    "---\ntype: hevy-workout\nhevy_id: w1\ntitle: Push Day\n"
+    "start_time: '2026-06-08T17:00:00+00:00'\n"
+    "end_time: '2026-06-08T18:00:00+00:00'\n" + _DRAFT_EXERCISES + "---\n"
+)
+_ROUTINE_DRAFT = (
+    "---\ntype: hevy-routine\nhevy_routine_id: r1\ntitle: Push Day\n"
+    + _DRAFT_EXERCISES.replace("    sets:\n", "    rest_seconds: 120\n    sets:\n")
+    + "---\n"
+)
+_PARSERS = {
+    "planned": (parse_planned_workout, PlannedWorkoutError, _PLANNED_DRAFT),
+    "update": (parse_workout_note, WorkoutNoteError, _WORKOUT_DRAFT),
+    "routine": (parse_routine_note, RoutineNoteError, _ROUTINE_DRAFT),
+}
+_TYPOS = {
+    "reps-range": ("reps: 8\n", "reps: 8-10\n", "reps must be a number"),
+    "weight-comma": ("weight_kg: 60", "weight_kg: 8,5", "weight_kg must be a number"),
+    "reps-word": ("reps: 8\n", "reps: ten\n", "reps must be a number"),
+    "rest-suffix": ("rest_seconds: 120", "rest_seconds: 90s", "rest_seconds must be"),
+    "bare-string": (
+        "  - name: Bench Press (Barbell)\n    exercise_template_id: T-BENCH\n",
+        (
+            "  - Bench Press (Barbell)\n  - name: Bench Press (Barbell)\n"
+            "    exercise_template_id: T-BENCH\n"
+        ),
+        "each exercise must be a mapping",
+    ),
+    "broken-yaml": ("title: Push Day", "title: [Push Day", "invalid YAML"),
+}
+
+
+@pytest.mark.parametrize(
+    ("parser", "typo"),
+    [
+        (parser, typo)
+        for parser in _PARSERS
+        for typo in _TYPOS
+        # rest_seconds is a routine field; the workout parsers never read it.
+        if typo != "rest-suffix" or parser == "routine"
+    ],
+)
+def test_draft_typo_raises_the_parsers_own_error(
+    tmp_path: Path, parser: str, typo: str
+) -> None:
+    parse, error, draft = _PARSERS[parser]
+    needle, replacement, match = _TYPOS[typo]
+    assert needle in draft
+    file = tmp_path / "draft.md"
+    file.write_text(draft.replace(needle, replacement, 1), encoding="utf-8")
+
+    with pytest.raises(error, match=match) as excinfo:
+        parse(file)
+
+    assert not isinstance(excinfo.value, (ValueError, AttributeError, yaml.YAMLError))
+
+
+async def test_cmd_push_workout_typo_is_a_sentence_and_builds_no_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    from hevy_brain import cli
+
+    needle, replacement, _ = _TYPOS["bare-string"]
+    file = tmp_path / "planned.md"
+    file.write_text(_PLANNED_DRAFT.replace(needle, replacement), encoding="utf-8")
+    client_cls = MagicMock(side_effect=AssertionError("HevyApiClient was built"))
+    monkeypatch.setattr(cli, "HevyApiClient", client_cls)
+
+    async def no_client(config, runner):
+        pytest.fail("a draft that cannot be parsed must never reach the client")
+
+    monkeypatch.setattr(cli, "_with_client", no_client)
+
+    assert await cli._cmd_push_workout(MagicMock(), file) == 1
+
+    err = capsys.readouterr().err
+    assert "Cannot parse planned workout:" in err
+    assert "each exercise must be a mapping" in err
+    assert "Traceback" not in err
+    client_cls.assert_not_called()
 
 
 IS_PRIVATE_WARNING = (
