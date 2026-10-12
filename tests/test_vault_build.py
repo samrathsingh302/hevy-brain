@@ -417,6 +417,17 @@ def test_dashboard_lapse_callout(raw_workouts: dict) -> None:
     assert "guide return" in lapsed
 
 
+def test_dashboard_totals_say_last_7_days(raw_workouts: dict) -> None:
+    # WORKFLOW-BUGS 1278 (Q2): the week figure is a rolling 7-day window, so the
+    # label says so rather than implying the calendar week the chart uses.
+    records = build_records(raw_workouts)
+    body = render_dashboard(
+        records, exercise_histories(records), {}, {}, TODAY, lapse_nudge_days=7
+    )
+    assert "- Last 7 days: **" in body
+    assert "This week" not in body
+
+
 def test_generated_workout_note_round_trips(tmp_path: Path, raw_workouts: dict) -> None:
     """A managed workout note from the real build path must parse back into a
     no-op PUT body — the fix-up round-trip guarantee, end to end."""
