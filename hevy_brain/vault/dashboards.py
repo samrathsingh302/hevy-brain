@@ -275,7 +275,7 @@ def render_dashboard(
         f"**{agg['total_volume_kg']:,.0f} kg** lifetime volume\n"
         f"- Streak: **{agg['current_streak_days']}** days "
         f"(longest **{agg['longest_streak_days']}**)\n"
-        f"- This week: **{agg['week_count']}** sessions, "
+        f"- Last 7 days: **{agg['week_count']}** sessions, "
         f"**{agg['volume_week_kg']:,.0f} kg**, "
         f"{agg['duration_week_min']:.0f} min\n"
         f"- This month: **{agg['month_count']}** sessions, "

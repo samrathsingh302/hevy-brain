@@ -14,7 +14,7 @@ from typing import Any
 import aiohttp
 
 from .api.client import HevyApiClient
-from .clock import today_london
+from .clock import now_london, today_london
 from .config import Config, load_config
 from .store.cache import CacheLockBusyError, CacheStore, cache_lock
 from .sync import sync
@@ -34,6 +34,16 @@ def _configure_output() -> None:
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             reconfigure(errors="replace")
+
+
+def _stamped(line: str) -> str:
+    """Prefix a summary line with the London wall clock.
+
+    The unattended jobs append these lines to ``logs/full.log`` and
+    ``logs/coach.log``; without a timestamp a log can't say when a run happened
+    (WORKFLOW-BUGS 1278).
+    """
+    return f"[{now_london():%d/%m/%Y %H:%M:%S}] {line}"
 
 
 def _require_api_key(config: Config) -> str:
@@ -63,9 +73,11 @@ async def _cmd_sync(config: Config) -> int:
         result = await sync(client, store, page_size=config.page_size)
         mode = "full backfill" if result.full_backfill else "incremental"
         print(
-            f"Sync ({mode}): +{result.added} added, ~{result.updated} updated, "
-            f"-{result.deleted} deleted · {len(store.workouts)} workouts cached "
-            f"· {result.measurements} measurements · {result.routines} routines"
+            _stamped(
+                f"Sync ({mode}): +{result.added} added, ~{result.updated} updated, "
+                f"-{result.deleted} deleted · {len(store.workouts)} workouts cached "
+                f"· {result.measurements} measurements · {result.routines} routines"
+            )
         )
         for error in result.errors:
             print(f"  warning: {error}", file=sys.stderr)
@@ -82,7 +94,9 @@ def _cmd_vault(config: Config) -> int:
     changed = build_vault(config, store)
     total = sum(changed.values())
     detail = ", ".join(f"{k}: {v}" for k, v in changed.items())
-    print(f"Vault updated at {config.vault_root} ({total} changes - {detail})")
+    print(
+        _stamped(f"Vault updated at {config.vault_root} ({total} changes - {detail})")
+    )
     return 0
 
 
@@ -320,7 +334,9 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
             # audit, A2): a disk/IO error on the unattended run logs cleanly.
             print(f"Coach failed: {err}", file=sys.stderr)
             return 1
-        print(f"Free coaching briefing written: {config.vault_root / note_path}")
+        print(
+            _stamped(f"Free coaching briefing written: {config.vault_root / note_path}")
+        )
         print(f"Knowledge bridge: {claim_note}.")
         if recap:
             print("Included a 'since your last briefing' recap from coach memory.")
@@ -359,7 +375,7 @@ def _cmd_coach(config: Config, *, use_api: bool) -> int:
         return 1
     note_path = advisor.coach_note_path(today)
     writer.write(note_path, advisor.render_coach_note(report, today, recap=recap))
-    print(f"Coach note written: {config.vault_root / note_path}")
+    print(_stamped(f"Coach note written: {config.vault_root / note_path}"))
     print(f"Knowledge bridge: {claim_note}.")
     print(f"\n{report.summary}")
     for finding in report.findings:
@@ -1151,7 +1167,7 @@ def main(argv: list[str] | None = None) -> int:
                 return _run(config, args)
         except CacheLockBusyError:
             print(
-                "Another hevy-brain run is in progress - skipping this run.",
+                _stamped("Another hevy-brain run is in progress - skipping this run."),
                 file=sys.stderr,
             )
             return 0
