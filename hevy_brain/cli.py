@@ -1095,7 +1095,9 @@ def _dispatch_verify(config: Config, args: argparse.Namespace) -> int:
 # Cache-mutating commands (each reaches a store.save()); they run under
 # cache_lock so two overlapping runs can't clobber each other's save. Keep in
 # lockstep with the save() sites (cli.py + sync.py) — add any new saver here.
-_WRITE_COMMANDS = frozenset({"sync", "full", "coach", "push"})
+# The lock also serialises every vault writer: two reconcilers on one tree
+# rename notes from under each other (WORKFLOW-BUGS 1275), hence "vault".
+_WRITE_COMMANDS = frozenset({"sync", "vault", "full", "coach", "push"})
 
 
 def _run(config: Config, args: argparse.Namespace) -> int:
@@ -1130,9 +1132,10 @@ def _run(config: Config, args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point.
 
-    Cache-mutating commands run under a process-wide lock so two overlapping
-    runs (e.g. the hourly sync overlapping the Sunday coach) can't clobber each
-    other's save; a second concurrent run skips cleanly (exit 0).
+    Cache- and vault-writing commands run under a process-wide lock so two
+    overlapping runs (e.g. the hourly sync overlapping the Sunday coach) can't
+    clobber each other's save; a second concurrent run waits up to the bounded
+    lock wait (``cache.LOCK_WAIT_SECONDS``), then skips cleanly (exit 0).
     """
     _configure_output()
     args = build_parser().parse_args(argv)

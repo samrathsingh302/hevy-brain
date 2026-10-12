@@ -79,6 +79,22 @@ def test_main_writer_command_skips_when_lock_is_held(
     assert "in progress" in capsys.readouterr().err.lower()
 
 
+def test_vault_is_a_writer_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # WORKFLOW-BUGS 1275: two reconcilers on one vault rename notes from under
+    # each other, so `vault` waits on the same lock as `full` and then skips.
+    cfg = load_config(base_dir=tmp_path)
+    monkeypatch.setattr(cli, "load_config", lambda **_kwargs: cfg)
+    monkeypatch.setattr(cache, "LOCK_WAIT_SECONDS", 0)
+    with cache_lock(cfg.data_dir):
+        rc = cli.main(["vault"])
+    assert rc == 0
+    assert "in progress" in capsys.readouterr().err.lower()
+
+
 def test_busy_lock_with_zero_wait_raises_at_once(tmp_path: Path) -> None:
     # wait_seconds=0 is the old non-blocking behaviour: one attempt, then raise.
     with cache_lock(tmp_path):
