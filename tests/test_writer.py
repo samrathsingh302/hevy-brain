@@ -118,6 +118,27 @@ def test_locked_target_is_skipped_not_fatal(
     assert "note.md" in writer.failed
 
 
+def test_locked_archive_is_skipped_not_fatal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A stale note held open in Obsidian must not abort the build before any
+    # note is written: retried, then recorded and left in place.
+    import hevy_brain.vault.writer as writer_mod
+
+    monkeypatch.setattr(writer_mod.time, "sleep", lambda _s: None)  # no real waits
+    writer = writer_mod.VaultWriter(tmp_path)
+    writer.write("Workouts/old.md", "# Old")
+
+    def _locked(self: Path, target: Path) -> None:
+        raise PermissionError(32, "sharing violation")
+
+    monkeypatch.setattr(writer_mod.Path, "replace", _locked)
+    assert writer.archive("Workouts/old.md") is False  # skipped, not raised
+    assert writer.failed == ["Workouts/old.md"]
+    assert (tmp_path / "Workouts" / "old.md").is_file()
+    assert not (tmp_path / "Archive" / "old.md").exists()
+
+
 def test_sanitize_filename() -> None:
     assert sanitize_filename("Push: Day <1>?") == "Push Day 1"
     assert sanitize_filename("a/b\\c") == "abc"
