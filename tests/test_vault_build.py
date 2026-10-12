@@ -14,7 +14,8 @@ from hevy_brain.store.cache import CacheStore
 from hevy_brain.vault.build import build_vault
 from hevy_brain.vault.dashboards import render_body_log, render_dashboard
 from hevy_brain.vault.exercises import render_exercise_note
-from hevy_brain.vault.workouts import workout_note_paths
+from hevy_brain.vault.workouts import _rename, workout_note_paths
+from hevy_brain.vault.writer import VaultWriter
 
 TODAY = date(2026, 6, 10)
 
@@ -608,6 +609,104 @@ def test_locked_note_is_left_for_the_next_build(tmp_path: Path, monkeypatch) -> 
     assert "hevy_id: aaaa1111" in clean.read_text(encoding="utf-8")
     moved = workouts_dir / "2026-06-08 Push (bbbb2222).md"
     assert moved.read_text(encoding="utf-8").endswith(_TAIL)
+
+
+def test_note_left_at_its_staging_name_is_rehomed(tmp_path: Path) -> None:
+    # WORKFLOW-BUGS 1275 (a): a crash between the two move phases leaves the
+    # note at Workouts/<id>.moving.md; the next build puts it back, tail intact.
+    config, store = _vault_store(tmp_path, make_workout("w1", "Push"))
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    note = workouts_dir / "2026-06-08 Push.md"
+    _add_tail(note)
+    note.rename(workouts_dir / "w1.moving.md")
+
+    changed = build_vault(config, store, today=TODAY)
+
+    assert changed["skipped"] == 0
+    assert list(workouts_dir.glob("*.moving.md")) == []
+    assert _workout_ids(workouts_dir) == ["w1"]
+    assert note.read_text(encoding="utf-8").endswith(_TAIL)
+
+
+def test_chained_move_recovers_after_the_lock_lifts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    # WORKFLOW-BUGS 1275 (b): X is re-dated onto Y's path while Y is renamed,
+    # and Y is held open for one build — X waits at its staging name, then
+    # both reach their computed paths once the lock lifts.
+    x = make_workout(
+        "xxxx1111",
+        "Push",
+        start="2026-06-07T17:00:00+00:00",
+        end="2026-06-07T18:00:00+00:00",
+    )
+    y = make_workout("yyyy2222", "Push")
+    config, store = _vault_store(tmp_path, x, y)
+    build_vault(config, store, today=TODAY)
+    workouts_dir = config.vault_root / "Workouts"
+    y_note = workouts_dir / "2026-06-08 Push.md"
+    _add_tail(y_note)
+
+    store.upsert_workout(
+        {
+            **x,
+            "start_time": "2026-06-08T07:00:00+00:00",
+            "end_time": "2026-06-08T08:00:00+00:00",
+        }
+    )
+    store.upsert_workout({**y, "title": "Pull"})
+    real_replace = Path.replace
+
+    def locked(self: Path, target: Path) -> Path:
+        if self.name == y_note.name:
+            raise PermissionError(13, "locked")
+        return real_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", locked)
+    blocked = build_vault(config, store, today=TODAY)
+    assert blocked["skipped"] == 2
+    assert y_note.read_text(encoding="utf-8").endswith(_TAIL)
+
+    monkeypatch.undo()
+    build_vault(config, store, today=TODAY)
+    build_vault(config, store, today=TODAY)
+
+    assert list(workouts_dir.glob("*.moving.md")) == []
+    assert "hevy_id: xxxx1111" in y_note.read_text(encoding="utf-8")
+    assert _TAIL not in y_note.read_text(encoding="utf-8")
+    pull = workouts_dir / "2026-06-08 Pull.md"
+    assert "hevy_id: yyyy2222" in pull.read_text(encoding="utf-8")
+    assert pull.read_text(encoding="utf-8").endswith(_TAIL)
+    assert _workout_ids(workouts_dir) == ["xxxx1111", "yyyy2222"]
+
+
+def test_rename_records_a_vanished_source(tmp_path: Path) -> None:
+    # WORKFLOW-BUGS 1275 (c): a concurrent run moved the source between index
+    # and rename — recorded as skipped, never a traceback.
+    writer = VaultWriter(tmp_path / "vault")
+    (writer.root / "Workouts").mkdir(parents=True)
+
+    moved = _rename(writer, "Workouts/gone.md", "Workouts/w1.moving.md")
+
+    assert moved is False
+    assert writer.failed == ["Workouts/gone.md"]
+
+
+def test_non_utf8_file_in_workouts_is_left_alone(tmp_path: Path) -> None:
+    config, store = _vault_store(tmp_path, make_workout("w1", "Push"))
+    build_vault(config, store, today=TODAY)
+    stray = config.vault_root / "Workouts" / "Café plan.md"
+    payload = "Café notes %% hevy-brain:end %%\n".encode("cp1252")
+    stray.write_bytes(payload)
+
+    changed = build_vault(config, store, today=TODAY)
+
+    assert stray.read_bytes() == payload
+    assert changed["archived"] == 0
+    assert not (config.vault_root / "Archive").exists()
+    note = config.vault_root / "Workouts" / "2026-06-08 Push.md"
+    assert "hevy_id: w1" in note.read_text(encoding="utf-8")
 
 
 def test_reconcile_sweeps_stale_notes_then_rebuilds_as_a_no_op(

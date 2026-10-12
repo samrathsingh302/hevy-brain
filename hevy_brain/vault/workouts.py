@@ -210,7 +210,10 @@ def reconcile_workout_notes(
         return 0, set()
     notes: dict[str, str] = {}
     for path in sorted(workouts_dir.glob("*.md")):
-        hevy_id = _managed_workout_id(path.read_text(encoding="utf-8"))
+        try:
+            hevy_id = _managed_workout_id(path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError:
+            continue  # not a note hevy-brain wrote (it writes UTF-8)
         if hevy_id is not None:
             notes[f"Workouts/{path.name}"] = hevy_id
 
@@ -235,7 +238,14 @@ def reconcile_workout_notes(
             moves.append((rel, target, hevy_id))
         elif writer.archive(rel):
             archived += 1
+    return archived, _move_notes(writer, moves, paths)
 
+
+def _move_notes(
+    writer: VaultWriter, moves: list[tuple[str, str, str]], paths: dict[str, str]
+) -> set[str]:
+    """Apply (rel, target, hevy_id) moves; return the ids held by a lock."""
+    key = os.path.normcase
     # Two-phase (via a per-id staging name) so moves that swap or chain paths
     # never land on a note that has not left yet; a crash between phases
     # leaves a managed .md the next build re-homes.
@@ -243,7 +253,9 @@ def reconcile_workout_notes(
     staged: list[tuple[str, str, str]] = []
     for rel, target, hevy_id in moves:
         staging = f"Workouts/{sanitize_filename(hevy_id)}.moving.md"
-        if _rename(writer, rel, staging):
+        # A note already at its staging name was left there by an earlier
+        # build (crash between phases, or its path was still taken).
+        if key(rel) == key(staging) or _rename(writer, rel, staging):
             staged.append((staging, target, hevy_id))
         else:
             held.add(hevy_id)
@@ -252,13 +264,18 @@ def reconcile_workout_notes(
     stuck = {key(rel) for rel, _, hevy_id in moves if hevy_id in held}
     held |= {i for i, path in paths.items() if key(path) in stuck}
     for staging, target, hevy_id in staged:
-        if not _rename(writer, staging, target):
+        if key(target) in stuck:
+            # Its path is still taken: it waits at its staging name, which
+            # the next build re-homes (above); counted as skipped.
+            writer.failed.append(staging)
             held.add(hevy_id)
-    return archived, held
+        elif not _rename(writer, staging, target):
+            held.add(hevy_id)
+    return held
 
 
 def _rename(writer: VaultWriter, source: str, destination: str) -> bool:
-    """Rename one note inside the vault; False (recorded) if locked or taken."""
+    """Rename one note inside the vault; False (recorded) if locked, taken or gone."""
     # The writer's own path jail (writer.py is outside this change).
     target = writer._target(destination)  # noqa: SLF001
     if target.exists():
@@ -268,6 +285,10 @@ def _rename(writer: VaultWriter, source: str, destination: str) -> bool:
         writer._target(source).replace(target)  # noqa: SLF001
     except PermissionError:
         # Held open in Obsidian: skip like the writer does; next build retries.
+        writer.failed.append(source)
+        return False
+    except FileNotFoundError:
+        # Moved by another run between index and rename (WORKFLOW-BUGS 1275).
         writer.failed.append(source)
         return False
     return True
