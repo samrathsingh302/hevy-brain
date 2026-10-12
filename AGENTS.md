@@ -21,9 +21,9 @@ A standalone Python CLI that syncs full Hevy workout history into an Obsidian va
 ```
 pip install -e ".[dev]"                          # dev install (run from the repo root — see caveat)
 python -m pytest tests -q                        # 556 tests
-python -m ruff check hevy_brain tests            # lint (ruff pinned 0.15.20)
+python -m ruff check hevy_brain tests            # lint (version pinned in pyproject.toml [dev])
 python -m ruff format hevy_brain tests           # format
-mypy hevy_brain                                  # types (mypy pinned 2.1.0)
+mypy hevy_brain                                  # types (version pinned in pyproject.toml [dev])
 py -3.12 -m hevy_brain.cli <command>             # RUN THE CLI THIS WAY (see caveat)
 powershell -ExecutionPolicy Bypass -File scripts\register_task.ps1   # scheduled jobs (full hourly, coach Sun 19:00)
 ```

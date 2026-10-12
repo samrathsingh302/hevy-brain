@@ -12,7 +12,8 @@ authors = [{ name = "Samrath Singh", email = "samrathsingh302@gmail.com" }]
 keywords = ["hevy", "obsidian", "fitness", "workout", "second-brain"]
 requires-python = ">=3.12"
 dependencies = [
-    "aiohttp>=3.10",
+    # Floor raised 12/10/2026: PYSEC-2026-3545 (client-side response-parser OOB read), fixed 3.14.3.
+    "aiohttp>=3.14.3",
     "PyYAML>=6.0",
     "pydantic>=2.7",
     "anthropic>=0.40",
