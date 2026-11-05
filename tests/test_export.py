@@ -104,6 +104,54 @@ def test_set_rows_include_warmup_and_none_weight() -> None:
     assert bodyweight["weight_kg"] is None  # real None, serialised empty later
 
 
+def test_set_fields_header_pinned_with_hevy_id_last() -> None:
+    assert export.SET_FIELDS == [
+        "date",
+        "workout_title",
+        "exercise",
+        "set_index",
+        "set_type",
+        "weight_kg",
+        "reps",
+        "rpe",
+        "hevy_id",
+    ]
+
+
+def test_set_rows_carry_hevy_id_on_known_row(tmp_path: Path) -> None:
+    records = build_records(_two_workouts())
+    rows = export.set_rows(records)
+    assert [r["hevy_id"] for r in rows] == ["w1", "w1", "w1", "w2"]
+
+    out = tmp_path / "sets.csv"
+    export.export_csv(records, "sets", out)
+    header, data = _read_csv(out)
+    assert header[-1] == "hevy_id"
+    # Known row: the Bent Over Row set belongs to workout w2.
+    row = next(r for r in data if r[header.index("exercise")] == "Bent Over Row (Barbell)")
+    assert row[header.index("hevy_id")] == "w2"
+
+
+def test_same_date_and_title_stay_distinct_by_hevy_id() -> None:
+    # Two workouts can share a date and a title; hevy_id tells their sets apart.
+    raw = {
+        wid: make_workout(
+            wid,
+            "push 1",
+            start=start,
+            end=end,
+            exercises=[make_exercise("Bench Press (Barbell)", "T-BENCH", [make_set(60, 8)])],
+        )
+        for wid, start, end in (
+            ("a1", "2026-01-24T09:00:00+00:00", "2026-01-24T10:00:00+00:00"),
+            ("a2", "2026-01-24T17:00:00+00:00", "2026-01-24T18:00:00+00:00"),
+        )
+    }
+    rows = export.set_rows(build_records(raw))
+    assert {(r["date"], r["workout_title"]) for r in rows} == {("2026-01-24", "push 1")}
+    assert sorted(r["hevy_id"] for r in rows) == ["a1", "a2"]
+
+
 def test_none_serialises_as_empty_cell_not_the_string_none(tmp_path: Path) -> None:
     records = build_records(_two_workouts())
     out = tmp_path / "sets.csv"
