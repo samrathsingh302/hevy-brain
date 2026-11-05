@@ -5,6 +5,7 @@ Stdlib only, offline, read-only over the cache. Writes OUTSIDE the vault — und
 path-jailed ``Hevy/`` subfolder. ``None`` values (bodyweight sets carry
 ``weight_kg=None``; RPE is often unset) serialise as an empty cell, never the
 string ``"None"``.
+Set rows carry ``hevy_id`` because two workouts can share a date and a title.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ SET_FIELDS = [
     "weight_kg",
     "reps",
     "rpe",
+    "hevy_id",
 ]
 
 # Leading characters a spreadsheet may interpret as a formula. A cell starting
@@ -93,6 +95,7 @@ def set_rows(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         "weight_kg": workout_set.get("weight_kg"),
                         "reps": workout_set.get("reps"),
                         "rpe": workout_set.get("rpe"),
+                        "hevy_id": record["id"],
                     }
                 )
     return rows
